@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const channelId = process.env.LINE_CHANNEL_ID!;
     const channelSecret = process.env.LINE_CHANNEL_SECRET!;
 
-    // Exchange code for tokens
+    // Exchange code for LINE tokens
     const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokenRes.ok) {
-      throw new Error("Failed to exchange code for token");
+      const body = await tokenRes.text();
+      throw new Error(`LINE token exchange failed (${tokenRes.status}): ${body}`);
     }
 
     const tokenData = await tokenRes.json() as {
@@ -45,7 +47,8 @@ export async function GET(request: NextRequest) {
     });
 
     if (!profileRes.ok) {
-      throw new Error("Failed to fetch LINE profile");
+      const body = await profileRes.text();
+      throw new Error(`LINE profile fetch failed (${profileRes.status}): ${body}`);
     }
 
     const profile = await profileRes.json() as {
@@ -54,92 +57,80 @@ export async function GET(request: NextRequest) {
       pictureUrl?: string;
     };
 
-    const supabase = await createClient();
+    // Use admin client to bypass RLS for user management operations
+    const adminSupabase = createAdminClient();
 
-    // Try to find existing Supabase user by LINE user ID
-    const { data: existingUsers } = await supabase
+    // Upsert the user record in our users table
+    const { data: appUser, error: upsertError } = await adminSupabase
       .from("users")
-      .select("id")
-      .eq("line_user_id", profile.userId)
-      .limit(1);
-
-    let userId: string;
-
-    if (existingUsers && existingUsers.length > 0) {
-      userId = existingUsers[0].id;
-
-      // Update profile info
-      await supabase
-        .from("users")
-        .update({
-          display_name: profile.displayName,
-          picture_url: profile.pictureUrl || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-    } else {
-      // Create new user record
-      const { data: newUser, error: insertError } = await supabase
-        .from("users")
-        .insert({
+      .upsert(
+        {
           line_user_id: profile.userId,
           display_name: profile.displayName,
           picture_url: profile.pictureUrl || null,
-          skill_level: 5,
-          is_moderator: false,
-        })
-        .select("id")
-        .single();
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "line_user_id",
+          ignoreDuplicates: false,
+        }
+      )
+      .select("id, skill_level, is_moderator")
+      .single();
 
-      if (insertError || !newUser) {
-        throw new Error("Failed to create user record");
-      }
-      userId = newUser.id;
+    if (upsertError || !appUser) {
+      throw new Error(`User upsert failed: ${upsertError?.message}`);
     }
 
-    // Sign in via Supabase auth using email/password with a deterministic email
-    // We use a pattern: line_{userId}@badminton.app
+    // Create or retrieve the Supabase auth user (email/password with deterministic pattern)
     const lineEmail = `line_${profile.userId}@badminton.app`;
     const linePassword = `line_${profile.userId}_${channelId}`;
 
-    // Try signing in first
+    // Try to find existing auth user
+    const { data: existingAuthUsers } = await adminSupabase.auth.admin.listUsers();
+    const existingAuthUser = existingAuthUsers?.users?.find(u => u.email === lineEmail);
+
+    if (!existingAuthUser) {
+      // Create confirmed Supabase auth user (skip email confirmation)
+      const { error: createAuthError } = await adminSupabase.auth.admin.createUser({
+        email: lineEmail,
+        password: linePassword,
+        email_confirm: true,
+        user_metadata: {
+          line_user_id: profile.userId,
+          display_name: profile.displayName,
+          picture_url: profile.pictureUrl,
+          app_user_id: appUser.id,
+        },
+      });
+
+      if (createAuthError) {
+        throw new Error(`Auth user creation failed: ${createAuthError.message}`);
+      }
+    } else {
+      // Update metadata for returning user
+      await adminSupabase.auth.admin.updateUserById(existingAuthUser.id, {
+        user_metadata: {
+          line_user_id: profile.userId,
+          display_name: profile.displayName,
+          picture_url: profile.pictureUrl,
+          app_user_id: appUser.id,
+        },
+      });
+    }
+
+    // Sign in using the regular server client (sets the session cookie)
+    const supabase = await createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: lineEmail,
       password: linePassword,
     });
 
     if (signInError) {
-      // Create Supabase auth user
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: lineEmail,
-        password: linePassword,
-        options: {
-          data: {
-            line_user_id: profile.userId,
-            display_name: profile.displayName,
-            picture_url: profile.pictureUrl,
-            app_user_id: userId,
-          },
-        },
-      });
-
-      if (signUpError) {
-        throw new Error(`Auth signup failed: ${signUpError.message}`);
-      }
-
-      // Sign in after sign up
-      const { error: finalSignInError } = await supabase.auth.signInWithPassword({
-        email: lineEmail,
-        password: linePassword,
-      });
-
-      if (finalSignInError) {
-        throw new Error(`Final sign in failed: ${finalSignInError.message}`);
-      }
+      throw new Error(`Sign in failed: ${signInError.message}`);
     }
 
-    const response = NextResponse.redirect(new URL("/", request.url));
-    return response;
+    return NextResponse.redirect(new URL("/", request.url));
   } catch (err) {
     console.error("LINE auth callback error:", err);
     return NextResponse.redirect(
