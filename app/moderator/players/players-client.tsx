@@ -19,6 +19,13 @@ export default function PlayersClient({ initialPlayers }: Props) {
     skill_level: 5,
   });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Add player form state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState({ display_name: "", skill_level: 5 });
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
 
   const startEdit = (player: AppUser) => {
     setEditingId(player.id);
@@ -43,133 +50,250 @@ export default function PlayersClient({ initialPlayers }: Props) {
     }
   };
 
+  const deletePlayer = async (playerId: string) => {
+    if (!confirm("Delete this player? This cannot be undone.")) return;
+    setDeletingId(playerId);
+    try {
+      const res = await fetch(`/api/players/${playerId}`, { method: "DELETE" });
+      if (res.ok) {
+        setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+      } else {
+        const json = await res.json();
+        alert(json.error ?? "Failed to delete player");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const addPlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addForm.display_name.trim()) return;
+    setAdding(true);
+    setAddError("");
+    try {
+      const res = await fetch("/api/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: addForm.display_name.trim(), skill_level: addForm.skill_level }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setPlayers((prev) => [...prev, created].sort((a, b) => a.display_name.localeCompare(b.display_name)));
+        setAddForm({ display_name: "", skill_level: 5 });
+        setShowAddForm(false);
+      } else {
+        const json = await res.json();
+        setAddError(json.error ?? "Failed to add player");
+      }
+    } finally {
+      setAdding(false);
+    }
+  };
+
   return (
-    <div className="rounded-xl border bg-white overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
-          <tr>
-            <th className="px-4 py-3 text-left">Name</th>
-            <th className="px-4 py-3 text-center">Skill</th>
-            <th className="px-4 py-3 text-center">LINE</th>
-            <th className="px-4 py-3 text-center">Role</th>
-            <th className="px-4 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {players.map((player) => (
-            <tr key={player.id} className="hover:bg-gray-50">
-              <td className="px-4 py-3">
-                {editingId === player.id ? (
-                  <input
-                    type="text"
-                    value={editForm.display_name}
-                    onChange={(e) =>
-                      setEditForm((prev) => ({ ...prev, display_name: e.target.value }))
-                    }
-                    className="rounded border px-2 py-1 text-sm focus:border-green-400 focus:outline-none w-48"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    {player.picture_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={player.picture_url}
-                        alt={player.display_name}
-                        className="h-7 w-7 rounded-full"
-                      />
-                    ) : (
-                      <div
-                        className={cn(
-                          "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white",
-                          getSkillColor(player.skill_level)
-                        )}
-                      >
-                        {player.display_name.charAt(0)}
-                      </div>
-                    )}
-                    <span className="font-medium">{player.display_name}</span>
-                  </div>
-                )}
-              </td>
-              <td className="px-4 py-3 text-center">
-                {editingId === player.id ? (
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={editForm.skill_level}
-                    onChange={(e) =>
-                      setEditForm((prev) => ({ ...prev, skill_level: parseInt(e.target.value) }))
-                    }
-                    className="w-16 rounded border px-2 py-1 text-center text-sm focus:border-green-400 focus:outline-none"
-                  />
-                ) : (
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-bold",
-                      getSkillTextColor(player.skill_level),
-                      "bg-gray-100"
-                    )}
-                  >
-                    {player.skill_level}
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-center">
-                {player.line_user_id ? (
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                    Linked
-                  </span>
-                ) : (
-                  <span className="text-xs text-gray-300">–</span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-center">
-                {player.is_moderator ? (
-                  <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
-                    Mod
-                  </span>
-                ) : (
-                  <span className="text-xs text-gray-400">Player</span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-right">
-                {editingId === player.id ? (
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="text-xs text-gray-500 hover:text-gray-700"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => saveEdit(player.id)}
-                      disabled={saving}
-                      className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60"
-                    >
-                      {saving ? "..." : "Save"}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => startEdit(player)}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Edit
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-          {players.length === 0 && (
+    <div className="space-y-4">
+      {/* Add Player panel */}
+      {showAddForm ? (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+          <h2 className="mb-3 text-sm font-semibold text-green-800">Add New Player</h2>
+          <form onSubmit={addPlayer} className="flex flex-wrap items-end gap-3">
+            <div className="flex-1" style={{ minWidth: "160px" }}>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Name</label>
+              <input
+                type="text"
+                placeholder="Player name"
+                value={addForm.display_name}
+                onChange={(e) => setAddForm((f) => ({ ...f, display_name: e.target.value }))}
+                className="w-full rounded border px-3 py-2 text-sm focus:border-green-400 focus:outline-none"
+                autoFocus
+              />
+            </div>
+            <div className="flex-shrink-0">
+              <label className="mb-1 block text-xs font-medium text-gray-600">Skill (1–10)</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={addForm.skill_level}
+                onChange={(e) => setAddForm((f) => ({ ...f, skill_level: parseInt(e.target.value) || 5 }))}
+                className="w-20 rounded border px-3 py-2 text-center text-sm focus:border-green-400 focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowAddForm(false); setAddError(""); }}
+                className="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={adding || !addForm.display_name.trim()}
+                className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+              >
+                {adding ? "Adding…" : "Add Player"}
+              </button>
+            </div>
+          </form>
+          {addError && <p className="mt-2 text-xs text-red-600">{addError}</p>}
+          <p className="mt-2 text-xs text-gray-500">
+            The player will appear without a LINE account. They can link their account later by logging in via LINE.
+          </p>
+        </div>
+      ) : (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            + Add Player
+          </button>
+        </div>
+      )}
+
+      {/* Players table */}
+      <div className="overflow-x-auto rounded-xl border bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
-                No players yet. They&apos;ll appear here once they sign in via LINE.
-              </td>
+              <th className="px-4 py-3 text-left">Name</th>
+              <th className="px-4 py-3 text-center">Skill</th>
+              <th className="px-4 py-3 text-center">LINE</th>
+              <th className="px-4 py-3 text-center">Role</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y">
+            {players.map((player) => (
+              <tr key={player.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  {editingId === player.id ? (
+                    <input
+                      type="text"
+                      value={editForm.display_name}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, display_name: e.target.value }))
+                      }
+                      className="rounded border px-2 py-1 text-sm focus:border-green-400 focus:outline-none w-48"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      {player.picture_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={player.picture_url}
+                          alt={player.display_name}
+                          className="h-7 w-7 rounded-full"
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white",
+                            getSkillColor(player.skill_level)
+                          )}
+                        >
+                          {player.display_name.charAt(0)}
+                        </div>
+                      )}
+                      <span className="font-medium">{player.display_name}</span>
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {editingId === player.id ? (
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={editForm.skill_level}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, skill_level: parseInt(e.target.value) }))
+                      }
+                      className="w-16 rounded border px-2 py-1 text-center text-sm focus:border-green-400 focus:outline-none"
+                    />
+                  ) : (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-bold",
+                        getSkillTextColor(player.skill_level),
+                        "bg-gray-100"
+                      )}
+                    >
+                      {player.skill_level}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {player.line_user_id ? (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
+                      Linked
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
+                      Not linked
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {player.is_moderator ? (
+                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
+                      Mod
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">Player</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {editingId === player.id ? (
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => saveEdit(player.id)}
+                        disabled={saving}
+                        className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                      >
+                        {saving ? "…" : "Save"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => startEdit(player)}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      {!player.line_user_id && (
+                        <button
+                          onClick={() => deletePlayer(player.id)}
+                          disabled={deletingId === player.id}
+                          className="text-xs text-red-500 hover:underline disabled:opacity-50"
+                        >
+                          {deletingId === player.id ? "…" : "Delete"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {players.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                  No players yet. Add one above or they&apos;ll appear here once they sign in via LINE.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

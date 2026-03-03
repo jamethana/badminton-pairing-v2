@@ -11,7 +11,10 @@ export default async function PlayersPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Players</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Players</h1>
+        <p className="text-sm text-gray-500">{(players ?? []).length} total</p>
+      </div>
       <PlayersClient initialPlayers={players ?? []} />
     </div>
   );
