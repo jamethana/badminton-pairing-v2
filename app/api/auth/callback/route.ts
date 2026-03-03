@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
     const linePassword = `line_${profile.userId}_${channelId}`;
 
     // The Supabase SSR client writes session cookies directly onto successResponse
+    const setCookieLog: string[] = [];
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -96,9 +97,10 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll();
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              successResponse.cookies.set(name, value, options)
-            );
+            cookiesToSet.forEach(({ name, value, options }) => {
+              successResponse.cookies.set(name, value, options);
+              setCookieLog.push(`${name}=${value.substring(0, 20)}...`);
+            });
           },
         },
       }
@@ -109,10 +111,12 @@ export async function GET(request: NextRequest) {
       email: lineEmail,
       password: linePassword,
     });
+    console.log(`[callback] signIn1: user=${signInData?.user?.id ?? "null"} err=${signInError?.message ?? "none"} cookiesSet=${setCookieLog.join("|")}`);
 
     if (!signInError && signInData.user) {
       // Returning user: ensure JWT metadata has line_user_id (fix for users created before this patch)
       if (!signInData.user.user_metadata?.line_user_id) {
+        console.log("[callback] updating stale metadata for user:", signInData.user.id);
         await adminSupabase.auth.admin.updateUserById(signInData.user.id, {
           user_metadata: {
             line_user_id: profile.userId,
@@ -126,6 +130,7 @@ export async function GET(request: NextRequest) {
           email: lineEmail,
           password: linePassword,
         });
+        console.log(`[callback] reSignIn: err=${reSignInError?.message ?? "none"} cookiesSet=${setCookieLog.join("|")}`);
         if (reSignInError) {
           console.error("Re-sign-in after metadata update failed:", reSignInError.message);
           return NextResponse.redirect(new URL("/login?error=sign_in_failed", request.url));
@@ -144,6 +149,7 @@ export async function GET(request: NextRequest) {
           app_user_id: appUser.id,
         },
       });
+      console.log(`[callback] createUser: err=${createError?.message ?? "none"}`);
 
       if (createError) {
         console.error("Auth user creation failed:", createError.message);
@@ -154,6 +160,7 @@ export async function GET(request: NextRequest) {
         email: lineEmail,
         password: linePassword,
       });
+      console.log(`[callback] signIn2: err=${finalSignInError?.message ?? "none"} cookiesSet=${setCookieLog.join("|")}`);
 
       if (finalSignInError) {
         console.error("Sign-in after create failed:", finalSignInError.message);
@@ -161,6 +168,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    console.log(`[callback] returning successResponse, Set-Cookie count: ${successResponse.cookies.getAll().length}`);
     return successResponse;
   } catch (err) {
     console.error("LINE auth callback error:", err);
