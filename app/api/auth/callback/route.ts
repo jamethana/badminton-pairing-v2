@@ -14,10 +14,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Build the success redirect response early so we can set cookies on it
+  // Build the redirect response early so we can set session cookies directly on it
   const successResponse = NextResponse.redirect(new URL("/", request.url));
-  const failResponse = (msg: string) =>
-    NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(msg)}`, request.url));
 
   try {
     const callbackUrl = process.env.NEXT_PUBLIC_LINE_CALLBACK_URL!;
@@ -40,22 +38,20 @@ export async function GET(request: NextRequest) {
     if (!tokenRes.ok) {
       const body = await tokenRes.text();
       console.error(`LINE token exchange failed (${tokenRes.status}):`, body);
-      return failResponse("token_exchange_failed");
+      return NextResponse.redirect(new URL("/login?error=token_exchange_failed", request.url));
     }
 
-    const tokenData = await tokenRes.json() as {
-      access_token: string;
-    };
+    const { access_token } = await tokenRes.json() as { access_token: string };
 
     // Fetch LINE profile
     const profileRes = await fetch("https://api.line.me/v2/profile", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      headers: { Authorization: `Bearer ${access_token}` },
     });
 
     if (!profileRes.ok) {
       const body = await profileRes.text();
       console.error(`LINE profile fetch failed (${profileRes.status}):`, body);
-      return failResponse("profile_fetch_failed");
+      return NextResponse.redirect(new URL("/login?error=profile_fetch_failed", request.url));
     }
 
     const profile = await profileRes.json() as {
@@ -64,10 +60,10 @@ export async function GET(request: NextRequest) {
       pictureUrl?: string;
     };
 
-    // Use admin client (service role) to bypass RLS
+    // Use admin client (service role) to bypass RLS for user management
     const adminSupabase = createAdminClient();
 
-    // Upsert the user record in our users table
+    // Upsert the app-level user record
     const { data: appUser, error: upsertError } = await adminSupabase
       .from("users")
       .upsert(
@@ -84,30 +80,13 @@ export async function GET(request: NextRequest) {
 
     if (upsertError || !appUser) {
       console.error("User upsert failed:", upsertError);
-      return failResponse("user_upsert_failed");
+      return NextResponse.redirect(new URL("/login?error=user_upsert_failed", request.url));
     }
 
-    // Deterministic Supabase auth credentials derived from LINE user ID
     const lineEmail = `line_${profile.userId}@badminton.app`;
     const linePassword = `line_${profile.userId}_${channelId}`;
 
-    // Try to create the auth user (email_confirm: true bypasses email confirmation).
-    // If the user already exists, createUser returns an error — that's fine, we just sign in.
-    await adminSupabase.auth.admin.createUser({
-      email: lineEmail,
-      password: linePassword,
-      email_confirm: true,
-      user_metadata: {
-        line_user_id: profile.userId,
-        display_name: profile.displayName,
-        picture_url: profile.pictureUrl,
-        app_user_id: appUser.id,
-      },
-    });
-    // Ignore createUser errors — the user may already exist, which is fine.
-
-    // Create a Supabase client that writes session cookies directly onto the
-    // redirect response (not via next/headers, which wouldn't attach to the redirect).
+    // The Supabase SSR client writes session cookies directly onto successResponse
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -125,19 +104,66 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    // Try signing in first — works for returning users
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: lineEmail,
       password: linePassword,
     });
 
-    if (signInError) {
-      console.error("Sign in failed:", signInError.message);
-      return failResponse("sign_in_failed");
+    if (!signInError && signInData.user) {
+      // Returning user: ensure JWT metadata has line_user_id (fix for users created before this patch)
+      if (!signInData.user.user_metadata?.line_user_id) {
+        await adminSupabase.auth.admin.updateUserById(signInData.user.id, {
+          user_metadata: {
+            line_user_id: profile.userId,
+            display_name: profile.displayName,
+            picture_url: profile.pictureUrl,
+            app_user_id: appUser.id,
+          },
+        });
+        // Re-sign-in so the new JWT contains the updated metadata
+        const { error: reSignInError } = await supabase.auth.signInWithPassword({
+          email: lineEmail,
+          password: linePassword,
+        });
+        if (reSignInError) {
+          console.error("Re-sign-in after metadata update failed:", reSignInError.message);
+          return NextResponse.redirect(new URL("/login?error=sign_in_failed", request.url));
+        }
+      }
+    } else {
+      // New user: create confirmed auth account with full metadata
+      const { error: createError } = await adminSupabase.auth.admin.createUser({
+        email: lineEmail,
+        password: linePassword,
+        email_confirm: true,
+        user_metadata: {
+          line_user_id: profile.userId,
+          display_name: profile.displayName,
+          picture_url: profile.pictureUrl,
+          app_user_id: appUser.id,
+        },
+      });
+
+      if (createError) {
+        console.error("Auth user creation failed:", createError.message);
+        return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
+      }
+
+      const { error: finalSignInError } = await supabase.auth.signInWithPassword({
+        email: lineEmail,
+        password: linePassword,
+      });
+
+      if (finalSignInError) {
+        console.error("Sign-in after create failed:", finalSignInError.message);
+        return NextResponse.redirect(new URL("/login?error=sign_in_failed", request.url));
+      }
     }
 
     return successResponse;
   } catch (err) {
     console.error("LINE auth callback error:", err);
-    return failResponse("auth_failed");
+    return NextResponse.redirect(new URL("/login?error=auth_failed", request.url));
   }
 }
