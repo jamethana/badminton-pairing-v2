@@ -202,23 +202,23 @@ export default function PlayerSessionClient({
 
           {myCurrentGame && (
             <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
-              <p className="mb-1 text-xs font-semibold text-green-700">
+              <p className="mb-1.5 text-xs font-semibold text-green-700">
                 🏸 Now playing on Court {myCurrentGame.court_number}! (Team {myTeam})
               </p>
               <div className="text-sm text-gray-700">
                 <span className="font-medium">
-                  {getPlayer(myCurrentGame.team_a_player_1)?.display_name} &{" "}
+                  {getPlayer(myCurrentGame.team_a_player_1)?.display_name} &amp;{" "}
                   {getPlayer(myCurrentGame.team_a_player_2)?.display_name}
                 </span>
                 <span className="mx-2 text-gray-400">vs</span>
                 <span className="font-medium">
-                  {getPlayer(myCurrentGame.team_b_player_1)?.display_name} &{" "}
+                  {getPlayer(myCurrentGame.team_b_player_1)?.display_name} &amp;{" "}
                   {getPlayer(myCurrentGame.team_b_player_2)?.display_name}
                 </span>
               </div>
               <button
                 onClick={() => setResultModal({ pairingId: myCurrentGame.id })}
-                className="mt-2 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+                className="mt-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
               >
                 Record Result
               </button>
@@ -249,14 +249,14 @@ export default function PlayerSessionClient({
                   <p className="mb-1.5 text-xs font-semibold text-gray-500">
                     Court {p.court_number} {isMyGame && "← You're here!"}
                   </p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>
-                      {getPlayer(p.team_a_player_1)?.display_name} &{" "}
+                  <div className="text-sm">
+                    <span className="font-medium">
+                      {getPlayer(p.team_a_player_1)?.display_name} &amp;{" "}
                       {getPlayer(p.team_a_player_2)?.display_name}
                     </span>
-                    <span className="text-gray-400">vs</span>
-                    <span>
-                      {getPlayer(p.team_b_player_1)?.display_name} &{" "}
+                    <span className="mx-2 text-gray-400">vs</span>
+                    <span className="font-medium">
+                      {getPlayer(p.team_b_player_1)?.display_name} &amp;{" "}
                       {getPlayer(p.team_b_player_2)?.display_name}
                     </span>
                   </div>
@@ -295,7 +295,7 @@ export default function PlayerSessionClient({
                   <div
                     key={p.id}
                     className={cn(
-                      "flex items-center justify-between rounded-lg px-3 py-2 text-sm",
+                      "rounded-lg px-3 py-2 text-sm",
                       isMyGame
                         ? iWon
                           ? "bg-green-50 border border-green-200"
@@ -303,18 +303,24 @@ export default function PlayerSessionClient({
                         : "bg-gray-50"
                     )}
                   >
-                    <span className="text-gray-600">
-                      Court {p.court_number}: {getPlayer(p.team_a_player_1)?.display_name} &amp;{" "}
-                      {getPlayer(p.team_a_player_2)?.display_name}{" "}
-                      vs {getPlayer(p.team_b_player_1)?.display_name} &amp;{" "}
-                      {getPlayer(p.team_b_player_2)?.display_name}
-                    </span>
-                    {result && (
-                      <span className="font-bold text-gray-800">
-                        {result.team_a_score}–{result.team_b_score}
-                        {isMyGame && (iWon ? " 🏆" : " ✗")}
-                      </span>
-                    )}
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 text-xs text-gray-500">Court {p.court_number}</p>
+                      {result && (
+                        <span className="flex-shrink-0 font-bold text-gray-800">
+                          {result.team_a_score}–{result.team_b_score}
+                          {isMyGame && (iWon ? " 🏆" : " ✗")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-gray-600">
+                      <span className="font-medium">{getPlayer(p.team_a_player_1)?.display_name}</span>
+                      {" & "}
+                      <span className="font-medium">{getPlayer(p.team_a_player_2)?.display_name}</span>
+                      <span className="mx-1.5 text-gray-400">vs</span>
+                      <span className="font-medium">{getPlayer(p.team_b_player_1)?.display_name}</span>
+                      {" & "}
+                      <span className="font-medium">{getPlayer(p.team_b_player_2)?.display_name}</span>
+                    </p>
                   </div>
                 );
               })}

@@ -43,18 +43,18 @@ export default async function ModeratorDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-white p-4">
-          <p className="text-sm text-gray-500">Total Players</p>
-          <p className="text-3xl font-bold text-gray-900">{playerCount?.length ?? 0}</p>
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="rounded-xl border bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-gray-500">Total Players</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{playerCount?.length ?? 0}</p>
         </div>
-        <div className="rounded-xl border bg-white p-4">
-          <p className="text-sm text-gray-500">Active Sessions</p>
-          <p className="text-3xl font-bold text-green-600">{activeSessions.length}</p>
+        <div className="rounded-xl border bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-gray-500">Active</p>
+          <p className="text-2xl sm:text-3xl font-bold text-green-600">{activeSessions.length}</p>
         </div>
-        <div className="rounded-xl border bg-white p-4">
-          <p className="text-sm text-gray-500">Upcoming</p>
-          <p className="text-3xl font-bold text-blue-600">{upcomingSessions.length}</p>
+        <div className="rounded-xl border bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-gray-500">Upcoming</p>
+          <p className="text-2xl sm:text-3xl font-bold text-blue-600">{upcomingSessions.length}</p>
         </div>
       </div>
 

@@ -274,7 +274,7 @@ export default function CourtDashboardClient({
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "px-4 py-2 text-sm font-medium capitalize transition-colors",
+              "px-6 py-3 text-sm font-medium capitalize transition-colors",
               activeTab === tab
                 ? "border-b-2 border-green-600 text-green-700"
                 : "text-gray-500 hover:text-gray-700"
@@ -356,42 +356,44 @@ export default function CourtDashboardClient({
             </div>
 
             {addingPlayer && (
-              <form onSubmit={handleAddPlayer} className="mb-3 flex items-end gap-2 rounded-lg border bg-gray-50 p-3">
-                <div className="flex-1">
+              <form onSubmit={handleAddPlayer} className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border bg-gray-50 p-3">
+                <div className="min-w-0 flex-1" style={{ minWidth: "120px" }}>
                   <label className="mb-1 block text-xs font-medium text-gray-600">Name</label>
                   <input
                     type="text"
                     value={newPlayerName}
                     onChange={(e) => setNewPlayerName(e.target.value)}
                     placeholder="Player name"
-                    className="w-full rounded border px-2 py-1.5 text-sm focus:border-green-400 focus:outline-none"
+                    className="w-full rounded border px-2 py-2 text-sm focus:border-green-400 focus:outline-none"
                   />
                 </div>
-                <div className="w-20">
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Skill</label>
+                <div className="w-20 flex-shrink-0">
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Skill (1–10)</label>
                   <input
                     type="number"
                     min={1}
                     max={10}
                     value={newPlayerSkill}
                     onChange={(e) => setNewPlayerSkill(parseInt(e.target.value))}
-                    className="w-full rounded border px-2 py-1.5 text-sm focus:border-green-400 focus:outline-none"
+                    className="w-full rounded border px-2 py-2 text-sm focus:border-green-400 focus:outline-none"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAddingPlayer(false)}
-                  className="rounded-lg border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddingPlayer(false)}
+                    className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </form>
             )}
 
@@ -424,7 +426,7 @@ export default function CourtDashboardClient({
                       <button
                         onClick={() => handleToggleActive(sp.id, sp.is_active)}
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
+                          "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                           sp.is_active
                             ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
                             : "bg-gray-100 text-gray-500 hover:bg-green-50 hover:text-green-600"
@@ -446,41 +448,41 @@ export default function CourtDashboardClient({
       )}
 
       {activeTab === "stats" && (
-        <div className="rounded-xl border bg-white overflow-hidden">
+        <div className="overflow-x-auto rounded-xl border bg-white">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-4 py-3 text-left">Player</th>
-                <th className="px-4 py-3 text-center">Active</th>
-                <th className="px-4 py-3 text-center">Played</th>
-                <th className="px-4 py-3 text-center">Sat</th>
-                <th className="px-4 py-3 text-center">Skill</th>
+                <th className="px-3 py-3 text-center">Active</th>
+                <th className="px-3 py-3 text-center">Played</th>
+                <th className="px-3 py-3 text-center">Sat</th>
+                <th className="px-3 py-3 text-center">Skill</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {sortedStats.map(({ sp, user, matchesPlayed, gamesSince }) => (
                 <tr key={sp.id} className={cn(!sp.is_active && "opacity-50")}>
                   <td className="px-4 py-3 font-medium">{user.display_name}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 py-3 text-center">
                     <button
                       onClick={() => handleToggleActive(sp.id, sp.is_active)}
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        "rounded-full px-3 py-1.5 text-xs font-medium",
                         sp.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                       )}
                     >
                       {sp.is_active ? "Yes" : "No"}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-center font-medium">{matchesPlayed}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 py-3 text-center font-medium">{matchesPlayed}</td>
+                  <td className="px-3 py-3 text-center">
                     {gamesSince > 0 ? (
                       <span className={cn("font-medium", gamesSince >= 3 && "text-amber-600")}>
                         {gamesSince}
                       </span>
                     ) : "–"}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 py-3 text-center">
                     <span className="font-semibold">{user.skill_level}</span>
                   </td>
                 </tr>

@@ -90,21 +90,21 @@ export default async function StatsPage() {
         <h1 className="mb-6 text-2xl font-bold text-gray-900">My Statistics</h1>
 
         {/* Overall stats */}
-        <div className="mb-6 grid grid-cols-3 gap-4">
-          <div className="rounded-xl border bg-white p-4 text-center">
-            <p className="text-sm text-gray-500">Games Played</p>
-            <p className="text-3xl font-bold text-gray-900">{completed.length}</p>
+        <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="rounded-xl border bg-white p-3 sm:p-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Games</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{completed.length}</p>
           </div>
-          <div className="rounded-xl border bg-white p-4 text-center">
-            <p className="text-sm text-gray-500">Win Rate</p>
-            <p className={cn("text-3xl font-bold", winRate >= 50 ? "text-green-600" : "text-red-500")}>
+          <div className="rounded-xl border bg-white p-3 sm:p-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Win Rate</p>
+            <p className={cn("text-2xl sm:text-3xl font-bold", winRate >= 50 ? "text-green-600" : "text-red-500")}>
               {winRate}%
             </p>
           </div>
-          <div className="rounded-xl border bg-white p-4 text-center">
-            <p className="text-sm text-gray-500">Skill Level</p>
-            <div className="flex items-center justify-center gap-2 mt-1">
-              <div className={cn("h-4 w-4 rounded-full", getSkillColor(user.appUser.skill_level))} />
+          <div className="rounded-xl border bg-white p-3 sm:p-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Skill</p>
+            <div className="flex items-center justify-center gap-1 sm:gap-2 mt-1">
+              <div className={cn("h-3 w-3 sm:h-4 sm:w-4 rounded-full", getSkillColor(user.appUser.skill_level))} />
               <p className="text-2xl font-bold text-gray-900">{user.appUser.skill_level}</p>
             </div>
           </div>
