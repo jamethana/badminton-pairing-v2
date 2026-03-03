@@ -1,0 +1,13 @@
+---
+description: Self-debugging rules for autonomous error resolution
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+# Debugging Protocol
+When fixing a bug:
+1. Reproduce: Use Chrome DevTools MCP to open the page and observe the error.
+2. Diagnose: Check console errors, network failures, and DOM state.
+3. Investigate: Read related source files and Supabase schema.
+4. Fix: Apply the minimal change needed.
+5. Verify: Re-check via Chrome DevTools that the issue is resolved.
+6. Never apply the same fix twice — if it didn't work, try a different approach.

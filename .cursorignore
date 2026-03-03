@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# next.js build output
+.next/
+out/
+build/
+
+# testing
+coverage/
+
+# package manager
+.pnp
+.pnp.js
+
+# env files
+.env*.local
+.env
+
+# vercel
+.vercel/
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# typescript build info
+*.tsbuildinfo
+
+# lock files (large, not useful for AI context)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

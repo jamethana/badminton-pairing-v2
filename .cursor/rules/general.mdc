@@ -1,0 +1,25 @@
+---
+description: General project rules
+globs: ["**/*"]
+alwaysApply: true
+---
+# Project Context
+- This is a Next.js app deployed on Vercel with Supabase as the backend.
+- Use TypeScript strictly. No `any` types.
+- Use functional components and React hooks.
+
+# Autonomous Debugging Workflow
+When you encounter an error:
+1. Read the error message and stack trace carefully.
+2. Use Chrome DevTools MCP to inspect the running app (console logs, network requests, DOM).
+3. Check Supabase MCP for database/schema issues if backend-related.
+4. Check Vercel MCP for deployment logs if deploy-related.
+5. Propose and apply a fix, then verify it works.
+
+# Deployment
+- Use Vercel MCP to check deployment status and logs.
+- Use GitHub MCP to create PRs and manage issues.
+
+# Database
+- Always use Supabase MCP to verify schema before writing migrations.
+- Use Row Level Security (RLS) on all tables.
