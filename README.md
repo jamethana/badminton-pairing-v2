@@ -1,36 +1,125 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Badminton Pairing App
 
-## Getting Started
+A real-time badminton session management app built with Next.js, Supabase, and Line Login.
 
-First, run the development server:
+## Features
+
+- **Line Login** – players sign in with their LINE account
+- **Moderator Dashboard** – create sessions, manage players, assign courts
+- **Smart Pairing Algorithm** – auto-generates skill-balanced pairs with sitting-priority rotation
+- **Live Court Dashboard** – real-time view of active games, available players, and results
+- **Player Views** – join sessions, claim name-slots, see current games, record results
+- **Statistics** – per-player win/loss tracking across sessions
+
+## Tech Stack
+
+- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Supabase (PostgreSQL, Auth, RLS)
+- **Auth**: Custom Line Login OAuth flow
+- **Deployment**: Vercel
+
+---
+
+## Local Development
+
+1. Copy `.env.example` to `.env.local` and fill in values:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run dev server:
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## Deployment Guide
+
+### 1. Deploy to Vercel
+
+**Option A – Vercel Dashboard (recommended)**
+
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import the GitHub repository `jamethana/badminton-pairing-v2`
+3. Set **Root Directory** to the project folder (if needed)
+4. Add the environment variables below in **Settings → Environment Variables**
+5. Deploy
+
+**Option B – Vercel CLI**
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install -g vercel
+vercel login
+vercel --prod
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment Variables on Vercel
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Add these in your Vercel project's **Settings → Environment Variables**:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://ibcnopjypgupkonxvwkb.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
+| `LINE_CHANNEL_ID` | Your LINE Login Channel ID |
+| `LINE_CHANNEL_SECRET` | Your LINE Login Channel Secret |
+| `NEXT_PUBLIC_LINE_CALLBACK_URL` | `https://your-app.vercel.app/api/auth/callback` |
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Line Login Channel Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Go to [LINE Developers Console](https://developers.line.biz/)
+2. Create a new **LINE Login** channel (or use an existing one)
+3. Under **LINE Login** tab → **Callback URL**, add:
+   ```
+   https://your-app.vercel.app/api/auth/callback
+   ```
+   For local dev also add: `http://localhost:3000/api/auth/callback`
+4. Note your **Channel ID** and **Channel Secret** from the **Basic settings** tab
+5. Add them to Vercel environment variables (step 2 above)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Supabase Configuration
 
-## Deploy on Vercel
+The database schema and RLS policies are already set up. Make sure:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Authentication → URL Configuration** in Supabase dashboard:
+  - Site URL: `https://your-app.vercel.app`
+  - Redirect URLs: `https://your-app.vercel.app/**`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 5. Set First Moderator
+
+After your first login via LINE:
+
+1. Go to Supabase Dashboard → Table Editor → `users`
+2. Find your user record and set `is_moderator = true`
+3. Refresh the app – you'll now see the Moderator Dashboard
+
+---
+
+## Architecture Notes
+
+### Authentication Flow
+
+1. User clicks "Login with LINE" → redirected to LINE OAuth
+2. LINE redirects back to `/api/auth/callback` with auth code
+3. App exchanges code for LINE profile → upserts record in `users` table
+4. Supabase Auth session created using deterministic email/password
+5. Middleware protects all routes except `/login` and `/api/auth`
+
+### Pairing Algorithm
+
+The `lib/algorithms/pairing.ts` algorithm selects 4 players per court by scoring candidates on:
+
+- **Sitting priority** (weight 3): players who sat longest get preference
+- **Match count fairness** (weight 2): players who played fewer games
+- **Skill balance**: teams are formed to minimize skill gap
+- **Partner/opponent variety**: avoids repeating past pairings
+
+The best 4 players are split into balanced teams, automatically suggested to the moderator who can then swap any player before confirming.
