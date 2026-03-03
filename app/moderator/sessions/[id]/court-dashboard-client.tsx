@@ -1,0 +1,527 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import CourtCard from "@/components/court-card";
+import PlayerBadge from "@/components/player-badge";
+import AssignmentModal from "@/components/assignment-modal";
+import ResultModal from "@/components/result-modal";
+import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
+import { cn } from "@/lib/utils";
+import type { Tables } from "@/types/database";
+
+type Session = Tables<"sessions">;
+type Pairing = Tables<"pairings"> & {
+  game_results?: Tables<"game_results"> | null;
+};
+type SessionPlayer = Tables<"session_players"> & {
+  users: Tables<"users"> | null;
+};
+
+interface Props {
+  session: Session;
+  initialSessionPlayers: SessionPlayer[];
+  initialPairings: Pairing[];
+}
+
+export default function CourtDashboardClient({
+  session,
+  initialSessionPlayers,
+  initialPairings,
+}: Props) {
+  const router = useRouter();
+  const [sessionPlayers, setSessionPlayers] = useState(initialSessionPlayers);
+  const [pairings, setPairings] = useState(initialPairings);
+  const [activeTab, setActiveTab] = useState<"game" | "stats">("game");
+
+  // Assignment modal state
+  const [assignModal, setAssignModal] = useState<{
+    courtNumber: number;
+    existingPairingId?: string;
+    suggestion?: { teamA: [string, string]; teamB: [string, string] };
+  } | null>(null);
+
+  // Result modal state
+  const [resultModal, setResultModal] = useState<{
+    pairingId: string;
+    courtNumber: number;
+  } | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [addingPlayer, setAddingPlayer] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerSkill, setNewPlayerSkill] = useState(5);
+
+  const busyIds = getPlayersInCurrentGame(pairings);
+
+  const statsMap = computePlayerStats(
+    pairings,
+    sessionPlayers.map((sp) => sp.users?.id).filter((id): id is string => id !== null)
+  );
+
+  const activePlayers = sessionPlayers
+    .filter((sp) => sp.is_active && sp.users)
+    .map((sp) => sp.users!);
+
+  const availablePlayers = activePlayers.filter((p) => !busyIds.has(p.id));
+
+  const getCourtPairing = (courtNumber: number) =>
+    pairings.find((p) => p.court_number === courtNumber && p.status === "in_progress");
+
+  const getPlayerById = (id: string) =>
+    sessionPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
+
+  const handleCourtClick = async (courtNumber: number) => {
+    const existing = getCourtPairing(courtNumber);
+    if (existing) {
+      setResultModal({ pairingId: existing.id, courtNumber });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/sessions/${session.id}/pairings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ generate: true, court_number: courtNumber }),
+      });
+      const data = await res.json();
+      const suggestion = res.ok ? data.suggestion : undefined;
+      setAssignModal({ courtNumber, suggestion });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmAssignment = async (assignment: {
+    teamA: [string, string];
+    teamB: [string, string];
+  }) => {
+    if (!assignModal) return;
+
+    const res = await fetch(`/api/sessions/${session.id}/pairings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        court_number: assignModal.courtNumber,
+        team_a_player_1: assignment.teamA[0],
+        team_a_player_2: assignment.teamA[1],
+        team_b_player_1: assignment.teamB[0],
+        team_b_player_2: assignment.teamB[1],
+      }),
+    });
+
+    if (res.ok) {
+      const newPairing = await res.json();
+      setPairings((prev) => [...prev, newPairing]);
+
+      // Activate session if it's still draft
+      if (session.status === "draft") {
+        await fetch(`/api/sessions/${session.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "active" }),
+        });
+        router.refresh();
+      }
+    }
+    setAssignModal(null);
+  };
+
+  const handleRecordResult = async (result: {
+    team_a_score: number;
+    team_b_score: number;
+    winner_team: "team_a" | "team_b";
+  }) => {
+    if (!resultModal) return;
+
+    const res = await fetch(
+      `/api/sessions/${session.id}/pairings/${resultModal.pairingId}/results`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result),
+      }
+    );
+
+    if (res.ok) {
+      setPairings((prev) =>
+        prev.map((p) =>
+          p.id === resultModal.pairingId
+            ? { ...p, status: "completed", completed_at: new Date().toISOString() }
+            : p
+        )
+      );
+    }
+    setResultModal(null);
+  };
+
+  const handleVoidGame = async () => {
+    if (!resultModal) return;
+
+    const res = await fetch(
+      `/api/sessions/${session.id}/pairings/${resultModal.pairingId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "voided" }),
+      }
+    );
+
+    if (res.ok) {
+      setPairings((prev) =>
+        prev.map((p) =>
+          p.id === resultModal.pairingId
+            ? { ...p, status: "voided", completed_at: new Date().toISOString() }
+            : p
+        )
+      );
+    }
+    setResultModal(null);
+  };
+
+  const handleToggleActive = async (spId: string, currentActive: boolean) => {
+    const res = await fetch(
+      `/api/sessions/${session.id}/players/${spId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !currentActive }),
+      }
+    );
+
+    if (res.ok) {
+      setSessionPlayers((prev) =>
+        prev.map((sp) =>
+          sp.id === spId ? { ...sp, is_active: !currentActive } : sp
+        )
+      );
+    }
+  };
+
+  const handleAddCourt = async () => {
+    const res = await fetch(`/api/sessions/${session.id}/courts`, {
+      method: "POST",
+    });
+    if (res.ok) {
+      router.refresh();
+    }
+  };
+
+  const handleAddPlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlayerName.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/sessions/${session.id}/players`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: newPlayerName, skill_level: newPlayerSkill }),
+      });
+      if (res.ok) {
+        const sp = await res.json();
+        setSessionPlayers((prev) => [...prev, sp]);
+        setNewPlayerName("");
+        setNewPlayerSkill(5);
+        setAddingPlayer(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const numCourts = session.num_courts;
+  const courts = Array.from({ length: numCourts }, (_, i) => i + 1);
+
+  const resultPairing = resultModal
+    ? pairings.find((p) => p.id === resultModal.pairingId)
+    : null;
+
+  const completedPairings = pairings.filter((p) => p.status === "completed");
+  const avgAvailSkill =
+    availablePlayers.length > 0
+      ? (availablePlayers.reduce((s, p) => s + p.skill_level, 0) / availablePlayers.length).toFixed(1)
+      : "–";
+
+  // Stats tab data
+  const sortedStats = sessionPlayers
+    .filter((sp) => sp.users)
+    .map((sp) => {
+      const s = statsMap.get(sp.users!.id);
+      return {
+        sp,
+        user: sp.users!,
+        matchesPlayed: s?.matchesPlayed ?? 0,
+        wins: s?.wins ?? 0,
+        losses: s?.losses ?? 0,
+        gamesSince: s?.gamesSinceLastPlayed ?? 0,
+      };
+    })
+    .sort((a, b) => b.matchesPlayed - a.matchesPlayed);
+
+  const playersWithStats = availablePlayers.map((p) => ({
+    ...p,
+    matchesPlayed: statsMap.get(p.id)?.matchesPlayed ?? 0,
+    gamesSinceLastPlayed: statsMap.get(p.id)?.gamesSinceLastPlayed ?? 0,
+  }));
+
+  return (
+    <>
+      {/* Tabs */}
+      <div className="mb-4 flex border-b">
+        {(["game", "stats"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "px-4 py-2 text-sm font-medium capitalize transition-colors",
+              activeTab === tab
+                ? "border-b-2 border-green-600 text-green-700"
+                : "text-gray-500 hover:text-gray-700"
+            )}
+          >
+            {tab === "game" ? "Game" : "Stats"}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "game" && (
+        <>
+          {/* Courts grid */}
+          <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {courts.map((courtNumber) => {
+              const pairing = getCourtPairing(courtNumber);
+              const teamA = pairing
+                ? ([getPlayerById(pairing.team_a_player_1), getPlayerById(pairing.team_a_player_2)] as [
+                    ReturnType<typeof getPlayerById>,
+                    ReturnType<typeof getPlayerById>
+                  ])
+                : undefined;
+              const teamB = pairing
+                ? ([getPlayerById(pairing.team_b_player_1), getPlayerById(pairing.team_b_player_2)] as [
+                    ReturnType<typeof getPlayerById>,
+                    ReturnType<typeof getPlayerById>
+                  ])
+                : undefined;
+
+              return (
+                <CourtCard
+                  key={courtNumber}
+                  courtNumber={courtNumber}
+                  teamA={
+                    teamA && teamA[0] && teamA[1]
+                      ? (teamA as [NonNullable<typeof teamA[0]>, NonNullable<typeof teamA[1]>])
+                      : undefined
+                  }
+                  teamB={
+                    teamB && teamB[0] && teamB[1]
+                      ? (teamB as [NonNullable<typeof teamB[0]>, NonNullable<typeof teamB[1]>])
+                      : undefined
+                  }
+                  status={pairing ? "in_progress" : "available"}
+                  onClick={() => handleCourtClick(courtNumber)}
+                />
+              );
+            })}
+
+            {/* Add court button */}
+            <button
+              onClick={handleAddCourt}
+              className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-8 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500"
+            >
+              <span className="text-lg">+</span> Add Court
+            </button>
+          </div>
+
+          {/* Available players */}
+          <div className="rounded-xl border bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-800">
+                  Available Players ({availablePlayers.length})
+                </h3>
+                {availablePlayers.length > 0 && (
+                  <p className="text-xs text-gray-400">Avg skill: {avgAvailSkill}</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <span className="text-xs text-gray-400">{completedPairings.length} games played</span>
+                <button
+                  onClick={() => setAddingPlayer(!addingPlayer)}
+                  className="rounded-lg bg-green-50 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+                >
+                  + Add Player
+                </button>
+              </div>
+            </div>
+
+            {addingPlayer && (
+              <form onSubmit={handleAddPlayer} className="mb-3 flex items-end gap-2 rounded-lg border bg-gray-50 p-3">
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Name</label>
+                  <input
+                    type="text"
+                    value={newPlayerName}
+                    onChange={(e) => setNewPlayerName(e.target.value)}
+                    placeholder="Player name"
+                    className="w-full rounded border px-2 py-1.5 text-sm focus:border-green-400 focus:outline-none"
+                  />
+                </div>
+                <div className="w-20">
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Skill</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={newPlayerSkill}
+                    onChange={(e) => setNewPlayerSkill(parseInt(e.target.value))}
+                    className="w-full rounded border px-2 py-1.5 text-sm focus:border-green-400 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddingPlayer(false)}
+                  className="rounded-lg border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+
+            {/* All players list */}
+            <div className="space-y-1.5">
+              {sessionPlayers
+                .filter((sp) => sp.users)
+                .sort((a, b) => {
+                  const busyA = busyIds.has(a.users!.id);
+                  const busyB = busyIds.has(b.users!.id);
+                  if (busyA !== busyB) return busyA ? 1 : -1;
+                  const sa = statsMap.get(a.users!.id);
+                  const sb = statsMap.get(b.users!.id);
+                  return (sb?.gamesSinceLastPlayed ?? 0) - (sa?.gamesSinceLastPlayed ?? 0);
+                })
+                .map((sp) => {
+                  const stats = statsMap.get(sp.users!.id);
+                  const isBusy = busyIds.has(sp.users!.id);
+                  return (
+                    <div key={sp.id} className={cn("flex items-center gap-2", isBusy && "opacity-50")}>
+                      <PlayerBadge
+                        name={sp.users!.display_name}
+                        skillLevel={sp.users!.skill_level}
+                        matchesPlayed={stats?.matchesPlayed}
+                        gamesSinceLastPlayed={stats?.gamesSinceLastPlayed}
+                        isActive={sp.is_active}
+                        isLinked={!!sp.users!.line_user_id}
+                        className="flex-1"
+                      />
+                      <button
+                        onClick={() => handleToggleActive(sp.id, sp.is_active)}
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
+                          sp.is_active
+                            ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
+                            : "bg-gray-100 text-gray-500 hover:bg-green-50 hover:text-green-600"
+                        )}
+                      >
+                        {isBusy ? "Playing" : sp.is_active ? "Active" : "Inactive"}
+                      </button>
+                    </div>
+                  );
+                })}
+              {sessionPlayers.length === 0 && (
+                <p className="py-3 text-center text-sm text-gray-400">
+                  No players yet. Click &quot;Add Player&quot; to add name slots.
+                </p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === "stats" && (
+        <div className="rounded-xl border bg-white overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <tr>
+                <th className="px-4 py-3 text-left">Player</th>
+                <th className="px-4 py-3 text-center">Active</th>
+                <th className="px-4 py-3 text-center">Played</th>
+                <th className="px-4 py-3 text-center">Sat</th>
+                <th className="px-4 py-3 text-center">Skill</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {sortedStats.map(({ sp, user, matchesPlayed, gamesSince }) => (
+                <tr key={sp.id} className={cn(!sp.is_active && "opacity-50")}>
+                  <td className="px-4 py-3 font-medium">{user.display_name}</td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => handleToggleActive(sp.id, sp.is_active)}
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        sp.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                      )}
+                    >
+                      {sp.is_active ? "Yes" : "No"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-center font-medium">{matchesPlayed}</td>
+                  <td className="px-4 py-3 text-center">
+                    {gamesSince > 0 ? (
+                      <span className={cn("font-medium", gamesSince >= 3 && "text-amber-600")}>
+                        {gamesSince}
+                      </span>
+                    ) : "–"}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="font-semibold">{user.skill_level}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Assignment Modal */}
+      {assignModal && (
+        <AssignmentModal
+          open={!!assignModal}
+          courtNumber={assignModal.courtNumber}
+          sessionId={session.id}
+          availablePlayers={playersWithStats}
+          suggestion={assignModal.suggestion}
+          onClose={() => setAssignModal(null)}
+          onConfirm={handleConfirmAssignment}
+        />
+      )}
+
+      {/* Result Modal */}
+      {resultModal && resultPairing && (
+        <ResultModal
+          open={!!resultModal}
+          pairingId={resultModal.pairingId}
+          sessionId={session.id}
+          teamA={[
+            getPlayerById(resultPairing.team_a_player_1)!,
+            getPlayerById(resultPairing.team_a_player_2)!,
+          ]}
+          teamB={[
+            getPlayerById(resultPairing.team_b_player_1)!,
+            getPlayerById(resultPairing.team_b_player_2)!,
+          ]}
+          onClose={() => setResultModal(null)}
+          onConfirm={handleRecordResult}
+          onVoid={handleVoidGame}
+        />
+      )}
+    </>
+  );
+}
