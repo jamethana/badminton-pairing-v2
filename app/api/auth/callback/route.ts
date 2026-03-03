@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import type { Database } from "@/types/database";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -12,6 +13,11 @@ export async function GET(request: NextRequest) {
       new URL(`/login?error=${encodeURIComponent(error || "no_code")}`, request.url)
     );
   }
+
+  // Build the success redirect response early so we can set cookies on it
+  const successResponse = NextResponse.redirect(new URL("/", request.url));
+  const failResponse = (msg: string) =>
+    NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(msg)}`, request.url));
 
   try {
     const callbackUrl = process.env.NEXT_PUBLIC_LINE_CALLBACK_URL!;
@@ -33,12 +39,12 @@ export async function GET(request: NextRequest) {
 
     if (!tokenRes.ok) {
       const body = await tokenRes.text();
-      throw new Error(`LINE token exchange failed (${tokenRes.status}): ${body}`);
+      console.error(`LINE token exchange failed (${tokenRes.status}):`, body);
+      return failResponse("token_exchange_failed");
     }
 
     const tokenData = await tokenRes.json() as {
       access_token: string;
-      id_token?: string;
     };
 
     // Fetch LINE profile
@@ -48,7 +54,8 @@ export async function GET(request: NextRequest) {
 
     if (!profileRes.ok) {
       const body = await profileRes.text();
-      throw new Error(`LINE profile fetch failed (${profileRes.status}): ${body}`);
+      console.error(`LINE profile fetch failed (${profileRes.status}):`, body);
+      return failResponse("profile_fetch_failed");
     }
 
     const profile = await profileRes.json() as {
@@ -57,7 +64,7 @@ export async function GET(request: NextRequest) {
       pictureUrl?: string;
     };
 
-    // Use admin client to bypass RLS for user management operations
+    // Use admin client (service role) to bypass RLS
     const adminSupabase = createAdminClient();
 
     // Upsert the user record in our users table
@@ -70,71 +77,67 @@ export async function GET(request: NextRequest) {
           picture_url: profile.pictureUrl || null,
           updated_at: new Date().toISOString(),
         },
-        {
-          onConflict: "line_user_id",
-          ignoreDuplicates: false,
-        }
+        { onConflict: "line_user_id", ignoreDuplicates: false }
       )
-      .select("id, skill_level, is_moderator")
+      .select("id")
       .single();
 
     if (upsertError || !appUser) {
-      throw new Error(`User upsert failed: ${upsertError?.message}`);
+      console.error("User upsert failed:", upsertError);
+      return failResponse("user_upsert_failed");
     }
 
-    // Create or retrieve the Supabase auth user (email/password with deterministic pattern)
+    // Deterministic Supabase auth credentials derived from LINE user ID
     const lineEmail = `line_${profile.userId}@badminton.app`;
     const linePassword = `line_${profile.userId}_${channelId}`;
 
-    // Try to find existing auth user
-    const { data: existingAuthUsers } = await adminSupabase.auth.admin.listUsers();
-    const existingAuthUser = existingAuthUsers?.users?.find(u => u.email === lineEmail);
+    // Try to create the auth user (email_confirm: true bypasses email confirmation).
+    // If the user already exists, createUser returns an error — that's fine, we just sign in.
+    await adminSupabase.auth.admin.createUser({
+      email: lineEmail,
+      password: linePassword,
+      email_confirm: true,
+      user_metadata: {
+        line_user_id: profile.userId,
+        display_name: profile.displayName,
+        picture_url: profile.pictureUrl,
+        app_user_id: appUser.id,
+      },
+    });
+    // Ignore createUser errors — the user may already exist, which is fine.
 
-    if (!existingAuthUser) {
-      // Create confirmed Supabase auth user (skip email confirmation)
-      const { error: createAuthError } = await adminSupabase.auth.admin.createUser({
-        email: lineEmail,
-        password: linePassword,
-        email_confirm: true,
-        user_metadata: {
-          line_user_id: profile.userId,
-          display_name: profile.displayName,
-          picture_url: profile.pictureUrl,
-          app_user_id: appUser.id,
+    // Create a Supabase client that writes session cookies directly onto the
+    // redirect response (not via next/headers, which wouldn't attach to the redirect).
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              successResponse.cookies.set(name, value, options)
+            );
+          },
         },
-      });
-
-      if (createAuthError) {
-        throw new Error(`Auth user creation failed: ${createAuthError.message}`);
       }
-    } else {
-      // Update metadata for returning user
-      await adminSupabase.auth.admin.updateUserById(existingAuthUser.id, {
-        user_metadata: {
-          line_user_id: profile.userId,
-          display_name: profile.displayName,
-          picture_url: profile.pictureUrl,
-          app_user_id: appUser.id,
-        },
-      });
-    }
+    );
 
-    // Sign in using the regular server client (sets the session cookie)
-    const supabase = await createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: lineEmail,
       password: linePassword,
     });
 
     if (signInError) {
-      throw new Error(`Sign in failed: ${signInError.message}`);
+      console.error("Sign in failed:", signInError.message);
+      return failResponse("sign_in_failed");
     }
 
-    return NextResponse.redirect(new URL("/", request.url));
+    return successResponse;
   } catch (err) {
     console.error("LINE auth callback error:", err);
-    return NextResponse.redirect(
-      new URL(`/login?error=auth_failed`, request.url)
-    );
+    return failResponse("auth_failed");
   }
 }
