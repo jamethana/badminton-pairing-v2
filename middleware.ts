@@ -31,12 +31,9 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
-    error: authError,
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-
-  console.log(`[middleware] ${pathname} | cookies: ${request.cookies.getAll().map(c => c.name).join(",")} | user: ${user?.id ?? "null"} | error: ${authError?.message ?? "none"}`);
 
   // Protect all routes except login and API auth
   const isPublic =
