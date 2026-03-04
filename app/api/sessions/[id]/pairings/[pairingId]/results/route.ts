@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { computeTrueskillUpdateForCompletedGame } from "@/lib/ratings/trueskill";
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   // Fetch the four users involved so we can update their TrueSkill ratings.
+  // Use the admin client here to bypass RLS for the internal rating fields.
+  const adminSupabase = createAdminClient();
+
   const playerIds = [
     pairing.team_a_player_1,
     pairing.team_a_player_2,
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     pairing.team_b_player_2,
   ];
 
-  const { data: players, error: playersError } = await supabase
+  const { data: players, error: playersError } = await adminSupabase
     .from("users")
     .select("*")
     .in("id", playerIds);
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       trueskill_updated_at: now,
     }));
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminSupabase
       .from("users")
       .upsert(updates, { onConflict: "id" });
 

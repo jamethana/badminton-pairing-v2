@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "@/components/skill-bar";
 
@@ -8,6 +9,7 @@ interface Player {
   id: string;
   display_name: string;
   skill_level: number;
+  picture_url?: string | null;
 }
 
 interface ResultModalProps {
@@ -100,12 +102,37 @@ export default function ResultModal({
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
                   {label}
                 </p>
-                {players.map((p) => (
-                  <div key={p.id} className="flex items-center gap-2 py-0.5">
-                    <div className={cn("h-3 w-1.5 rounded-full flex-shrink-0", getSkillColor(p.skill_level))} />
-                    <span className="text-sm font-medium text-gray-800">{p.display_name}</span>
-                  </div>
-                ))}
+                {players.map((p) => {
+                  const initials = p.display_name.trim().charAt(0).toUpperCase();
+                  return (
+                    <div key={p.id} className="flex items-center gap-2 py-0.5 min-w-0">
+                      <div
+                        className={cn(
+                          "h-3 w-1.5 rounded-full flex-shrink-0",
+                          getSkillColor(p.skill_level)
+                        )}
+                      />
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200">
+                        {p.picture_url ? (
+                          <Image
+                            src={p.picture_url}
+                            alt={p.display_name}
+                            width={28}
+                            height={28}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[10px] font-semibold text-gray-500">
+                            {initials}
+                          </span>
+                        )}
+                      </div>
+                      <span className="truncate text-sm font-medium text-gray-800">
+                        {p.display_name}
+                      </span>
+                    </div>
+                  );
+                })}
 
                 {/* Loading spinner overlay */}
                 {loading && (
