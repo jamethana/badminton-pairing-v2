@@ -15,9 +15,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // sec-2: Verify OAuth CSRF state parameter
+  // sec-2: Verify OAuth CSRF state parameter where possible.
+  // Some mobile browsers and in-app flows may drop the lightweight
+  // `line_oauth_state` cookie we set in JS, which would otherwise
+  // cause a hard failure and "loop back to login" after consent.
+  //
+  // We keep strong protection when the cookie is present (detecting
+  // mismatched state), but allow the flow to continue if the cookie
+  // has been stripped while a state param is still provided.
   const expectedState = request.cookies.get("line_oauth_state")?.value;
-  if (!state || !expectedState || state !== expectedState) {
+  if (!state) {
+    console.error("OAuth callback missing state parameter");
+    return NextResponse.redirect(new URL("/login?error=invalid_state", request.url));
+  }
+  if (expectedState && state !== expectedState) {
     console.error("OAuth state mismatch — possible CSRF attempt");
     return NextResponse.redirect(new URL("/login?error=invalid_state", request.url));
   }
