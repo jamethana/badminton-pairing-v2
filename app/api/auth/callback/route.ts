@@ -192,83 +192,70 @@ export async function GET(request: NextRequest) {
       if (createError) {
         console.error("Auth user creation failed:", createError.message);
 
-        // If the auth user already exists (from an older flow), repair it instead
-        // of hard-failing with a redirect loop.
-        const message = createError.message?.toLowerCase() ?? "";
-        const isAlreadyRegistered =
-          message.includes("already registered") ||
-          message.includes("already exists") ||
-          message.includes("duplicate key") ||
-          message.includes("email already");
+        // Best-effort repair: regardless of the specific error message, try to locate
+        // an existing auth user for this LINE email and align its password + metadata.
+        try {
+          const {
+            data: existingUsers,
+            error: listError,
+          } = await adminSupabase.auth.admin.listUsers({
+            page: 1,
+            perPage: 1000,
+          });
 
-        if (isAlreadyRegistered) {
-          try {
-            // Best-effort: locate the existing auth user by email and align its
-            // password + metadata with the current LINE profile / app user.
-            const {
-              data: existingUsers,
-              error: listError,
-            } = await adminSupabase.auth.admin.listUsers({
-              page: 1,
-              perPage: 1000,
-            });
-
-            if (listError) {
-              console.error("Failed to list auth users for repair:", listError.message);
-              return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
-            }
-
-            const existingUser = existingUsers.users.find(
-              (u) => u.email?.toLowerCase() === lineEmail.toLowerCase()
-            );
-
-            if (!existingUser) {
-              console.error(
-                "Auth user already registered but not found by email:",
-                lineEmail
-              );
-              return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
-            }
-
-            const { error: updateError } =
-              await adminSupabase.auth.admin.updateUserById(existingUser.id, {
-                password: linePassword,
-                user_metadata: {
-                  ...(existingUser.user_metadata ?? {}),
-                  line_user_id: profile.userId,
-                  display_name: profile.displayName,
-                  picture_url: profile.pictureUrl,
-                  app_user_id: appUser.id,
-                },
-              });
-
-            if (updateError) {
-              console.error("Failed to update existing auth user:", updateError.message);
-              return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
-            }
-
-            const { error: repairedSignInError } =
-              await supabase.auth.signInWithPassword({
-                email: lineEmail,
-                password: linePassword,
-              });
-
-            if (repairedSignInError) {
-              console.error(
-                "Sign-in after repairing existing auth user failed:",
-                repairedSignInError.message
-              );
-              return NextResponse.redirect(new URL("/login?error=sign_in_failed", request.url));
-            }
-
-            return successResponse;
-          } catch (repairErr) {
-            console.error("Unexpected error while repairing existing auth user:", repairErr);
+          if (listError) {
+            console.error("Failed to list auth users for repair:", listError.message);
             return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
           }
-        }
 
-        return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
+          const existingUser = existingUsers.users.find(
+            (u) => u.email?.toLowerCase() === lineEmail.toLowerCase()
+          );
+
+          if (!existingUser) {
+            console.error(
+              "Auth user creation failed and no existing user found for email:",
+              lineEmail
+            );
+            return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
+          }
+
+          const { error: updateError } =
+            await adminSupabase.auth.admin.updateUserById(existingUser.id, {
+              password: linePassword,
+              user_metadata: {
+                ...(existingUser.user_metadata ?? {}),
+                line_user_id: profile.userId,
+                display_name: profile.displayName,
+                picture_url: profile.pictureUrl,
+                app_user_id: appUser.id,
+              },
+            });
+
+          if (updateError) {
+            console.error("Failed to update existing auth user:", updateError.message);
+            return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
+          }
+
+          const { error: repairedSignInError } =
+            await supabase.auth.signInWithPassword({
+              email: lineEmail,
+              password: linePassword,
+            });
+
+          if (repairedSignInError) {
+            console.error(
+              "Sign-in after repairing existing auth user failed:",
+              repairedSignInError.message
+            );
+            return NextResponse.redirect(new URL("/login?error=sign_in_failed", request.url));
+          }
+
+          return successResponse;
+        } catch (repairErr) {
+          console.error("Unexpected error while repairing existing auth user:", repairErr);
+          return NextResponse.redirect(new URL("/login?error=create_user_failed", request.url));
+        }
       }
 
       const { error: finalSignInError } = await supabase.auth.signInWithPassword({
