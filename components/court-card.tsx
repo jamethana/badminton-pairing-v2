@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "./skill-bar";
 
@@ -8,6 +9,7 @@ interface PlayerInfo {
   id: string;
   display_name: string;
   skill_level: number;
+  picture_url?: string | null;
 }
 
 interface CourtCardProps {
@@ -29,13 +31,36 @@ interface CourtCardProps {
 }
 
 function PlayerSlot({ player }: { player: PlayerInfo }) {
+  const initials = player.display_name.trim().charAt(0).toUpperCase();
   return (
-    <div className="flex items-center gap-2">
-      <div className={cn("h-full w-1 rounded-full", getSkillColor(player.skill_level))} />
-      <span className="text-sm font-medium">{player.display_name}</span>
-      <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-        {player.skill_level}
-      </span>
+    <div className="flex min-h-[44px] items-center gap-2 rounded-lg bg-white px-2 py-2">
+      <div
+        className={cn(
+          "h-8 w-1 rounded-full flex-shrink-0",
+          getSkillColor(player.skill_level)
+        )}
+      />
+      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+        {player.picture_url ? (
+          <Image
+            src={player.picture_url}
+            alt={player.display_name}
+            width={32}
+            height={32}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-xs font-semibold text-gray-500">{initials}</span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium leading-tight">
+          {player.display_name}
+        </p>
+        <p className="text-[10px] leading-tight text-gray-400">
+          S{player.skill_level}
+        </p>
+      </div>
     </div>
   );
 }

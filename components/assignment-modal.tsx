@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getSkillColor } from "./skill-bar";
+import { getSkillTextColor } from "./skill-bar";
 
 interface Player {
   id: string;
@@ -130,6 +130,54 @@ export default function AssignmentModal({
     setSelectedSlot(null);
   };
 
+  // Suggest a best-match player for the currently selected slot
+  const suggestedPlayerId = useMemo(() => {
+    if (!selectedSlot || remainingPlayers.length === 0) return null;
+
+    // For each candidate, simulate filling this slot and measure:
+    // 1) Who has waited longest (gamesSinceLastPlayed)
+    // 2) Then who has played fewer games
+    // 3) Then which choice best balances total team skill A vs B.
+    const scoreFor = (player: Player) => {
+      const simulatedSlots: Record<TeamKey, string | null> = {
+        ...slots,
+        [selectedSlot]: player.id,
+      };
+
+      const getSimPlayer = (key: TeamKey) =>
+        simulatedSlots[key] ? getPlayer(simulatedSlots[key]) : null;
+
+      const teamASkillSim =
+        (getSimPlayer("A1")?.skill_level ?? 0) +
+        (getSimPlayer("A2")?.skill_level ?? 0);
+      const teamBSkillSim =
+        (getSimPlayer("B1")?.skill_level ?? 0) +
+        (getSimPlayer("B2")?.skill_level ?? 0);
+
+      const sat = player.gamesSinceLastPlayed ?? 0;
+      const played = player.matchesPlayed ?? 0;
+      const diff = Math.abs(teamASkillSim - teamBSkillSim);
+
+      return { sat, played, diff };
+    };
+
+    const scored = [...remainingPlayers].toSorted((a, b) => {
+      const sa = scoreFor(a);
+      const sb = scoreFor(b);
+
+      if (sa.sat !== sb.sat) return sb.sat - sa.sat; // longer sat first
+      if (sa.played !== sb.played) return sa.played - sb.played; // fewer games first
+      return sa.diff - sb.diff; // better team balance
+    });
+
+    return scored[0]?.id ?? null;
+  }, [selectedSlot, remainingPlayers, slots]);
+
+  const suggestedPlayer =
+    suggestedPlayerId != null
+      ? remainingPlayers.find((p) => p.id === suggestedPlayerId) ?? null
+      : null;
+
   const allFilled = Object.values(slots).every((v) => v !== null);
 
   const handleConfirm = async () => {
@@ -213,14 +261,30 @@ export default function AssignmentModal({
                           </div>
                         ) : player ? (
                           <div className="flex flex-1 items-center gap-2 min-w-0">
-                            <div className={cn("w-1 h-8 rounded-full flex-shrink-0", getSkillColor(player.skill_level))} />
                             <PlayerAvatar player={player} size={28} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate leading-tight">{player.display_name}</p>
+                              <p className="truncate text-sm font-medium leading-tight">
+                                <span
+                                  className={cn(
+                                    "mr-1 text-xs font-semibold",
+                                    getSkillTextColor(player.skill_level)
+                                  )}
+                                >
+                                  S{player.skill_level}
+                                </span>
+                                {player.display_name}
+                              </p>
                               <p className="text-[10px] text-gray-400 leading-tight">
                                 {player.matchesPlayed ?? 0}G
                                 {(player.gamesSinceLastPlayed ?? 0) > 0 && (
-                                  <span className={cn("ml-1", (player.gamesSinceLastPlayed ?? 0) >= 3 ? "text-amber-600" : "text-gray-400")}>
+                                  <span
+                                    className={cn(
+                                      "ml-1",
+                                      (player.gamesSinceLastPlayed ?? 0) >= 3
+                                        ? "text-amber-600"
+                                        : "text-gray-400"
+                                    )}
+                                  >
                                     · sat {player.gamesSinceLastPlayed}
                                   </span>
                                 )}
@@ -264,6 +328,21 @@ export default function AssignmentModal({
                 ? `Team ${selectedSlot[0]} Slot ${selectedSlot[1]} selected — tap a player or another slot to swap`
                 : "Available Players — tap a slot first"}
             </p>
+            {selectedSlot && suggestedPlayer && (
+              <p className="mb-2 text-[11px] text-gray-500">
+                Suggestion:{" "}
+                <span className="font-semibold text-gray-800">
+                  S{suggestedPlayer.skill_level} {suggestedPlayer.display_name}
+                </span>
+                <span className="text-gray-400">
+                  {" "}
+                  · {suggestedPlayer.matchesPlayed ?? 0}G
+                  {(suggestedPlayer.gamesSinceLastPlayed ?? 0) > 0 && (
+                    <> · sat {suggestedPlayer.gamesSinceLastPlayed}</>
+                  )}
+                </span>
+              </p>
+            )}
 
             {remainingPlayers.length > 0 ? (
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -278,14 +357,25 @@ export default function AssignmentModal({
                       selectedSlot
                         ? "cursor-pointer hover:border-blue-400 hover:bg-blue-50"
                         : "cursor-default opacity-50"
+                      ,
+                      selectedSlot && player.id === suggestedPlayerId && "border-green-500 ring-1 ring-green-400"
                     )}
                   >
-                    <div className={cn("h-5 w-1 rounded-full flex-shrink-0", getSkillColor(player.skill_level))} />
                     <PlayerAvatar player={player} size={28} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium leading-tight">{player.display_name}</p>
+                      <p className="truncate text-sm font-medium leading-tight">
+                        <span
+                          className={cn(
+                            "mr-1 text-xs font-semibold",
+                            getSkillTextColor(player.skill_level)
+                          )}
+                        >
+                          S{player.skill_level}
+                        </span>
+                        {player.display_name}
+                      </p>
                       <p className="text-[10px] text-gray-400 leading-tight">
-                        S{player.skill_level} · {player.matchesPlayed ?? 0}G
+                        {player.matchesPlayed ?? 0}G
                         {(player.gamesSinceLastPlayed ?? 0) > 0 && (
                           <span className={cn("ml-1", (player.gamesSinceLastPlayed ?? 0) >= 3 ? "text-amber-600 font-semibold" : "")}>
                             · sat {player.gamesSinceLastPlayed}
@@ -293,6 +383,11 @@ export default function AssignmentModal({
                         )}
                       </p>
                     </div>
+                    {selectedSlot && player.id === suggestedPlayerId && (
+                      <span className="ml-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                        Suggested
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
