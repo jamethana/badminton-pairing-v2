@@ -73,6 +73,7 @@ export type Database = {
           max_players: number;
           status: SessionStatus;
           court_names: Record<string, string>;
+          notes: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -88,6 +89,7 @@ export type Database = {
           max_players?: number;
           status?: SessionStatus;
           court_names?: Record<string, string>;
+          notes?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -103,6 +105,7 @@ export type Database = {
           max_players?: number;
           status?: SessionStatus;
           court_names?: Record<string, string>;
+          notes?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

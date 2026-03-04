@@ -1,5 +1,29 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAppUserId } from "@/lib/supabase/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
+const SessionUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD").optional(),
+    start_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Time must be HH:MM or HH:MM:SS").optional(),
+    end_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Time must be HH:MM or HH:MM:SS").optional(),
+    location: z.string().trim().max(120).nullable().optional(),
+    num_courts: z.number().int().min(1).max(20).optional(),
+    max_players: z.number().int().min(1).optional(),
+    status: z.enum(["draft", "active", "completed"]).optional(),
+    notes: z.string().trim().max(2000).nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.start_time && data.end_time) {
+        return data.end_time > data.start_time;
+      }
+      return true;
+    },
+    { message: "End time must be after start time", path: ["end_time"] }
+  );
 
 export async function GET(
   _request: NextRequest,
@@ -37,16 +61,27 @@ export async function PATCH(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const appUserId = user.user_metadata?.app_user_id as string | undefined;
+  const appUserId = getAppUserId(user);
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
   const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = SessionUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("sessions")
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
     .single();

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { getSkillColor } from "@/components/skill-bar";
 import { cn } from "@/lib/utils";
+import SessionEditDialog from "@/components/session-edit-dialog";
 
 export default async function SessionResultsPage({
   params,
@@ -49,12 +50,24 @@ export default async function SessionResultsPage({
         >
           ← Dashboard
         </Link>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-gray-900">{session.name} — Results</h1>
           <p className="text-sm text-gray-500">
             {pairings.length} completed game{pairings.length !== 1 ? "s" : ""}
           </p>
         </div>
+        <SessionEditDialog
+          id={session.id}
+          name={session.name}
+          date={session.date}
+          start_time={session.start_time}
+          end_time={session.end_time}
+          location={session.location}
+          num_courts={session.num_courts}
+          max_players={session.max_players}
+          status={session.status}
+          notes={session.notes}
+        />
       </div>
 
       <div className="space-y-3">

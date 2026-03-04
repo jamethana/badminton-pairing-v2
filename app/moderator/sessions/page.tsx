@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import SessionEditDialog from "@/components/session-edit-dialog";
 
 const STATUS_STYLES = {
   draft: "bg-gray-100 text-gray-600",
@@ -33,12 +34,14 @@ export default async function SessionsPage() {
         <div className="divide-y">
           {sessions && sessions.length > 0 ? (
             sessions.map((session) => (
-              <Link
+              <div
                 key={session.id}
-                href={`/moderator/sessions/${session.id}`}
-                className="flex items-center justify-between px-4 py-4 hover:bg-gray-50"
+                className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50"
               >
-                <div>
+                <Link
+                  href={`/moderator/sessions/${session.id}`}
+                  className="min-w-0 flex-1"
+                >
                   <p className="font-semibold text-gray-900">{session.name}</p>
                   <p className="mt-0.5 text-sm text-gray-500">
                     {format(new Date(session.date + "T00:00:00"), "EEE, MMM d, yyyy")}
@@ -49,9 +52,23 @@ export default async function SessionsPage() {
                   <p className="mt-0.5 text-xs text-gray-400">
                     {session.num_courts} courts · max {session.max_players} players
                   </p>
-                </div>
-                <Badge className={STATUS_STYLES[session.status]}>{session.status}</Badge>
-              </Link>
+                </Link>
+                <Badge className={STATUS_STYLES[session.status]}>
+                  {session.status}
+                </Badge>
+                <SessionEditDialog
+                  id={session.id}
+                  name={session.name}
+                  date={session.date}
+                  start_time={session.start_time}
+                  end_time={session.end_time}
+                  location={session.location}
+                  num_courts={session.num_courts}
+                  max_players={session.max_players}
+                  status={session.status}
+                  notes={session.notes}
+                />
+              </div>
             ))
           ) : (
             <p className="px-4 py-8 text-center text-sm text-gray-400">
