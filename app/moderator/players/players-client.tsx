@@ -101,6 +101,9 @@ export default function PlayersClient({ initialPlayers }: Props) {
       line_user_id: null,
       picture_url: null,
       auth_secret: null,
+      trueskill_mu: null,
+      trueskill_sigma: null,
+      trueskill_updated_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
