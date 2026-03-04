@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "./skill-bar";
@@ -9,8 +10,31 @@ interface Player {
   id: string;
   display_name: string;
   skill_level: number;
+  picture_url?: string | null;
   matchesPlayed?: number;
   gamesSinceLastPlayed?: number;
+}
+
+function PlayerAvatar({ player, size = 28 }: { player: Player; size?: number }) {
+  const initials = player.display_name.trim().charAt(0).toUpperCase();
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="flex-shrink-0 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center"
+    >
+      {player.picture_url ? (
+        <Image
+          src={player.picture_url}
+          alt={player.display_name}
+          width={size}
+          height={size}
+          className="object-cover w-full h-full"
+        />
+      ) : (
+        <span className="text-[10px] font-semibold text-gray-500">{initials}</span>
+      )}
+    </div>
+  );
 }
 
 interface AssignmentModalProps {
@@ -158,7 +182,18 @@ export default function AssignmentModal({
                       {player ? (
                         <div className="flex flex-1 items-center gap-2 min-w-0">
                           <div className={cn("w-1 h-8 rounded-full flex-shrink-0", getSkillColor(player.skill_level))} />
-                          <span className="flex-1 text-sm font-medium truncate">{player.display_name}</span>
+                          <PlayerAvatar player={player} size={28} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate leading-tight">{player.display_name}</p>
+                            <p className="text-[10px] text-gray-400 leading-tight">
+                              {player.matchesPlayed ?? 0}G
+                              {(player.gamesSinceLastPlayed ?? 0) > 0 && (
+                                <span className={cn("ml-1", (player.gamesSinceLastPlayed ?? 0) >= 3 ? "text-amber-600" : "text-gray-400")}>
+                                  · sat {player.gamesSinceLastPlayed}
+                                </span>
+                              )}
+                            </p>
+                          </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleRemoveSlot(key); }}
                             className="text-gray-400 hover:text-gray-600 flex-shrink-0"
@@ -210,14 +245,19 @@ export default function AssignmentModal({
                     : "opacity-60 cursor-default"
                 )}
               >
-                <div className={cn("h-4 w-1 rounded-full", getSkillColor(player.skill_level))} />
-                <span className="font-medium">{player.display_name}</span>
-                <span className="text-xs text-gray-400">S{player.skill_level}</span>
-                {player.gamesSinceLastPlayed !== undefined && player.gamesSinceLastPlayed > 0 && (
-                  <span className="rounded bg-amber-100 px-1 text-xs text-amber-700">
-                    {player.gamesSinceLastPlayed}
-                  </span>
-                )}
+                <div className={cn("h-4 w-1 rounded-full flex-shrink-0", getSkillColor(player.skill_level))} />
+                <PlayerAvatar player={player} size={24} />
+                <div className="text-left">
+                  <p className="font-medium leading-tight">{player.display_name}</p>
+                  <p className="text-[10px] text-gray-400 leading-tight">
+                    S{player.skill_level} · {player.matchesPlayed ?? 0}G
+                    {(player.gamesSinceLastPlayed ?? 0) > 0 && (
+                      <span className={cn("ml-1", (player.gamesSinceLastPlayed ?? 0) >= 3 ? "text-amber-600 font-semibold" : "")}>
+                        · sat {player.gamesSinceLastPlayed}
+                      </span>
+                    )}
+                  </p>
+                </div>
               </button>
             ))}
             {remainingPlayers.length === 0 && (

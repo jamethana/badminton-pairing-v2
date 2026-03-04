@@ -273,8 +273,6 @@ export default function CourtDashboardClient({
         const sp = await res.json();
         setSessionPlayers((prev) => [...prev, sp]);
         setPlayerSearch("");
-        setAddingPlayer(false);
-        setShowNewForm(false);
       }
     });
   };
@@ -294,7 +292,6 @@ export default function CourtDashboardClient({
         setSessionPlayers((prev) => [...prev, sp]);
         setNewPlayerName("");
         setNewPlayerSkill(5);
-        setAddingPlayer(false);
         setShowNewForm(false);
       }
     });
@@ -530,6 +527,7 @@ export default function CourtDashboardClient({
                       <PlayerBadge
                         name={sp.users!.display_name}
                         skillLevel={sp.users!.skill_level}
+                        pictureUrl={sp.users!.picture_url}
                         matchesPlayed={stats?.matchesPlayed}
                         gamesSinceLastPlayed={stats?.gamesSinceLastPlayed}
                         isActive={sp.is_active}
