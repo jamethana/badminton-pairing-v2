@@ -802,16 +802,14 @@ export default function CourtDashboardClient({
                         {Math.round(winPct * 100)}%
                       </span>
                     )}
-                    {gamesSince > 0 && (
-                      <span
-                        className={cn(
-                          "text-xs",
-                          gamesSince >= 3 ? "font-semibold text-amber-600" : "text-gray-400"
-                        )}
-                      >
-                        sat {gamesSince}
-                      </span>
-                    )}
+                    <span
+                      className={cn(
+                        "text-xs",
+                        gamesSince >= 3 ? "font-semibold text-amber-600" : "text-gray-400"
+                      )}
+                    >
+                      ⏱ {gamesSince}
+                    </span>
                     <span className="text-xs text-gray-400">S{user.skill_level}</span>
                   </div>
                 </div>

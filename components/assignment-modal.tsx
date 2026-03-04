@@ -278,19 +278,18 @@ export default function AssignmentModal({
                                 {player.display_name}
                               </p>
                               <p className="text-[10px] text-gray-400 leading-tight">
-                                {player.matchesPlayed ?? 0}G
-                                {(player.gamesSinceLastPlayed ?? 0) > 0 && (
-                                  <span
-                                    className={cn(
-                                      "ml-1",
-                                      (player.gamesSinceLastPlayed ?? 0) >= 3
-                                        ? "text-amber-600"
-                                        : "text-gray-400"
-                                    )}
-                                  >
-                                    · sat {player.gamesSinceLastPlayed}
-                                  </span>
-                                )}
+                                {(player.matchesPlayed ?? 0)}{" "}
+                                {(player.matchesPlayed ?? 0) === 1 ? "Match" : "Matches"}
+                                <span
+                                  className={cn(
+                                    "ml-1",
+                                    (player.gamesSinceLastPlayed ?? 0) >= 3
+                                      ? "text-amber-600"
+                                      : "text-gray-400"
+                                  )}
+                                >
+                                  · ⏱ {player.gamesSinceLastPlayed ?? 0}
+                                </span>
                               </p>
                             </div>
                             <button
@@ -339,10 +338,18 @@ export default function AssignmentModal({
                 </span>
                 <span className="text-gray-400">
                   {" "}
-                  · {suggestedPlayer.matchesPlayed ?? 0}G
-                  {(suggestedPlayer.gamesSinceLastPlayed ?? 0) > 0 && (
-                    <> · sat {suggestedPlayer.gamesSinceLastPlayed}</>
-                  )}
+                  · {suggestedPlayer.matchesPlayed ?? 0}{" "}
+                  {(suggestedPlayer.matchesPlayed ?? 0) === 1 ? "Match" : "Matches"}
+                  <span
+                    className={cn(
+                      "ml-1",
+                      (suggestedPlayer.gamesSinceLastPlayed ?? 0) >= 3
+                        ? "text-amber-600"
+                        : "text-gray-400"
+                    )}
+                  >
+                    · ⏱ {suggestedPlayer.gamesSinceLastPlayed ?? 0}
+                  </span>
                 </span>
               </p>
             )}
@@ -378,12 +385,18 @@ export default function AssignmentModal({
                         {player.display_name}
                       </p>
                       <p className="text-[10px] text-gray-400 leading-tight">
-                        {player.matchesPlayed ?? 0}G
-                        {(player.gamesSinceLastPlayed ?? 0) > 0 && (
-                          <span className={cn("ml-1", (player.gamesSinceLastPlayed ?? 0) >= 3 ? "text-amber-600 font-semibold" : "")}>
-                            · sat {player.gamesSinceLastPlayed}
-                          </span>
-                        )}
+                        {(player.matchesPlayed ?? 0)}{" "}
+                        {(player.matchesPlayed ?? 0) === 1 ? "Match" : "Matches"}
+                        <span
+                          className={cn(
+                            "ml-1",
+                            (player.gamesSinceLastPlayed ?? 0) >= 3
+                              ? "text-amber-600 font-semibold"
+                              : ""
+                          )}
+                        >
+                          · ⏱ {player.gamesSinceLastPlayed ?? 0}
+                        </span>
                       </p>
                     </div>
                     {selectedSlot && player.id === suggestedPlayerId && (

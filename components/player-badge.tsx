@@ -72,27 +72,13 @@ export default function PlayerBadge({
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Skill level badge */}
           <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-600">
-            S{skillLevel}
+            {skillLevel}
           </span>
 
-          {/* Match count */}
-          {matchesPlayed !== undefined && (
-            <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-semibold text-blue-700">
-              {matchesPlayed}G
-            </span>
-          )}
-
-          {/* Sitting indicator */}
-          {gamesSinceLastPlayed !== undefined && gamesSinceLastPlayed > 0 && (
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 text-xs font-semibold",
-                gamesSinceLastPlayed >= 3
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-gray-100 text-gray-600"
-              )}
-            >
-              Sat {gamesSinceLastPlayed}
+          {/* Match + sat summary */}
+          {(matchesPlayed !== undefined || gamesSinceLastPlayed !== undefined) && (
+            <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-800">
+              🏸 {matchesPlayed ?? 0} · ⏱ {gamesSinceLastPlayed ?? 0}
             </span>
           )}
 
