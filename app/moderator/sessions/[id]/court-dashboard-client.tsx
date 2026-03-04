@@ -679,8 +679,21 @@ export default function CourtDashboardClient({
                 .map((sp) => {
                   const stats = statsMap.get(sp.users!.id);
                   const isBusy = busyIds.has(sp.users!.id);
+                  const handleRowClick = () => {
+                    if (isBusy) return;
+                    handleToggleActive(sp.id, sp.is_active);
+                  };
+
                   return (
-                    <div key={sp.id} className={cn("flex items-center gap-2", isBusy && "opacity-50")}>
+                    <div
+                      key={sp.id}
+                      onClick={handleRowClick}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2 rounded-xl border px-2 py-1.5 transition-colors",
+                        sp.is_active ? "bg-green-50 border-green-200" : "bg-white border-gray-100",
+                        isBusy && "cursor-default opacity-50"
+                      )}
+                    >
                       <PlayerBadge
                         name={sp.users!.display_name}
                         skillLevel={sp.users!.skill_level}
@@ -692,19 +705,26 @@ export default function CourtDashboardClient({
                         className="flex-1"
                       />
                       <button
-                        onClick={() => handleToggleActive(sp.id, sp.is_active)}
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
                         className={cn(
                           "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium",
-                          sp.is_active
-                            ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
-                            : "bg-gray-100 text-gray-500 hover:bg-green-50 hover:text-green-600"
+                          isBusy
+                            ? "bg-blue-100 text-blue-700"
+                            : sp.is_active
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-500"
                         )}
                       >
                         {isBusy ? "Playing" : sp.is_active ? "Active" : "Inactive"}
                       </button>
                       {!isBusy && (
                         <button
-                          onClick={() => handleRemovePlayer(sp.id)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemovePlayer(sp.id);
+                          }}
                           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-500"
                           title="Remove from session"
                         >

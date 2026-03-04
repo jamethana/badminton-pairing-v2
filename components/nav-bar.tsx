@@ -40,9 +40,14 @@ export default function NavBar({ isModerator, displayName, pictureUrl }: NavBarP
                 href={link.href}
                 className={cn(
                   "text-sm font-medium transition-colors",
-                  pathname === link.href || pathname.startsWith(link.href + "/")
-                    ? "text-green-700"
-                    : "text-gray-500 hover:text-gray-800"
+                  // For the moderator dashboard root, only highlight on exact match
+                  isModerator && link.href === "/moderator"
+                    ? pathname === "/moderator"
+                      ? "text-green-700"
+                      : "text-gray-500 hover:text-gray-800"
+                    : pathname === link.href || pathname.startsWith(link.href + "/")
+                      ? "text-green-700"
+                      : "text-gray-500 hover:text-gray-800"
                 )}
               >
                 {link.label}
@@ -87,9 +92,13 @@ export default function NavBar({ isModerator, displayName, pictureUrl }: NavBarP
             href={link.href}
             className={cn(
               "flex-1 py-2 text-center text-xs font-medium",
-              pathname === link.href || pathname.startsWith(link.href + "/")
-                ? "border-b-2 border-green-600 text-green-700"
-                : "text-gray-500"
+              isModerator && link.href === "/moderator"
+                ? pathname === "/moderator"
+                  ? "border-b-2 border-green-600 text-green-700"
+                  : "text-gray-500"
+                : pathname === link.href || pathname.startsWith(link.href + "/")
+                  ? "border-b-2 border-green-600 text-green-700"
+                  : "text-gray-500"
             )}
           >
             {link.label}
