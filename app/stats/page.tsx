@@ -1,160 +1,60 @@
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import NavBar from "@/components/nav-bar";
-import { computePlayerStats } from "@/lib/utils/session-stats";
-import { cn } from "@/lib/utils";
-import { getSkillColor } from "@/components/skill-bar";
+import PlayerStatsView from "@/components/player-stats-view";
+import { computeCareerStats } from "@/lib/utils/player-career-stats";
+import type { PairingFull } from "@/lib/utils/player-career-stats";
 
-export default async function StatsPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+export default async function MyStatsPage() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/login");
 
+  const { appUser } = currentUser;
   const supabase = await createClient();
 
-  // Get all sessions the user has played in
-  const { data: sessionPlayers } = await supabase
-    .from("session_players")
-    .select(`session_id, sessions(name, date)`)
-    .eq("user_id", user.appUser.id);
-
-  const sessionIds = (sessionPlayers ?? []).map((sp) => sp.session_id);
-
-  // Get all pairings the user was part of
-  const { data: allPairings } = await supabase
+  const { data: pairings } = await supabase
     .from("pairings")
-    .select(`*, game_results(*)`)
-    .in("session_id", sessionIds.length > 0 ? sessionIds : ["none"])
-    .neq("status", "voided")
+    .select(`*, game_results(*), sessions(id, name, date)`)
     .or(
-      `team_a_player_1.eq.${user.appUser.id},team_a_player_2.eq.${user.appUser.id},team_b_player_1.eq.${user.appUser.id},team_b_player_2.eq.${user.appUser.id}`
-    );
+      `team_a_player_1.eq.${appUser.id},team_a_player_2.eq.${appUser.id},team_b_player_1.eq.${appUser.id},team_b_player_2.eq.${appUser.id}`
+    )
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false });
 
-  const pairings = allPairings ?? [];
-  const completed = pairings.filter((p) => p.status === "completed");
+  const safePairings = (pairings ?? []) as PairingFull[];
 
-  // Compute stats
-  let wins = 0;
-  let losses = 0;
-  for (const p of completed) {
-    const result = p.game_results ?? null;
-    if (!result) continue;
-    const isTeamA = [p.team_a_player_1, p.team_a_player_2].includes(user.appUser.id);
-    if (
-      (isTeamA && result.winner_team === "team_a") ||
-      (!isTeamA && result.winner_team === "team_b")
-    ) {
-      wins++;
-    } else {
-      losses++;
-    }
+  // Collect all unique player IDs involved in these pairings for name lookup
+  const allPlayerIds = new Set<string>();
+  for (const p of safePairings) {
+    allPlayerIds.add(p.team_a_player_1);
+    allPlayerIds.add(p.team_a_player_2);
+    allPlayerIds.add(p.team_b_player_1);
+    allPlayerIds.add(p.team_b_player_2);
   }
+  allPlayerIds.delete(appUser.id);
 
-  const winRate = completed.length > 0 ? Math.round((wins / completed.length) * 100) : 0;
+  const { data: otherUsers } = await supabase
+    .from("users")
+    .select("id, display_name")
+    .in("id", [...allPlayerIds]);
 
-  // Per-session breakdown
-  const sessionBreakdown = (sessionPlayers ?? []).map((sp) => {
-    const sessionPairings = pairings.filter((p) => p.session_id === sp.session_id);
-    const sessionStats = computePlayerStats(sessionPairings, [user.appUser.id]);
-    const s = sessionStats.get(user.appUser.id);
-    const sessionCompleted = sessionPairings.filter((p) => p.status === "completed");
-    let sessionWins = 0;
-    for (const p of sessionCompleted) {
-      const result = p.game_results ?? null;
-      if (!result) continue;
-      const isTeamA = [p.team_a_player_1, p.team_a_player_2].includes(user.appUser.id);
-      if (
-        (isTeamA && result.winner_team === "team_a") ||
-        (!isTeamA && result.winner_team === "team_b")
-      ) {
-        sessionWins++;
-      }
-    }
-    return {
-      sessionId: sp.session_id,
-      sessionName: (sp.sessions as { name: string; date: string } | null)?.name ?? "Unknown",
-      sessionDate: (sp.sessions as { date: string } | null)?.date ?? "",
-      matchesPlayed: s?.matchesPlayed ?? 0,
-      wins: sessionWins,
-    };
-  });
+  const userNameMap = new Map<string, string>(
+    (otherUsers ?? []).map((u) => [u.id, u.display_name])
+  );
+  userNameMap.set(appUser.id, appUser.display_name);
+
+  const stats = computeCareerStats(safePairings, appUser.id, userNameMap);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar
-        isModerator={false}
-        displayName={user.appUser.display_name}
-        pictureUrl={user.appUser.picture_url}
-      />
+      <NavBar isModerator={false} displayName={appUser.display_name} pictureUrl={appUser.picture_url} />
       <main className="mx-auto max-w-2xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">My Statistics</h1>
-
-        {/* Overall stats */}
-        <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
-          <div className="rounded-xl border bg-white p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-500">Games</p>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{completed.length}</p>
-          </div>
-          <div className="rounded-xl border bg-white p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-500">Win Rate</p>
-            <p className={cn("text-2xl sm:text-3xl font-bold", winRate >= 50 ? "text-green-600" : "text-red-500")}>
-              {winRate}%
-            </p>
-          </div>
-          <div className="rounded-xl border bg-white p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-500">Skill</p>
-            <div className="flex items-center justify-center gap-1 sm:gap-2 mt-1">
-              <div className={cn("h-3 w-3 sm:h-4 sm:w-4 rounded-full", getSkillColor(user.appUser.skill_level))} />
-              <p className="text-2xl font-bold text-gray-900">{user.appUser.skill_level}</p>
-            </div>
-          </div>
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-gray-900">My Stats</h1>
+          <p className="text-sm text-gray-500">Your all-time career statistics</p>
         </div>
-
-        <div className="mb-4 grid grid-cols-2 gap-4">
-          <div className="rounded-xl border bg-white p-4 text-center">
-            <p className="text-sm text-gray-500">Wins</p>
-            <p className="text-2xl font-bold text-green-600">{wins}</p>
-          </div>
-          <div className="rounded-xl border bg-white p-4 text-center">
-            <p className="text-sm text-gray-500">Losses</p>
-            <p className="text-2xl font-bold text-red-500">{losses}</p>
-          </div>
-        </div>
-
-        {/* Per-session breakdown */}
-        {sessionBreakdown.length > 0 && (
-          <div className="rounded-xl border bg-white">
-            <div className="border-b px-4 py-3">
-              <h2 className="font-semibold text-gray-800">Session History</h2>
-            </div>
-            <div className="divide-y">
-              {sessionBreakdown
-                .sort((a, b) => new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime())
-                .map((s) => (
-                  <div key={s.sessionId} className="flex items-center justify-between px-4 py-3">
-                    <div>
-                      <p className="font-medium text-gray-900">{s.sessionName}</p>
-                      <p className="text-sm text-gray-500">
-                        {s.matchesPlayed} game{s.matchesPlayed !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-green-600">{s.wins}W</p>
-                      <p className="text-xs text-gray-400">
-                        {s.matchesPlayed - s.wins}L
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {completed.length === 0 && (
-          <div className="rounded-xl border bg-white px-4 py-8 text-center text-sm text-gray-400">
-            No games played yet. Join a session to start tracking your stats!
-          </div>
-        )}
+        <PlayerStatsView player={appUser} stats={stats} userNameMap={userNameMap} />
       </main>
     </div>
   );

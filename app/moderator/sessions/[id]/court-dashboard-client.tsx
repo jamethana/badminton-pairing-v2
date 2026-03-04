@@ -41,6 +41,20 @@ export default function CourtDashboardClient({
   const [renameValue, setRenameValue] = useState("");
   const [activeTab, setActiveTab] = useState<"game" | "stats">("game");
 
+  // Stats tab sort state
+  type StatsSortCol = "name" | "active" | "played" | "wins" | "losses" | "winPct" | "sat" | "skill";
+  const [statsSortCol, setStatsSortCol] = useState<StatsSortCol>("played");
+  const [statsSortDir, setStatsSortDir] = useState<"asc" | "desc">("desc");
+
+  const handleStatsSort = (col: StatsSortCol) => {
+    if (statsSortCol === col) {
+      setStatsSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setStatsSortCol(col);
+      setStatsSortDir("desc");
+    }
+  };
+
   // Assignment modal state
   const [assignModal, setAssignModal] = useState<{
     courtNumber: number;
@@ -87,25 +101,50 @@ export default function CourtDashboardClient({
     [activePlayers, busyIds]
   );
 
-  const sortedStats = useMemo(
-    () =>
-      sessionPlayers
-        .filter((sp) => sp.users)
-        .map((sp) => {
-          const s = statsMap.get(sp.users!.id);
-          return {
-            sp,
-            user: sp.users!,
-            matchesPlayed: s?.matchesPlayed ?? 0,
-            wins: s?.wins ?? 0,
-            losses: s?.losses ?? 0,
-            gamesSince: s?.gamesSinceLastPlayed ?? 0,
-          };
-        })
-        // quality-4: .toSorted() is non-mutating
-        .toSorted((a, b) => b.matchesPlayed - a.matchesPlayed),
-    [sessionPlayers, statsMap]
-  );
+  const sortedStats = useMemo(() => {
+    const rows = sessionPlayers
+      .filter((sp) => sp.users)
+      .map((sp) => {
+        const s = statsMap.get(sp.users!.id);
+        const played = s?.matchesPlayed ?? 0;
+        const wins = s?.wins ?? 0;
+        const losses = s?.losses ?? 0;
+        const winPct = played > 0 ? wins / played : -1;
+        return {
+          sp,
+          user: sp.users!,
+          matchesPlayed: played,
+          wins,
+          losses,
+          winPct,
+          gamesSince: s?.gamesSinceLastPlayed ?? 0,
+        };
+      });
+
+    const dir = statsSortDir === "asc" ? 1 : -1;
+    return rows.toSorted((a, b) => {
+      switch (statsSortCol) {
+        case "name":
+          return dir * a.user.display_name.localeCompare(b.user.display_name);
+        case "active":
+          return dir * ((a.sp.is_active ? 1 : 0) - (b.sp.is_active ? 1 : 0));
+        case "played":
+          return dir * (a.matchesPlayed - b.matchesPlayed);
+        case "wins":
+          return dir * (a.wins - b.wins);
+        case "losses":
+          return dir * (a.losses - b.losses);
+        case "winPct":
+          return dir * (a.winPct - b.winPct);
+        case "sat":
+          return dir * (a.gamesSince - b.gamesSince);
+        case "skill":
+          return dir * (a.user.skill_level - b.user.skill_level);
+        default:
+          return 0;
+      }
+    });
+  }, [sessionPlayers, statsMap, statsSortCol, statsSortDir]);
 
   const playersWithStats = useMemo(
     () =>
@@ -514,6 +553,37 @@ export default function CourtDashboardClient({
               </div>
             </div>
 
+            {/* Available player chips — quick × to set inactive */}
+            {availablePlayers.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {availablePlayers.map((player) => {
+                  const sp = sessionPlayers.find((s) => s.users?.id === player.id);
+                  if (!sp) return null;
+                  return (
+                    <span
+                      key={player.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 py-1 pl-3 pr-1.5 text-sm font-medium text-green-800"
+                    >
+                      {player.display_name}
+                      <button
+                        onClick={() => handleToggleActive(sp.id, true)}
+                        title="Set inactive"
+                        className="flex h-4 w-4 items-center justify-center rounded-full text-green-400 hover:bg-red-100 hover:text-red-500"
+                      >
+                        <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {availablePlayers.length === 0 && !addingPlayer && sessionPlayers.length > 0 && (
+              <p className="mb-3 text-sm text-gray-400">No active players waiting.</p>
+            )}
+
             {addingPlayer && (
               <div className="mb-3 rounded-lg border bg-gray-50 p-3">
                 {/* Search existing players */}
@@ -654,7 +724,7 @@ export default function CourtDashboardClient({
                       <button
                         onClick={() => handleToggleActive(sp.id, sp.is_active)}
                         className={cn(
-                          "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                          "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium",
                           sp.is_active
                             ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
                             : "bg-gray-100 text-gray-500 hover:bg-green-50 hover:text-green-600"
@@ -665,7 +735,7 @@ export default function CourtDashboardClient({
                       {!isBusy && (
                         <button
                           onClick={() => handleRemovePlayer(sp.id)}
-                          className="flex-shrink-0 rounded-full p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          className="flex-shrink-0 rounded-full p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500"
                           title="Remove from session"
                         >
                           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -692,15 +762,40 @@ export default function CourtDashboardClient({
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
               <tr>
-                <th className="px-4 py-3 text-left">Player</th>
-                <th className="px-3 py-3 text-center">Active</th>
-                <th className="px-3 py-3 text-center">Played</th>
-                <th className="px-3 py-3 text-center">Sat</th>
-                <th className="px-3 py-3 text-center">Skill</th>
+                {(
+                  [
+                    { col: "name" as const, label: "Player", align: "left" },
+                    { col: "active" as const, label: "Active", align: "center" },
+                    { col: "played" as const, label: "Played", align: "center" },
+                    { col: "wins" as const, label: "W", align: "center" },
+                    { col: "losses" as const, label: "L", align: "center" },
+                    { col: "winPct" as const, label: "Win%", align: "center" },
+                    { col: "sat" as const, label: "Sat", align: "center" },
+                    { col: "skill" as const, label: "Skill", align: "center" },
+                  ] as const
+                ).map(({ col, label, align }) => (
+                  <th
+                    key={col}
+                    className={cn(
+                      "py-3 select-none cursor-pointer hover:bg-gray-100 transition-colors",
+                      align === "left" ? "px-4 text-left" : "px-3 text-center"
+                    )}
+                    onClick={() => handleStatsSort(col)}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {label}
+                      {statsSortCol === col ? (
+                        <span>{statsSortDir === "asc" ? "↑" : "↓"}</span>
+                      ) : (
+                        <span className="opacity-30">↕</span>
+                      )}
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y">
-              {sortedStats.map(({ sp, user, matchesPlayed, gamesSince }) => (
+              {sortedStats.map(({ sp, user, matchesPlayed, wins, losses, winPct, gamesSince }) => (
                 <tr key={sp.id} className={cn(!sp.is_active && "opacity-50")}>
                   <td className="px-4 py-3 font-medium">{user.display_name}</td>
                   <td className="px-3 py-3 text-center">
@@ -715,6 +810,26 @@ export default function CourtDashboardClient({
                     </button>
                   </td>
                   <td className="px-3 py-3 text-center font-medium">{matchesPlayed}</td>
+                  <td className="px-3 py-3 text-center font-medium text-green-600">
+                    {wins > 0 ? wins : "–"}
+                  </td>
+                  <td className="px-3 py-3 text-center font-medium text-red-500">
+                    {losses > 0 ? losses : "–"}
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    {matchesPlayed > 0 ? (
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          winPct >= 0.5 ? "text-green-600" : "text-red-500"
+                        )}
+                      >
+                        {Math.round(winPct * 100)}%
+                      </span>
+                    ) : (
+                      "–"
+                    )}
+                  </td>
                   <td className="px-3 py-3 text-center">
                     {gamesSince > 0 ? (
                       <span className={cn("font-medium", gamesSince >= 3 && "text-amber-600")}>

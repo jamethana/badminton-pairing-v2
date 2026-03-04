@@ -1,6 +1,8 @@
 import type { Tables } from "@/types/database";
 
-type Pairing = Tables<"pairings">;
+export type PairingWithResult = Tables<"pairings"> & {
+  game_results?: Tables<"game_results"> | null;
+};
 
 export interface PlayerStats {
   userId: string;
@@ -12,11 +14,11 @@ export interface PlayerStats {
 
 /**
  * Computes per-player statistics from all pairings in a session.
- * gamesSinceLastPlayed = number of completed+voided games across all courts
+ * gamesSinceLastPlayed = number of completed games across all courts
  * after the player's last played game.
  */
 export function computePlayerStats(
-  pairings: Pairing[],
+  pairings: PairingWithResult[],
   sessionPlayerIds: string[]
 ): Map<string, PlayerStats> {
   const stats = new Map<string, PlayerStats>();
@@ -34,10 +36,23 @@ export function computePlayerStats(
   // Only count completed pairings for match counts/wins
   const completed = pairings.filter((p) => p.status === "completed");
   for (const p of completed) {
-    const players = [p.team_a_player_1, p.team_a_player_2, p.team_b_player_1, p.team_b_player_2];
-    for (const pid of players) {
+    const teamA = [p.team_a_player_1, p.team_a_player_2];
+    const teamB = [p.team_b_player_1, p.team_b_player_2];
+    const allPlayers = [...teamA, ...teamB];
+    const result = p.game_results;
+
+    for (const pid of allPlayers) {
       const s = stats.get(pid);
-      if (s) s.matchesPlayed++;
+      if (!s) continue;
+      s.matchesPlayed++;
+      if (result?.winner_team) {
+        const onTeamA = teamA.includes(pid);
+        const won =
+          (onTeamA && result.winner_team === "team_a") ||
+          (!onTeamA && result.winner_team === "team_b");
+        if (won) s.wins++;
+        else s.losses++;
+      }
     }
   }
 
@@ -75,7 +90,7 @@ export function computePlayerStats(
   return stats;
 }
 
-export function getPlayersInCurrentGame(pairings: Pairing[]): Set<string> {
+export function getPlayersInCurrentGame(pairings: PairingWithResult[]): Set<string> {
   const inProgress = pairings.filter((p) => p.status === "in_progress");
   const busy = new Set<string>();
   for (const p of inProgress) {

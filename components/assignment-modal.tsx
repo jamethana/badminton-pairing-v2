@@ -93,7 +93,21 @@ export default function AssignmentModal({
     id ? availablePlayers.find((p) => p.id === id) : null;
 
   const handleSlotClick = (key: TeamKey) => {
-    setSelectedSlot(selectedSlot === key ? null : key);
+    if (key === selectedSlot) {
+      // Deselect
+      setSelectedSlot(null);
+    } else if (selectedSlot !== null) {
+      // Swap the two slots (works even if one or both are empty)
+      setSlots((prev) => ({
+        ...prev,
+        [selectedSlot]: prev[key],
+        [key]: prev[selectedSlot],
+      }));
+      setSelectedSlot(null);
+    } else {
+      // Nothing selected yet — select this slot
+      setSelectedSlot(key);
+    }
   };
 
   const handlePlayerClick = (playerId: string) => {
@@ -174,14 +188,17 @@ export default function AssignmentModal({
                 {teamKeys.map((key) => {
                   const player = getPlayer(slots[key]);
                   const isSelected = selectedSlot === key;
+                  const isSwapTarget = !isSelected && selectedSlot !== null;
                   return (
                     <div
                       key={key}
                       onClick={() => handleSlotClick(key)}
                       className={cn(
                         "mt-1.5 flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer",
-                        isSelected ? "ring-2 ring-blue-500 bg-blue-50" : "bg-gray-50 hover:bg-gray-100",
-                        player && "bg-white border"
+                        isSelected && "ring-2 ring-blue-500 bg-blue-50",
+                        isSwapTarget && "hover:ring-1 hover:ring-blue-300 hover:bg-blue-50",
+                        !isSelected && !isSwapTarget && "bg-gray-50 hover:bg-gray-100",
+                        player && !isSelected && "bg-white border",
                       )}
                     >
                       {suggestionLoading && !player ? (
@@ -213,7 +230,7 @@ export default function AssignmentModal({
                         </div>
                       ) : (
                         <span className={cn("text-sm text-gray-400", isSelected && "text-blue-600 font-medium")}>
-                          {isSelected ? "Tap a player below" : "Empty slot"}
+                          {isSelected ? "Tap a player or another slot" : "Empty slot"}
                         </span>
                       )}
                     </div>
@@ -239,8 +256,8 @@ export default function AssignmentModal({
         <div className="mb-4">
           <p className="mb-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
             {selectedSlot
-              ? "Select player for Team " + selectedSlot[0] + " Slot " + selectedSlot[1]
-              : "Available Players - tap a slot first"}
+              ? `Team ${selectedSlot[0]} Slot ${selectedSlot[1]} selected — tap a player below or another slot to swap`
+              : "Available Players — tap a slot first"}
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {remainingPlayers.map((player) => (

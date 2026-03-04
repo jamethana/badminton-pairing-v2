@@ -209,7 +209,7 @@ export default function PlayerSessionClient({
             <button
               onClick={handleToggleActive}
               className={cn(
-                "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                "rounded-full px-4 py-2 text-sm font-semibold",
                 mySlot.is_active
                   ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
                   : "bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-700"

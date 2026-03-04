@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { getSkillColor, getSkillTextColor } from "@/components/skill-bar";
 import {
@@ -95,11 +96,13 @@ export default function PlayersClient({ initialPlayers }: Props) {
       id: tempId,
       display_name: name,
       skill_level: addForm.skill_level,
+      calculated_skill_rating: null,
       is_moderator: false,
       line_user_id: null,
       picture_url: null,
       auth_secret: null,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     // Optimistic: add to list and close form immediately
@@ -303,6 +306,12 @@ export default function PlayersClient({ initialPlayers }: Props) {
                     <span className="text-xs text-gray-400">Saving…</span>
                   ) : (
                     <div className="flex justify-end gap-3">
+                      <Link
+                        href={`/moderator/players/${player.id}`}
+                        className="text-xs text-green-600 hover:underline"
+                      >
+                        Stats
+                      </Link>
                       <button
                         onClick={() => startEdit(player)}
                         className="text-xs text-blue-600 hover:underline"
