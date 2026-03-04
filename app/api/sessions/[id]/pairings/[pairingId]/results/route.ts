@@ -101,19 +101,23 @@ export async function POST(request: NextRequest, { params }: Params) {
   const now = new Date().toISOString();
 
   if (snapshots.length > 0) {
-    const updates = snapshots.map((s) => ({
-      id: s.userId,
-      trueskill_mu: s.mu,
-      trueskill_sigma: s.sigma,
-      trueskill_updated_at: now,
-    }));
+    const results = await Promise.all(
+      snapshots.map((s) =>
+        adminSupabase
+          .from("users")
+          .update({
+            trueskill_mu: s.mu,
+            trueskill_sigma: s.sigma,
+            trueskill_updated_at: now,
+          })
+          .eq("id", s.userId)
+      )
+    );
 
-    const { error: updateError } = await adminSupabase
-      .from("users")
-      .upsert(updates, { onConflict: "id" });
-
-    if (updateError) {
-      console.error("Failed to update TrueSkill ratings:", updateError);
+    for (const r of results) {
+      if (r.error) {
+        console.error("Failed to update TrueSkill rating for user:", r.error);
+      }
     }
   }
 
