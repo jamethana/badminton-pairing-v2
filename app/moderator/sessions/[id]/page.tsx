@@ -11,7 +11,7 @@ export default async function SessionDashboardPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [sessionRes, playersRes, pairingsRes] = await Promise.all([
+  const [sessionRes, playersRes, pairingsRes, allUsersRes] = await Promise.all([
     supabase.from("sessions").select("*").eq("id", id).single(),
     supabase
       .from("session_players")
@@ -22,6 +22,7 @@ export default async function SessionDashboardPage({
       .select(`*, game_results(*)`)
       .eq("session_id", id)
       .order("sequence_number", { ascending: true }),
+    supabase.from("users").select("*").order("display_name"),
   ]);
 
   if (!sessionRes.data) notFound();
@@ -29,6 +30,7 @@ export default async function SessionDashboardPage({
   const session = sessionRes.data;
   const sessionPlayers = playersRes.data ?? [];
   const pairings = pairingsRes.data ?? [];
+  const allUsers = allUsersRes.data ?? [];
 
   return (
     <div>
@@ -59,6 +61,7 @@ export default async function SessionDashboardPage({
         session={session}
         initialSessionPlayers={sessionPlayers}
         initialPairings={pairings}
+        allUsers={allUsers}
       />
     </div>
   );

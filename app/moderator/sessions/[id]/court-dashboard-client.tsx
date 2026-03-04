@@ -22,12 +22,14 @@ interface Props {
   session: { id: string; status: SessionStatus; num_courts: number };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
+  allUsers: Tables<"users">[];
 }
 
 export default function CourtDashboardClient({
   session,
   initialSessionPlayers,
   initialPairings,
+  allUsers,
 }: Props) {
   const router = useRouter();
   const [sessionPlayers, setSessionPlayers] = useState(initialSessionPlayers);
@@ -52,6 +54,8 @@ export default function CourtDashboardClient({
   const [isAddingPlayer, startAddingPlayer] = useTransition();
 
   const [addingPlayer, setAddingPlayer] = useState(false);
+  const [playerSearch, setPlayerSearch] = useState("");
+  const [showNewForm, setShowNewForm] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerSkill, setNewPlayerSkill] = useState(5);
 
@@ -246,11 +250,39 @@ export default function CourtDashboardClient({
     }
   };
 
-  const handleAddPlayer = (e: React.FormEvent) => {
+  const alreadyInSessionIds = useMemo(
+    () => new Set(sessionPlayers.map((sp) => sp.users?.id).filter(Boolean)),
+    [sessionPlayers]
+  );
+
+  const searchedUsers = useMemo(() => {
+    const q = playerSearch.trim().toLowerCase();
+    return allUsers
+      .filter((u) => !alreadyInSessionIds.has(u.id))
+      .filter((u) => !q || u.display_name.toLowerCase().includes(q));
+  }, [allUsers, alreadyInSessionIds, playerSearch]);
+
+  const handlePickExistingPlayer = (userId: string) => {
+    startAddingPlayer(async () => {
+      const res = await fetch(`/api/sessions/${session.id}/players`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (res.ok) {
+        const sp = await res.json();
+        setSessionPlayers((prev) => [...prev, sp]);
+        setPlayerSearch("");
+        setAddingPlayer(false);
+        setShowNewForm(false);
+      }
+    });
+  };
+
+  const handleAddNewPlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlayerName.trim()) return;
 
-    // react-1: useTransition for adding players
     startAddingPlayer(async () => {
       const res = await fetch(`/api/sessions/${session.id}/players`, {
         method: "POST",
@@ -263,6 +295,7 @@ export default function CourtDashboardClient({
         setNewPlayerName("");
         setNewPlayerSkill(5);
         setAddingPlayer(false);
+        setShowNewForm(false);
       }
     });
   };
@@ -371,45 +404,109 @@ export default function CourtDashboardClient({
             </div>
 
             {addingPlayer && (
-              <form onSubmit={handleAddPlayer} className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border bg-gray-50 p-3">
-                <div className="min-w-0 flex-1" style={{ minWidth: "120px" }}>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Name</label>
+              <div className="mb-3 rounded-lg border bg-gray-50 p-3">
+                {/* Search existing players */}
+                <div className="mb-2">
                   <input
                     type="text"
-                    value={newPlayerName}
-                    onChange={(e) => setNewPlayerName(e.target.value)}
-                    placeholder="Player name"
-                    className="w-full rounded border px-2 py-2 text-sm focus:border-green-400 focus:outline-none"
+                    value={playerSearch}
+                    onChange={(e) => setPlayerSearch(e.target.value)}
+                    placeholder="Search players…"
+                    autoFocus
+                    className="w-full rounded border px-3 py-2 text-sm focus:border-green-400 focus:outline-none"
                   />
                 </div>
-                <div className="w-20 flex-shrink-0">
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Skill (1–10)</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={newPlayerSkill}
-                    onChange={(e) => setNewPlayerSkill(parseInt(e.target.value))}
-                    className="w-full rounded border px-2 py-2 text-sm focus:border-green-400 focus:outline-none"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={isAddingPlayer}
-                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-                  >
-                    {isAddingPlayer ? "Adding…" : "Add"}
-                  </button>
+
+                {/* Existing player list */}
+                {searchedUsers.length > 0 && (
+                  <ul className="mb-2 max-h-48 overflow-y-auto divide-y rounded border bg-white">
+                    {searchedUsers.map((u) => (
+                      <li key={u.id}>
+                        <button
+                          type="button"
+                          disabled={isAddingPlayer}
+                          onClick={() => handlePickExistingPlayer(u.id)}
+                          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-green-50 disabled:opacity-60"
+                        >
+                          <span className="font-medium text-gray-800">{u.display_name}</span>
+                          <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                            Skill {u.skill_level}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {searchedUsers.length === 0 && playerSearch && !showNewForm && (
+                  <p className="mb-2 text-xs text-gray-400">No matching players found.</p>
+                )}
+
+                {/* Create new name-slot player */}
+                {!showNewForm ? (
                   <button
                     type="button"
-                    onClick={() => setAddingPlayer(false)}
-                    className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                    onClick={() => setShowNewForm(true)}
+                    className="text-xs text-green-700 hover:underline"
+                  >
+                    + Create new player (name slot)
+                  </button>
+                ) : (
+                  <form onSubmit={handleAddNewPlayer} className="flex flex-wrap items-end gap-2 pt-1">
+                    <div className="min-w-0 flex-1" style={{ minWidth: "120px" }}>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">Name</label>
+                      <input
+                        type="text"
+                        value={newPlayerName}
+                        onChange={(e) => setNewPlayerName(e.target.value)}
+                        placeholder="Player name"
+                        autoFocus
+                        className="w-full rounded border px-2 py-2 text-sm focus:border-green-400 focus:outline-none"
+                      />
+                    </div>
+                    <div className="w-20 flex-shrink-0">
+                      <label className="mb-1 block text-xs font-medium text-gray-600">Skill (1–10)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={newPlayerSkill}
+                        onChange={(e) => setNewPlayerSkill(parseInt(e.target.value))}
+                        className="w-full rounded border px-2 py-2 text-sm focus:border-green-400 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={isAddingPlayer}
+                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                      >
+                        {isAddingPlayer ? "Adding…" : "Add"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewForm(false)}
+                        className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="mt-2 border-t pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingPlayer(false);
+                      setPlayerSearch("");
+                      setShowNewForm(false);
+                    }}
+                    className="text-xs text-gray-500 hover:underline"
                   >
                     Cancel
                   </button>
                 </div>
-              </form>
+              </div>
             )}
 
             {/* All players list */}
@@ -455,7 +552,7 @@ export default function CourtDashboardClient({
                 })}
               {sessionPlayers.length === 0 && (
                 <p className="py-3 text-center text-sm text-gray-400">
-                  No players yet. Click &quot;Add Player&quot; to add name slots.
+                  No players yet. Click &quot;+ Add Player&quot; to get started.
                 </p>
               )}
             </div>
