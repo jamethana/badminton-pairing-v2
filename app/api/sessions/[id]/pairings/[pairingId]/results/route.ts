@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { computeTrueskillUpdateForCompletedGame } from "@/lib/ratings/trueskill";
 
 const RecordResultSchema = z.object({
   team_a_score: z.number().int().min(0),
@@ -58,12 +59,64 @@ export async function POST(request: NextRequest, { params }: Params) {
     .select()
     .single();
 
-  if (resultError) return NextResponse.json({ error: resultError.message }, { status: 500 });
+  if (resultError || !result) {
+    return NextResponse.json({ error: resultError?.message ?? "Failed to record result" }, { status: 500 });
+  }
+
+  // Fetch the four users involved so we can update their TrueSkill ratings.
+  const playerIds = [
+    pairing.team_a_player_1,
+    pairing.team_a_player_2,
+    pairing.team_b_player_1,
+    pairing.team_b_player_2,
+  ];
+
+  const { data: players, error: playersError } = await supabase
+    .from("users")
+    .select("*")
+    .in("id", playerIds);
+
+  if (playersError || !players || players.length !== 4) {
+    // Still mark pairing completed even if rating update fails; log but don't block UX.
+    console.error("Failed to load players for TrueSkill update:", playersError);
+    await supabase
+      .from("pairings")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", pairingId);
+
+    return NextResponse.json(result, { status: 201 });
+  }
+
+  const usersById = new Map(players.map((u) => [u.id, u]));
+  const snapshots = computeTrueskillUpdateForCompletedGame({
+    usersById,
+    pairing,
+    result,
+  });
+
+  const now = new Date().toISOString();
+
+  if (snapshots.length > 0) {
+    const updates = snapshots.map((s) => ({
+      id: s.userId,
+      trueskill_mu: s.mu,
+      trueskill_sigma: s.sigma,
+      trueskill_updated_at: now,
+    }));
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .upsert(updates, { onConflict: "id" });
+
+    if (updateError) {
+      console.error("Failed to update TrueSkill ratings:", updateError);
+    }
+  }
 
   // Mark pairing as completed
   await supabase
     .from("pairings")
-    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .update({ status: "completed", completed_at: now })
     .eq("id", pairingId);
 
   return NextResponse.json(result, { status: 201 });

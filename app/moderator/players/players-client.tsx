@@ -201,6 +201,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
             <tr>
               <th className="px-4 py-3 text-left">Name</th>
               <th className="px-4 py-3 text-center">Skill</th>
+              <th className="px-4 py-3 text-center">TS (hidden)</th>
               <th className="px-4 py-3 text-center">LINE</th>
               <th className="px-4 py-3 text-center">Role</th>
               <th className="px-4 py-3 text-right">Actions</th>
@@ -240,6 +241,16 @@ export default function PlayersClient({ initialPlayers }: Props) {
                       )}
                       <span className="font-medium">{player.display_name}</span>
                     </div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center text-[11px] text-gray-400">
+                  {player.trueskill_mu != null ? (
+                    <>
+                      {Math.round(player.trueskill_mu)}{" "}
+                      <span className="text-gray-300">σ {player.trueskill_sigma?.toFixed(1)}</span>
+                    </>
+                  ) : (
+                    <span className="italic text-gray-300">pending</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-center">

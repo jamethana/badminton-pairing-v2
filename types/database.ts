@@ -25,6 +25,9 @@ export type Database = {
           auth_secret: string | null;
           created_at: string;
           updated_at: string;
+          trueskill_mu: number | null;
+          trueskill_sigma: number | null;
+          trueskill_updated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -37,6 +40,9 @@ export type Database = {
           auth_secret?: string | null;
           created_at?: string;
           updated_at?: string;
+          trueskill_mu?: number | null;
+          trueskill_sigma?: number | null;
+          trueskill_updated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -49,6 +55,9 @@ export type Database = {
           auth_secret?: string | null;
           created_at?: string;
           updated_at?: string;
+          trueskill_mu?: number | null;
+          trueskill_sigma?: number | null;
+          trueskill_updated_at?: string | null;
         };
         Relationships: [];
       };
