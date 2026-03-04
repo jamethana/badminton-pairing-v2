@@ -689,9 +689,14 @@ export default function CourtDashboardClient({
                       key={sp.id}
                       onClick={handleRowClick}
                       className={cn(
-                        "flex cursor-pointer items-center gap-2 rounded-xl border px-2 py-1.5 transition-colors",
-                        sp.is_active ? "bg-green-50 border-green-200" : "bg-white border-gray-100",
-                        isBusy && "cursor-default opacity-50"
+                        "flex items-center gap-2 rounded-xl border px-2 py-1.5 transition-colors",
+                        isBusy
+                          ? "cursor-default bg-blue-50 border-blue-200"
+                          : "cursor-pointer",
+                        !isBusy &&
+                          (sp.is_active
+                            ? "bg-green-50 border-green-200"
+                            : "bg-white border-gray-100")
                       )}
                     >
                       <PlayerBadge

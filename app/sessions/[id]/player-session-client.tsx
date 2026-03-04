@@ -35,6 +35,7 @@ export default function PlayerSessionClient({
   const [mySlot, setMySlot] = useState(initialMySlot);
   const [allPlayers, setAllPlayers] = useState(sessionPlayers);
   const [claiming, setClaiming] = useState(false);
+  const [addingSelf, setAddingSelf] = useState(false);
   const [resultModal, setResultModal] = useState<{ pairingId: string } | null>(null);
 
   // react-3: Derive unclaimedSlots from allPlayers during render instead of
@@ -86,6 +87,23 @@ export default function PlayerSessionClient({
       }
     } finally {
       setClaiming(false);
+    }
+  };
+
+  const handleAddSelf = async () => {
+    if (mySlot || addingSelf) return;
+    setAddingSelf(true);
+    try {
+      const res = await fetch(`/api/sessions/${session.id}/self-join`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const newSlot: SessionPlayer = await res.json();
+        setMySlot(newSlot);
+        setAllPlayers((prev) => [...prev, newSlot]);
+      }
+    } finally {
+      setAddingSelf(false);
     }
   };
 
@@ -190,6 +208,30 @@ export default function PlayerSessionClient({
               No unclaimed slots available. Ask the moderator to add you.
             </p>
           )}
+
+          {/* Self-join fallback when name isn't in the list */}
+          <div className="mt-4 border-t pt-3">
+            <p className="mb-1 text-xs font-medium text-gray-500">
+              Can&apos;t find your name?
+            </p>
+            <p className="mb-2 text-xs text-gray-400">
+              You can add yourself to this session using your LINE account.
+            </p>
+            <button
+              type="button"
+              onClick={handleAddSelf}
+              disabled={claiming || addingSelf}
+              className={cn(
+                "w-full rounded-lg px-4 py-2.5 text-sm font-semibold",
+                "border border-dashed",
+                addingSelf
+                  ? "border-green-400 bg-green-50 text-green-700"
+                  : "border-gray-300 text-gray-700 hover:border-green-500 hover:bg-green-50"
+              )}
+            >
+              {addingSelf ? "Adding you to this session…" : "Add myself to this session"}
+            </button>
+          </div>
         </div>
       )}
 
