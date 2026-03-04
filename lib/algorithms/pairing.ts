@@ -82,8 +82,10 @@ export function generatePairing(
     }
   }
 
-  let bestAssignment: TeamAssignment | null = null;
+  // Keep a small pool of near-best assignments so we can add a touch of
+  // randomness without sacrificing quality.
   let bestScore = -Infinity;
+  const topAssignments: TeamAssignment[] = [];
 
   // Try all combinations of 4 from top candidates
   const n = candidates.length;
@@ -115,11 +117,19 @@ export function generatePairing(
 
             if (score > bestScore) {
               bestScore = score;
-              bestAssignment = {
+              topAssignments.length = 0;
+              topAssignments.push({
                 teamA: [pA.id, pB.id],
                 teamB: [pC.id, pD.id],
                 score,
-              };
+              });
+            } else if (score === bestScore || score > bestScore - 5) {
+              // Within a small margin of the best score: keep as an alternative.
+              topAssignments.push({
+                teamA: [pA.id, pB.id],
+                teamB: [pC.id, pD.id],
+                score,
+              });
             }
           }
         }
@@ -128,7 +138,13 @@ export function generatePairing(
   }
 
   void courtNumber; // used by caller for logging
-  return bestAssignment;
+
+  if (topAssignments.length === 0) return null;
+
+  // Pick a random assignment from the near-best pool so repeated generations
+  // don't always look identical, while still staying high quality.
+  const randomIndex = Math.floor(Math.random() * topAssignments.length);
+  return topAssignments[randomIndex];
 }
 
 function scoreAssignment(
