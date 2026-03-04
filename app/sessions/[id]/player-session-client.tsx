@@ -91,15 +91,23 @@ export default function PlayerSessionClient({
 
   const handleToggleActive = async () => {
     if (!mySlot) return;
+    const newActive = !mySlot.is_active;
+    const optimisticSlot = { ...mySlot, is_active: newActive };
+
+    // Optimistic: flip immediately
+    setMySlot(optimisticSlot);
+    setAllPlayers((prev) => prev.map((sp) => (sp.id === mySlot.id ? optimisticSlot : sp)));
+
     const res = await fetch(`/api/sessions/${session.id}/players/${mySlot.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_active: !mySlot.is_active }),
+      body: JSON.stringify({ is_active: newActive }),
     });
-    if (res.ok) {
-      const updated = await res.json();
-      setMySlot(updated);
-      setAllPlayers((prev) => prev.map((sp) => (sp.id === mySlot.id ? updated : sp)));
+
+    if (!res.ok) {
+      // Rollback
+      setMySlot(mySlot);
+      setAllPlayers((prev) => prev.map((sp) => (sp.id === mySlot.id ? mySlot : sp)));
     }
   };
 
@@ -109,24 +117,31 @@ export default function PlayerSessionClient({
     winner_team: "team_a" | "team_b";
   }) => {
     if (!resultModal) return;
-    const res = await fetch(
-      `/api/sessions/${session.id}/pairings/${resultModal.pairingId}/results`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result),
-      }
+    const { pairingId } = resultModal;
+    const now = new Date().toISOString();
+
+    // Optimistic: mark completed and close modal immediately
+    setPairings((prev) =>
+      prev.map((p) =>
+        p.id === pairingId ? { ...p, status: "completed", completed_at: now } : p
+      )
     );
-    if (res.ok) {
+    setResultModal(null);
+
+    const res = await fetch(`/api/sessions/${session.id}/pairings/${pairingId}/results`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(result),
+    });
+
+    if (!res.ok) {
+      // Rollback
       setPairings((prev) =>
         prev.map((p) =>
-          p.id === resultModal.pairingId
-            ? { ...p, status: "completed", completed_at: new Date().toISOString() }
-            : p
+          p.id === pairingId ? { ...p, status: "in_progress", completed_at: null } : p
         )
       );
     }
-    setResultModal(null);
   };
 
   const myStats = mySlot ? statsMap.get(currentUserId) : null;

@@ -45,6 +45,7 @@ interface AssignmentModalProps {
     teamA: [string, string];
     teamB: [string, string];
   };
+  suggestionLoading?: boolean;
   onClose: () => void;
   onConfirm: (assignment: {
     teamA: [string, string];
@@ -58,6 +59,7 @@ export default function AssignmentModal({
   courtNumber,
   availablePlayers,
   suggestion,
+  suggestionLoading,
   onClose,
   onConfirm,
 }: AssignmentModalProps) {
@@ -69,16 +71,19 @@ export default function AssignmentModal({
 
   useEffect(() => {
     if (suggestion) {
-      setSlots({
-        A1: suggestion.teamA[0],
-        A2: suggestion.teamA[1],
-        B1: suggestion.teamB[0],
-        B2: suggestion.teamB[1],
+      // opt-6: Don't overwrite manual selections the user has already made
+      setSlots((prev) => {
+        const hasManualSelection = Object.values(prev).some((v) => v !== null);
+        if (hasManualSelection) return prev;
+        return {
+          A1: suggestion.teamA[0],
+          A2: suggestion.teamA[1],
+          B1: suggestion.teamB[0],
+          B2: suggestion.teamB[1],
+        };
       });
-    } else {
-      setSlots({ A1: null, A2: null, B1: null, B2: null });
+      setSelectedSlot(null);
     }
-    setSelectedSlot(null);
   }, [suggestion]);
 
   const assignedIds = Object.values(slots).filter((v): v is string => v !== null);
@@ -179,7 +184,12 @@ export default function AssignmentModal({
                         player && "bg-white border"
                       )}
                     >
-                      {player ? (
+                      {suggestionLoading && !player ? (
+                        <div className="flex flex-1 items-center gap-2">
+                          <div className="h-8 w-1 rounded-full bg-gray-200 animate-pulse" />
+                          <div className="h-4 flex-1 rounded bg-gray-200 animate-pulse" />
+                        </div>
+                      ) : player ? (
                         <div className="flex flex-1 items-center gap-2 min-w-0">
                           <div className={cn("w-1 h-8 rounded-full flex-shrink-0", getSkillColor(player.skill_level))} />
                           <PlayerAvatar player={player} size={28} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { getSkillColor, getSkillTextColor } from "@/components/skill-bar";
 import {
@@ -27,12 +27,6 @@ export default function PlayersClient({ initialPlayers }: Props) {
     skill_level: 5,
   });
 
-  // react-4: Replace manual loading booleans with useTransition
-  const [isSaving, startSaving] = useTransition();
-  const [isAdding, startAdding] = useTransition();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  // react-4: Inline confirmation state replaces window.confirm
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Add player form state
@@ -46,52 +40,86 @@ export default function PlayersClient({ initialPlayers }: Props) {
   };
 
   const saveEdit = (playerId: string) => {
-    startSaving(async () => {
-      const res = await fetch(`/api/players/${playerId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setPlayers((prev) => prev.map((p) => (p.id === playerId ? updated : p)));
-        setEditingId(null);
+    const original = players.find((p) => p.id === playerId);
+    if (!original) return;
+
+    // Optimistic: apply edit immediately and close inline form
+    setPlayers((prev) =>
+      prev.map((p) => (p.id === playerId ? { ...p, ...editForm } : p))
+    );
+    setEditingId(null);
+
+    fetch(`/api/players/${playerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    }).then((res) => {
+      if (!res.ok) {
+        // Rollback and re-open edit
+        setPlayers((prev) => prev.map((p) => (p.id === playerId ? original : p)));
+        startEdit(original);
       }
     });
   };
 
-  const confirmDelete = async (playerId: string) => {
+  const confirmDelete = (playerId: string) => {
+    const original = players.find((p) => p.id === playerId);
     setPendingDeleteId(null);
-    setDeletingId(playerId);
-    try {
-      const res = await fetch(`/api/players/${playerId}`, { method: "DELETE" });
-      if (res.ok) {
-        setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+
+    // Optimistic: remove immediately
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+
+    fetch(`/api/players/${playerId}`, { method: "DELETE" }).then((res) => {
+      if (!res.ok && original) {
+        // Rollback
+        setPlayers((prev) =>
+          [...prev, original].toSorted((a, b) => a.display_name.localeCompare(b.display_name))
+        );
       }
-    } finally {
-      setDeletingId(null);
-    }
+    });
   };
 
   const addPlayer = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addForm.display_name.trim()) return;
+    const name = addForm.display_name.trim();
+    if (!name) return;
     setAddError("");
-    startAdding(async () => {
-      const res = await fetch("/api/players", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ display_name: addForm.display_name.trim(), skill_level: addForm.skill_level }),
-      });
+
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic: AppUser = {
+      id: tempId,
+      display_name: name,
+      skill_level: addForm.skill_level,
+      is_moderator: false,
+      line_user_id: null,
+      picture_url: null,
+      auth_secret: null,
+      created_at: new Date().toISOString(),
+    };
+
+    // Optimistic: add to list and close form immediately
+    setPlayers((prev) =>
+      [...prev, optimistic].toSorted((a, b) => a.display_name.localeCompare(b.display_name))
+    );
+    setAddForm({ display_name: "", skill_level: 5 });
+    setShowAddForm(false);
+
+    fetch("/api/players", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: name, skill_level: addForm.skill_level }),
+    }).then(async (res) => {
       if (res.ok) {
         const created = await res.json();
-        // quality-4: .toSorted() is non-mutating
-        setPlayers((prev) => [...prev, created].toSorted((a, b) => a.display_name.localeCompare(b.display_name)));
-        setAddForm({ display_name: "", skill_level: 5 });
-        setShowAddForm(false);
+        // Replace temp entry with the real record
+        setPlayers((prev) => prev.map((p) => (p.id === tempId ? created : p)));
       } else {
-        const json = await res.json();
+        // Rollback
+        setPlayers((prev) => prev.filter((p) => p.id !== tempId));
+        const json = await res.json().catch(() => ({}));
         setAddError(json.error ?? "Failed to add player");
+        setAddForm({ display_name: name, skill_level: addForm.skill_level });
+        setShowAddForm(true);
       }
     });
   };
@@ -135,10 +163,10 @@ export default function PlayersClient({ initialPlayers }: Props) {
               </button>
               <button
                 type="submit"
-                disabled={isAdding || !addForm.display_name.trim()}
+                disabled={!addForm.display_name.trim()}
                 className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
               >
-                {isAdding ? "Adding…" : "Add Player"}
+                Add Player
               </button>
             </div>
           </form>
@@ -261,12 +289,13 @@ export default function PlayersClient({ initialPlayers }: Props) {
                       </button>
                       <button
                         onClick={() => saveEdit(player.id)}
-                        disabled={isSaving}
-                        className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                        className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
                       >
-                        {isSaving ? "…" : "Save"}
+                        Save
                       </button>
                     </div>
+                  ) : player.id.startsWith("temp-") ? (
+                    <span className="text-xs text-gray-400">Saving…</span>
                   ) : (
                     <div className="flex justify-end gap-3">
                       <button
@@ -275,13 +304,12 @@ export default function PlayersClient({ initialPlayers }: Props) {
                       >
                         Edit
                       </button>
-                      {!player.line_user_id && (
+                      {!player.line_user_id && !player.id.startsWith("temp-") && (
                         <button
                           onClick={() => setPendingDeleteId(player.id)}
-                          disabled={deletingId === player.id}
-                          className="text-xs text-red-500 hover:underline disabled:opacity-50"
+                          className="text-xs text-red-500 hover:underline"
                         >
-                          {deletingId === player.id ? "…" : "Delete"}
+                          Delete
                         </button>
                       )}
                     </div>

@@ -34,6 +34,7 @@ export default function CourtDashboardClient({
   const router = useRouter();
   const [sessionPlayers, setSessionPlayers] = useState(initialSessionPlayers);
   const [pairings, setPairings] = useState(initialPairings);
+  const [sessionStatus, setSessionStatus] = useState(session.status);
   const [activeTab, setActiveTab] = useState<"game" | "stats">("game");
 
   // Assignment modal state
@@ -41,6 +42,7 @@ export default function CourtDashboardClient({
     courtNumber: number;
     existingPairingId?: string;
     suggestion?: { teamA: [string, string]; teamB: [string, string] };
+    suggestionLoading?: boolean;
   } | null>(null);
 
   // Result modal state
@@ -49,8 +51,6 @@ export default function CourtDashboardClient({
     courtNumber: number;
   } | null>(null);
 
-  // react-1: Separate transitions per operation instead of a shared loading boolean
-  const [isGenerating, startGenerating] = useTransition();
   const [isAddingPlayer, startAddingPlayer] = useTransition();
 
   const [addingPlayer, setAddingPlayer] = useState(false);
@@ -125,17 +125,26 @@ export default function CourtDashboardClient({
       return;
     }
 
-    // react-1: useTransition for generating pairings
-    startGenerating(async () => {
-      const res = await fetch(`/api/sessions/${session.id}/pairings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ generate: true, court_number: courtNumber }),
+    // opt-1: Open modal instantly, load AI suggestion in the background
+    setAssignModal({ courtNumber, suggestionLoading: true });
+    fetch(`/api/sessions/${session.id}/pairings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ generate: true, court_number: courtNumber }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        setAssignModal((prev) =>
+          prev?.courtNumber === courtNumber
+            ? { ...prev, suggestion: data?.suggestion, suggestionLoading: false }
+            : prev
+        );
+      })
+      .catch(() => {
+        setAssignModal((prev) =>
+          prev?.courtNumber === courtNumber ? { ...prev, suggestionLoading: false } : prev
+        );
       });
-      const data = await res.json();
-      const suggestion = res.ok ? data.suggestion : undefined;
-      setAssignModal({ courtNumber, suggestion });
-    });
   };
 
   const handleConfirmAssignment = async (assignment: {
@@ -143,6 +152,36 @@ export default function CourtDashboardClient({
     teamB: [string, string];
   }) => {
     if (!assignModal) return;
+
+    // opt-2: Close modal and add a temporary pairing immediately
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    const tempPairing: Pairing = {
+      id: tempId,
+      session_id: session.id,
+      court_number: assignModal.courtNumber,
+      team_a_player_1: assignment.teamA[0],
+      team_a_player_2: assignment.teamA[1],
+      team_b_player_1: assignment.teamB[0],
+      team_b_player_2: assignment.teamB[1],
+      status: "in_progress",
+      sequence_number: Math.max(0, ...pairings.map((p) => p.sequence_number)) + 1,
+      created_at: now,
+      completed_at: null,
+      game_results: null,
+    };
+    setPairings((prev) => [...prev, tempPairing]);
+    setAssignModal(null);
+
+    // opt-5: Optimistically activate session if it's still draft
+    if (sessionStatus === "draft") {
+      setSessionStatus("active");
+      fetch(`/api/sessions/${session.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" }),
+      });
+    }
 
     const res = await fetch(`/api/sessions/${session.id}/pairings`, {
       method: "POST",
@@ -158,19 +197,14 @@ export default function CourtDashboardClient({
 
     if (res.ok) {
       const newPairing = await res.json();
-      setPairings((prev) => [...prev, newPairing]);
-
-      // Activate session if it's still draft
-      if (session.status === "draft") {
-        await fetch(`/api/sessions/${session.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "active" }),
-        });
-        router.refresh();
-      }
+      // Replace temp entry with the real one from the server
+      setPairings((prev) =>
+        prev.map((p) => (p.id === tempId ? { ...newPairing, game_results: null } : p))
+      );
+    } else {
+      // Rollback on failure
+      setPairings((prev) => prev.filter((p) => p.id !== tempId));
     }
-    setAssignModal(null);
   };
 
   const handleRecordResult = async (result: {
@@ -179,64 +213,78 @@ export default function CourtDashboardClient({
     winner_team: "team_a" | "team_b";
   }) => {
     if (!resultModal) return;
+    const { pairingId } = resultModal;
 
-    const res = await fetch(
-      `/api/sessions/${session.id}/pairings/${resultModal.pairingId}/results`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result),
-      }
+    // opt-3: Update state immediately, persist in background
+    const now = new Date().toISOString();
+    setPairings((prev) =>
+      prev.map((p) =>
+        p.id === pairingId ? { ...p, status: "completed", completed_at: now } : p
+      )
     );
+    setResultModal(null);
 
-    if (res.ok) {
+    const res = await fetch(`/api/sessions/${session.id}/pairings/${pairingId}/results`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(result),
+    });
+
+    if (!res.ok) {
+      // Rollback on failure
       setPairings((prev) =>
         prev.map((p) =>
-          p.id === resultModal.pairingId
-            ? { ...p, status: "completed", completed_at: new Date().toISOString() }
-            : p
+          p.id === pairingId ? { ...p, status: "in_progress", completed_at: null } : p
         )
       );
     }
-    setResultModal(null);
   };
 
   const handleVoidGame = async () => {
     if (!resultModal) return;
+    const { pairingId } = resultModal;
 
-    const res = await fetch(
-      `/api/sessions/${session.id}/pairings/${resultModal.pairingId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "voided" }),
-      }
+    // opt-3: Update state immediately, persist in background
+    const now = new Date().toISOString();
+    setPairings((prev) =>
+      prev.map((p) =>
+        p.id === pairingId ? { ...p, status: "voided", completed_at: now } : p
+      )
     );
+    setResultModal(null);
 
-    if (res.ok) {
+    const res = await fetch(`/api/sessions/${session.id}/pairings/${pairingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "voided" }),
+    });
+
+    if (!res.ok) {
+      // Rollback on failure
       setPairings((prev) =>
         prev.map((p) =>
-          p.id === resultModal.pairingId
-            ? { ...p, status: "voided", completed_at: new Date().toISOString() }
-            : p
+          p.id === pairingId ? { ...p, status: "in_progress", completed_at: null } : p
         )
       );
     }
-    setResultModal(null);
   };
 
   const handleToggleActive = async (spId: string, currentActive: boolean) => {
+    // opt-4: Flip immediately, rollback on failure
+    setSessionPlayers((prev) =>
+      prev.map((sp) => (sp.id === spId ? { ...sp, is_active: !currentActive } : sp))
+    );
+
     const res = await fetch(`/api/sessions/${session.id}/players/${spId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_active: !currentActive }),
     });
 
-    if (res.ok) {
+    if (!res.ok) {
+      // Rollback on failure
       setSessionPlayers((prev) =>
-        prev.map((sp) =>
-          sp.id === spId ? { ...sp, is_active: !currentActive } : sp
-        )
+        prev.map((sp) => (sp.id === spId ? { ...sp, is_active: currentActive } : sp))
       );
     }
   };
@@ -336,6 +384,8 @@ export default function CourtDashboardClient({
           <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {courts.map((courtNumber) => {
               const pairing = getCourtPairing(courtNumber);
+              // Temp pairings have not been confirmed by the server yet — block interaction
+              const isPending = pairing?.id.startsWith("temp-");
               const teamA = pairing
                 ? ([getPlayerById(pairing.team_a_player_1), getPlayerById(pairing.team_a_player_2)] as [
                     ReturnType<typeof getPlayerById>,
@@ -364,7 +414,8 @@ export default function CourtDashboardClient({
                       : undefined
                   }
                   status={pairing ? "in_progress" : "available"}
-                  onClick={() => handleCourtClick(courtNumber)}
+                  isPending={isPending}
+                  onClick={isPending ? undefined : () => handleCourtClick(courtNumber)}
                 />
               );
             })}
@@ -556,10 +607,6 @@ export default function CourtDashboardClient({
             </div>
           </div>
 
-          {/* Loading indicator while generating */}
-          {isGenerating && (
-            <p className="mt-2 text-center text-xs text-gray-400">Generating pairing…</p>
-          )}
         </>
       )}
 
@@ -615,6 +662,7 @@ export default function CourtDashboardClient({
           sessionId={session.id}
           availablePlayers={playersWithStats}
           suggestion={assignModal.suggestion}
+          suggestionLoading={assignModal.suggestionLoading}
           onClose={() => setAssignModal(null)}
           onConfirm={handleConfirmAssignment}
         />

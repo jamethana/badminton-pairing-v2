@@ -14,6 +14,7 @@ interface CourtCardProps {
   teamA?: [PlayerInfo, PlayerInfo];
   teamB?: [PlayerInfo, PlayerInfo];
   status?: "in_progress" | "available";
+  isPending?: boolean;
   onClick?: () => void;
   className?: string;
 }
@@ -60,6 +61,7 @@ export default function CourtCard({
   teamA,
   teamB,
   status = "available",
+  isPending = false,
   onClick,
   className,
 }: CourtCardProps) {
@@ -69,7 +71,8 @@ export default function CourtCard({
       className={cn(
         "rounded-xl border bg-white p-4 shadow-sm transition-shadow",
         status === "in_progress" && "border-green-200 shadow-green-50",
-        onClick && "cursor-pointer hover:shadow-md",
+        isPending && "opacity-60",
+        onClick && !isPending && "cursor-pointer hover:shadow-md",
         className
       )}
     >
@@ -77,13 +80,21 @@ export default function CourtCard({
         <span className="text-sm font-bold text-gray-700">Court {courtNumber}</span>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-medium",
-            status === "in_progress"
+            "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+            isPending
+              ? "bg-yellow-50 text-yellow-600"
+              : status === "in_progress"
               ? "bg-green-100 text-green-700"
               : "bg-gray-100 text-gray-500"
           )}
         >
-          {status === "in_progress" ? "Playing" : "Available"}
+          {isPending && (
+            <svg className="h-2.5 w-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+          )}
+          {isPending ? "Saving…" : status === "in_progress" ? "Playing" : "Available"}
         </span>
       </div>
 
