@@ -14,15 +14,16 @@ export default async function ModeratorDashboard() {
   const user = await getCurrentUser();
   const supabase = await createClient();
 
-  const { data: sessions } = await supabase
-    .from("sessions")
-    .select("*")
-    .order("date", { ascending: false })
-    .limit(5);
-
-  const { data: playerCount } = await supabase
-    .from("users")
-    .select("id", { count: "exact" });
+  // perf-2: Run independent queries in parallel
+  const [{ data: sessions }, { count: playerCount }] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("*")
+      .order("date", { ascending: false })
+      .limit(5),
+    // perf-2 (bug fix): Use { head: true } to get the count without fetching rows
+    supabase.from("users").select("*", { count: "exact", head: true }),
+  ]);
 
   const activeSessions = sessions?.filter((s) => s.status === "active") ?? [];
   const upcomingSessions = sessions?.filter((s) => s.status === "draft") ?? [];
@@ -46,7 +47,7 @@ export default async function ModeratorDashboard() {
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
         <div className="rounded-xl border bg-white p-3 sm:p-4">
           <p className="text-xs sm:text-sm text-gray-500">Total Players</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{playerCount?.length ?? 0}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{playerCount ?? 0}</p>
         </div>
         <div className="rounded-xl border bg-white p-3 sm:p-4">
           <p className="text-xs sm:text-sm text-gray-500">Active</p>

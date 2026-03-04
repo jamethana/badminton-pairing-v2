@@ -38,13 +38,6 @@ export default async function PlayerSessionPage({
   // Check if this user has a slot
   const mySlot = sessionPlayers.find((sp) => sp.user_id === user.appUser.id);
 
-  // Unclaimed slots (no line_user_id on the user)
-  const unclaimedSlots = sessionPlayers.filter(
-    (sp) =>
-      sp.user_id !== user.appUser.id &&
-      !(sp.users as { line_user_id: string | null } | null)?.line_user_id
-  );
-
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar
@@ -63,13 +56,13 @@ export default async function PlayerSessionPage({
           </p>
         </div>
 
+        {/* react-3: unclaimedSlots is now derived inside the client component */}
         <PlayerSessionClient
           session={session}
           sessionPlayers={sessionPlayers}
           pairings={pairings}
           currentUserId={user.appUser.id}
           mySlot={mySlot ?? null}
-          unclaimedSlots={unclaimedSlots}
         />
       </main>
     </div>

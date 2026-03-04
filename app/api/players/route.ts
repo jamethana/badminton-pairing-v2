@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUserId } from "@/lib/supabase/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -11,7 +12,8 @@ async function requireModerator(): Promise<ModeratorResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  const appUserId = user.user_metadata?.app_user_id as string | undefined;
+  // quality-1: Use typed helper instead of unsafe cast
+  const appUserId = getAppUserId(user);
   if (!appUserId) return { ok: false, response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
   if (!appUser?.is_moderator) return { ok: false, response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
@@ -41,7 +43,14 @@ export async function POST(request: NextRequest) {
   const auth = await requireModerator();
   if (!auth.ok) return auth.response;
 
-  const body = await request.json();
+  // quality-2: Guard against malformed JSON bodies
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
   const parsed = CreatePlayerSchema.safeParse(body);
   if (!parsed.success) {
     const flat = parsed.error.flatten();
@@ -52,6 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: messages.join("; ") || "Invalid input" }, { status: 400 });
   }
 
+  // react-5: Use admin client consistently for name-slot user creation
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase
     .from("users")

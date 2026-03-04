@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { getSkillColor, getSkillTextColor } from "@/components/skill-bar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Tables } from "@/types/database";
 
 type AppUser = Tables<"users">;
@@ -18,13 +26,18 @@ export default function PlayersClient({ initialPlayers }: Props) {
     display_name: "",
     skill_level: 5,
   });
-  const [saving, setSaving] = useState(false);
+
+  // react-4: Replace manual loading booleans with useTransition
+  const [isSaving, startSaving] = useTransition();
+  const [isAdding, startAdding] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // react-4: Inline confirmation state replaces window.confirm
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Add player form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ display_name: "", skill_level: 5 });
-  const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
 
   const startEdit = (player: AppUser) => {
@@ -32,9 +45,8 @@ export default function PlayersClient({ initialPlayers }: Props) {
     setEditForm({ display_name: player.display_name, skill_level: player.skill_level });
   };
 
-  const saveEdit = async (playerId: string) => {
-    setSaving(true);
-    try {
+  const saveEdit = (playerId: string) => {
+    startSaving(async () => {
       const res = await fetch(`/api/players/${playerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -45,33 +57,27 @@ export default function PlayersClient({ initialPlayers }: Props) {
         setPlayers((prev) => prev.map((p) => (p.id === playerId ? updated : p)));
         setEditingId(null);
       }
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const deletePlayer = async (playerId: string) => {
-    if (!confirm("Delete this player? This cannot be undone.")) return;
+  const confirmDelete = async (playerId: string) => {
+    setPendingDeleteId(null);
     setDeletingId(playerId);
     try {
       const res = await fetch(`/api/players/${playerId}`, { method: "DELETE" });
       if (res.ok) {
         setPlayers((prev) => prev.filter((p) => p.id !== playerId));
-      } else {
-        const json = await res.json();
-        alert(json.error ?? "Failed to delete player");
       }
     } finally {
       setDeletingId(null);
     }
   };
 
-  const addPlayer = async (e: React.FormEvent) => {
+  const addPlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.display_name.trim()) return;
-    setAdding(true);
     setAddError("");
-    try {
+    startAdding(async () => {
       const res = await fetch("/api/players", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,16 +85,15 @@ export default function PlayersClient({ initialPlayers }: Props) {
       });
       if (res.ok) {
         const created = await res.json();
-        setPlayers((prev) => [...prev, created].sort((a, b) => a.display_name.localeCompare(b.display_name)));
+        // quality-4: .toSorted() is non-mutating
+        setPlayers((prev) => [...prev, created].toSorted((a, b) => a.display_name.localeCompare(b.display_name)));
         setAddForm({ display_name: "", skill_level: 5 });
         setShowAddForm(false);
       } else {
         const json = await res.json();
         setAddError(json.error ?? "Failed to add player");
       }
-    } finally {
-      setAdding(false);
-    }
+    });
   };
 
   return (
@@ -130,10 +135,10 @@ export default function PlayersClient({ initialPlayers }: Props) {
               </button>
               <button
                 type="submit"
-                disabled={adding || !addForm.display_name.trim()}
+                disabled={isAdding || !addForm.display_name.trim()}
                 className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
               >
-                {adding ? "Adding…" : "Add Player"}
+                {isAdding ? "Adding…" : "Add Player"}
               </button>
             </div>
           </form>
@@ -256,10 +261,10 @@ export default function PlayersClient({ initialPlayers }: Props) {
                       </button>
                       <button
                         onClick={() => saveEdit(player.id)}
-                        disabled={saving}
+                        disabled={isSaving}
                         className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60"
                       >
-                        {saving ? "…" : "Save"}
+                        {isSaving ? "…" : "Save"}
                       </button>
                     </div>
                   ) : (
@@ -272,7 +277,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
                       </button>
                       {!player.line_user_id && (
                         <button
-                          onClick={() => deletePlayer(player.id)}
+                          onClick={() => setPendingDeleteId(player.id)}
                           disabled={deletingId === player.id}
                           className="text-xs text-red-500 hover:underline disabled:opacity-50"
                         >
@@ -294,6 +299,34 @@ export default function PlayersClient({ initialPlayers }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* react-4: Inline confirmation dialog replaces window.confirm + window.alert */}
+      <Dialog open={!!pendingDeleteId} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Delete player?</DialogTitle>
+            <DialogDescription>
+              {pendingDeleteId && players.find((p) => p.id === pendingDeleteId)?.display_name
+                ? `"${players.find((p) => p.id === pendingDeleteId)!.display_name}" will be permanently removed. This cannot be undone.`
+                : "This player will be permanently removed. This cannot be undone."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setPendingDeleteId(null)}
+              className="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => pendingDeleteId && confirmDelete(pendingDeleteId)}
+              className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

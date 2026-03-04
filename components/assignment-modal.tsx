@@ -14,7 +14,6 @@ interface Player {
 }
 
 interface AssignmentModalProps {
-  open: boolean;
   courtNumber: number;
   sessionId: string;
   availablePlayers: Player[];
@@ -32,7 +31,6 @@ interface AssignmentModalProps {
 type TeamKey = "A1" | "A2" | "B1" | "B2";
 
 export default function AssignmentModal({
-  open,
   courtNumber,
   availablePlayers,
   suggestion,
@@ -46,18 +44,18 @@ export default function AssignmentModal({
   const [selectedSlot, setSelectedSlot] = useState<TeamKey | null>(null);
 
   useEffect(() => {
-    if (open && suggestion) {
+    if (suggestion) {
       setSlots({
         A1: suggestion.teamA[0],
         A2: suggestion.teamA[1],
         B1: suggestion.teamB[0],
         B2: suggestion.teamB[1],
       });
-    } else if (open) {
+    } else {
       setSlots({ A1: null, A2: null, B1: null, B2: null });
     }
     setSelectedSlot(null);
-  }, [open, suggestion]);
+  }, [suggestion]);
 
   const assignedIds = Object.values(slots).filter((v): v is string => v !== null);
   const remainingPlayers = availablePlayers.filter((p) => !assignedIds.includes(p.id));
@@ -115,8 +113,6 @@ export default function AssignmentModal({
   const skillDiff = Math.abs(teamASkill - teamBSkill);
 
   const TEAM_KEYS: [TeamKey, TeamKey][] = [["A1", "A2"], ["B1", "B2"]];
-
-  if (!open) return null;
 
   return (
     <div

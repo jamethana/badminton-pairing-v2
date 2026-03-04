@@ -9,10 +9,13 @@ export default function LoginButton() {
     setLoading(true);
     const channelId = process.env.NEXT_PUBLIC_LINE_CHANNEL_ID;
     const callbackUrl = process.env.NEXT_PUBLIC_LINE_CALLBACK_URL;
-    const state = Math.random().toString(36).substring(2);
-    const nonce = Math.random().toString(36).substring(2);
 
-    sessionStorage.setItem("line_oauth_state", state);
+    // Use crypto.randomUUID for a cryptographically secure state
+    const state = crypto.randomUUID();
+    const nonce = crypto.randomUUID();
+
+    // Store state in a short-lived cookie for server-side CSRF verification
+    document.cookie = `line_oauth_state=${state}; path=/; max-age=600; SameSite=Lax`;
 
     const params = new URLSearchParams({
       response_type: "code",

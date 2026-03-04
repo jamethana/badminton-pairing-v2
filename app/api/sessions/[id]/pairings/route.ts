@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAppUserId } from "@/lib/supabase/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generatePairing } from "@/lib/algorithms/pairing";
+
+const GeneratePairingSchema = z.object({
+  generate: z.literal(true),
+  court_number: z.number().int().min(1),
+});
 
 const CreatePairingSchema = z.object({
   court_number: z.number().int().min(1),
@@ -39,28 +45,37 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const appUserId = user.user_metadata?.app_user_id as string | undefined;
+  const appUserId = getAppUserId(user);
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
   const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await request.json();
+  // quality-2: Guard against malformed JSON bodies
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  if (body.generate) {
-    // Auto-generate pairing for a court
-    const courtNumber = body.court_number as number;
+  // quality-3: Validate the generate branch with its own schema
+  const generateParsed = GeneratePairingSchema.safeParse(body);
+  if (generateParsed.success) {
+    const { court_number: courtNumber } = generateParsed.data;
 
-    const { data: sessionPlayers } = await supabase
-      .from("session_players")
-      .select(`users(*)`)
-      .eq("session_id", id)
-      .eq("is_active", true);
-
-    const { data: pairings } = await supabase
-      .from("pairings")
-      .select("*")
-      .eq("session_id", id);
+    // perf-3: Fetch sessionPlayers and pairings in parallel
+    const [{ data: sessionPlayers }, { data: pairings }] = await Promise.all([
+      supabase
+        .from("session_players")
+        .select(`users(*)`)
+        .eq("session_id", id)
+        .eq("is_active", true),
+      supabase
+        .from("pairings")
+        .select("*")
+        .eq("session_id", id),
+    ]);
 
     const activePlayers = (sessionPlayers ?? [])
       .map((sp) => sp.users)
@@ -77,16 +92,14 @@ export async function POST(
   const parsed = CreatePairingSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  // Get next sequence number
-  const { data: lastPairing } = await supabase
-    .from("pairings")
-    .select("sequence_number")
-    .eq("session_id", id)
-    .order("sequence_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // sec-3: Use atomic RPC to get next sequence number, preventing race conditions
+  const { data: sequenceNumber, error: seqError } = await supabase
+    .rpc("next_pairing_sequence", { p_session_id: id });
 
-  const sequenceNumber = (lastPairing?.sequence_number ?? 0) + 1;
+  if (seqError || sequenceNumber === null) {
+    console.error("Failed to get sequence number:", seqError);
+    return NextResponse.json({ error: "Failed to generate sequence number" }, { status: 500 });
+  }
 
   const { data, error } = await supabase
     .from("pairings")

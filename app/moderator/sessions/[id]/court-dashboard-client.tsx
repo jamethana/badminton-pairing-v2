@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import CourtCard from "@/components/court-card";
 import PlayerBadge from "@/components/player-badge";
@@ -8,9 +8,8 @@ import AssignmentModal from "@/components/assignment-modal";
 import ResultModal from "@/components/result-modal";
 import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
 import { cn } from "@/lib/utils";
-import type { Tables } from "@/types/database";
+import type { Tables, SessionStatus } from "@/types/database";
 
-type Session = Tables<"sessions">;
 type Pairing = Tables<"pairings"> & {
   game_results?: Tables<"game_results"> | null;
 };
@@ -18,8 +17,9 @@ type SessionPlayer = Tables<"session_players"> & {
   users: Tables<"users"> | null;
 };
 
+// quality-5: Narrowed prop type — only pass the fields this component actually uses
 interface Props {
-  session: Session;
+  session: { id: string; status: SessionStatus; num_courts: number };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
 }
@@ -47,23 +47,66 @@ export default function CourtDashboardClient({
     courtNumber: number;
   } | null>(null);
 
-  const [loading, setLoading] = useState(false);
+  // react-1: Separate transitions per operation instead of a shared loading boolean
+  const [isGenerating, startGenerating] = useTransition();
+  const [isAddingPlayer, startAddingPlayer] = useTransition();
+
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerSkill, setNewPlayerSkill] = useState(5);
 
-  const busyIds = getPlayersInCurrentGame(pairings);
+  // react-2: Memoize all expensive derived values so they only recompute
+  // when their dependencies change — not on every keypress in the add-player form.
+  const busyIds = useMemo(() => getPlayersInCurrentGame(pairings), [pairings]);
 
-  const statsMap = computePlayerStats(
-    pairings,
-    sessionPlayers.map((sp) => sp.users?.id).filter((id): id is string => id !== null)
+  const statsMap = useMemo(
+    () =>
+      computePlayerStats(
+        pairings,
+        sessionPlayers.map((sp) => sp.users?.id).filter((id): id is string => id !== null)
+      ),
+    [pairings, sessionPlayers]
   );
 
-  const activePlayers = sessionPlayers
-    .filter((sp) => sp.is_active && sp.users)
-    .map((sp) => sp.users!);
+  const activePlayers = useMemo(
+    () => sessionPlayers.filter((sp) => sp.is_active && sp.users).map((sp) => sp.users!),
+    [sessionPlayers]
+  );
 
-  const availablePlayers = activePlayers.filter((p) => !busyIds.has(p.id));
+  const availablePlayers = useMemo(
+    () => activePlayers.filter((p) => !busyIds.has(p.id)),
+    [activePlayers, busyIds]
+  );
+
+  const sortedStats = useMemo(
+    () =>
+      sessionPlayers
+        .filter((sp) => sp.users)
+        .map((sp) => {
+          const s = statsMap.get(sp.users!.id);
+          return {
+            sp,
+            user: sp.users!,
+            matchesPlayed: s?.matchesPlayed ?? 0,
+            wins: s?.wins ?? 0,
+            losses: s?.losses ?? 0,
+            gamesSince: s?.gamesSinceLastPlayed ?? 0,
+          };
+        })
+        // quality-4: .toSorted() is non-mutating
+        .toSorted((a, b) => b.matchesPlayed - a.matchesPlayed),
+    [sessionPlayers, statsMap]
+  );
+
+  const playersWithStats = useMemo(
+    () =>
+      availablePlayers.map((p) => ({
+        ...p,
+        matchesPlayed: statsMap.get(p.id)?.matchesPlayed ?? 0,
+        gamesSinceLastPlayed: statsMap.get(p.id)?.gamesSinceLastPlayed ?? 0,
+      })),
+    [availablePlayers, statsMap]
+  );
 
   const getCourtPairing = (courtNumber: number) =>
     pairings.find((p) => p.court_number === courtNumber && p.status === "in_progress");
@@ -71,15 +114,15 @@ export default function CourtDashboardClient({
   const getPlayerById = (id: string) =>
     sessionPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
 
-  const handleCourtClick = async (courtNumber: number) => {
+  const handleCourtClick = (courtNumber: number) => {
     const existing = getCourtPairing(courtNumber);
     if (existing) {
       setResultModal({ pairingId: existing.id, courtNumber });
       return;
     }
 
-    setLoading(true);
-    try {
+    // react-1: useTransition for generating pairings
+    startGenerating(async () => {
       const res = await fetch(`/api/sessions/${session.id}/pairings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,9 +131,7 @@ export default function CourtDashboardClient({
       const data = await res.json();
       const suggestion = res.ok ? data.suggestion : undefined;
       setAssignModal({ courtNumber, suggestion });
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const handleConfirmAssignment = async (assignment: {
@@ -181,14 +222,11 @@ export default function CourtDashboardClient({
   };
 
   const handleToggleActive = async (spId: string, currentActive: boolean) => {
-    const res = await fetch(
-      `/api/sessions/${session.id}/players/${spId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !currentActive }),
-      }
-    );
+    const res = await fetch(`/api/sessions/${session.id}/players/${spId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: !currentActive }),
+    });
 
     if (res.ok) {
       setSessionPlayers((prev) =>
@@ -208,11 +246,12 @@ export default function CourtDashboardClient({
     }
   };
 
-  const handleAddPlayer = async (e: React.FormEvent) => {
+  const handleAddPlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlayerName.trim()) return;
-    setLoading(true);
-    try {
+
+    // react-1: useTransition for adding players
+    startAddingPlayer(async () => {
       const res = await fetch(`/api/sessions/${session.id}/players`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -225,9 +264,7 @@ export default function CourtDashboardClient({
         setNewPlayerSkill(5);
         setAddingPlayer(false);
       }
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const numCourts = session.num_courts;
@@ -242,28 +279,6 @@ export default function CourtDashboardClient({
     availablePlayers.length > 0
       ? (availablePlayers.reduce((s, p) => s + p.skill_level, 0) / availablePlayers.length).toFixed(1)
       : "–";
-
-  // Stats tab data
-  const sortedStats = sessionPlayers
-    .filter((sp) => sp.users)
-    .map((sp) => {
-      const s = statsMap.get(sp.users!.id);
-      return {
-        sp,
-        user: sp.users!,
-        matchesPlayed: s?.matchesPlayed ?? 0,
-        wins: s?.wins ?? 0,
-        losses: s?.losses ?? 0,
-        gamesSince: s?.gamesSinceLastPlayed ?? 0,
-      };
-    })
-    .sort((a, b) => b.matchesPlayed - a.matchesPlayed);
-
-  const playersWithStats = availablePlayers.map((p) => ({
-    ...p,
-    matchesPlayed: statsMap.get(p.id)?.matchesPlayed ?? 0,
-    gamesSinceLastPlayed: statsMap.get(p.id)?.gamesSinceLastPlayed ?? 0,
-  }));
 
   return (
     <>
@@ -381,10 +396,10 @@ export default function CourtDashboardClient({
                 <div className="flex gap-2">
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={isAddingPlayer}
                     className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
                   >
-                    Add
+                    {isAddingPlayer ? "Adding…" : "Add"}
                   </button>
                   <button
                     type="button"
@@ -401,7 +416,8 @@ export default function CourtDashboardClient({
             <div className="space-y-1.5">
               {sessionPlayers
                 .filter((sp) => sp.users)
-                .sort((a, b) => {
+                // quality-4: .toSorted() is non-mutating
+                .toSorted((a, b) => {
                   const busyA = busyIds.has(a.users!.id);
                   const busyB = busyIds.has(b.users!.id);
                   if (busyA !== busyB) return busyA ? 1 : -1;
@@ -444,6 +460,11 @@ export default function CourtDashboardClient({
               )}
             </div>
           </div>
+
+          {/* Loading indicator while generating */}
+          {isGenerating && (
+            <p className="mt-2 text-center text-xs text-gray-400">Generating pairing…</p>
+          )}
         </>
       )}
 
@@ -492,10 +513,9 @@ export default function CourtDashboardClient({
         </div>
       )}
 
-      {/* Assignment Modal */}
+      {/* Assignment Modal — open prop removed; rendered only when assignModal is set */}
       {assignModal && (
         <AssignmentModal
-          open={!!assignModal}
           courtNumber={assignModal.courtNumber}
           sessionId={session.id}
           availablePlayers={playersWithStats}
@@ -505,10 +525,9 @@ export default function CourtDashboardClient({
         />
       )}
 
-      {/* Result Modal */}
+      {/* Result Modal — open prop removed; rendered only when resultModal is set */}
       {resultModal && resultPairing && (
         <ResultModal
-          open={!!resultModal}
           pairingId={resultModal.pairingId}
           sessionId={session.id}
           teamA={[

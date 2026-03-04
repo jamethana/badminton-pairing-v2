@@ -22,6 +22,7 @@ export type Database = {
           skill_level: number;
           calculated_skill_rating: number | null;
           is_moderator: boolean;
+          auth_secret: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -33,6 +34,7 @@ export type Database = {
           skill_level?: number;
           calculated_skill_rating?: number | null;
           is_moderator?: boolean;
+          auth_secret?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -44,6 +46,7 @@ export type Database = {
           skill_level?: number;
           calculated_skill_rating?: number | null;
           is_moderator?: boolean;
+          auth_secret?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -269,7 +272,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      next_pairing_sequence: {
+        Args: { p_session_id: string };
+        Returns: number;
+      };
     };
     Enums: {
       session_status: SessionStatus;

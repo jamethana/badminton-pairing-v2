@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
+  const state = searchParams.get("state");
   const error = searchParams.get("error");
 
   if (error || !code) {
@@ -14,8 +15,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // sec-2: Verify OAuth CSRF state parameter
+  const expectedState = request.cookies.get("line_oauth_state")?.value;
+  if (!state || !expectedState || state !== expectedState) {
+    console.error("OAuth state mismatch — possible CSRF attempt");
+    return NextResponse.redirect(new URL("/login?error=invalid_state", request.url));
+  }
+
   // Build the redirect response early so we can set session cookies directly on it
   const successResponse = NextResponse.redirect(new URL("/", request.url));
+  // Clear the state cookie now that it has been validated
+  successResponse.cookies.set("line_oauth_state", "", { maxAge: 0, path: "/" });
 
   try {
     const callbackUrl = process.env.NEXT_PUBLIC_LINE_CALLBACK_URL!;
@@ -41,7 +51,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=token_exchange_failed", request.url));
     }
 
-    const { access_token } = await tokenRes.json() as { access_token: string };
+    // quality-15: Validate LINE token response instead of unsafe cast
+    const tokenJson = await tokenRes.json() as Record<string, unknown>;
+    const access_token = typeof tokenJson.access_token === "string" ? tokenJson.access_token : null;
+    if (!access_token) {
+      console.error("LINE token response missing access_token");
+      return NextResponse.redirect(new URL("/login?error=token_exchange_failed", request.url));
+    }
 
     // Fetch LINE profile
     const profileRes = await fetch("https://api.line.me/v2/profile", {
@@ -63,7 +79,8 @@ export async function GET(request: NextRequest) {
     // Use admin client (service role) to bypass RLS for user management
     const adminSupabase = createAdminClient();
 
-    // Upsert the app-level user record
+    // Upsert the app-level user record — auth_secret is intentionally excluded
+    // so it is never overwritten once set.
     const { data: appUser, error: upsertError } = await adminSupabase
       .from("users")
       .upsert(
@@ -75,7 +92,7 @@ export async function GET(request: NextRequest) {
         },
         { onConflict: "line_user_id", ignoreDuplicates: false }
       )
-      .select("id")
+      .select("id, auth_secret")
       .single();
 
     if (upsertError || !appUser) {
@@ -83,8 +100,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=user_upsert_failed", request.url));
     }
 
+    // sec-1: Use a per-user random secret instead of a deterministic password.
+    // Generate once on first login and persist; never regenerate to avoid
+    // invalidating existing sessions.
+    let authSecret = appUser.auth_secret;
+    if (!authSecret) {
+      authSecret = crypto.randomUUID();
+      const { error: secretError } = await adminSupabase
+        .from("users")
+        .update({ auth_secret: authSecret })
+        .eq("id", appUser.id);
+      if (secretError) {
+        console.error("Failed to store auth_secret:", secretError);
+        return NextResponse.redirect(new URL("/login?error=auth_failed", request.url));
+      }
+    }
+
     const lineEmail = `line_${profile.userId}@badminton.app`;
-    const linePassword = `line_${profile.userId}_${channelId}`;
+    const linePassword = authSecret;
 
     // The Supabase SSR client writes session cookies directly onto successResponse
     const supabase = createServerClient<Database>(
@@ -111,7 +144,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!signInError && signInData.user) {
-      // Returning user: ensure JWT metadata has line_user_id (fix for users created before this patch)
+      // Returning user: ensure JWT metadata has line_user_id
       if (!signInData.user.user_metadata?.line_user_id) {
         await adminSupabase.auth.admin.updateUserById(signInData.user.id, {
           user_metadata: {

@@ -12,7 +12,6 @@ interface Player {
 }
 
 interface ResultModalProps {
-  open: boolean;
   pairingId: string;
   sessionId: string;
   teamA: [Player, Player];
@@ -27,7 +26,6 @@ interface ResultModalProps {
 }
 
 export default function ResultModal({
-  open,
   teamA,
   teamB,
   onClose,
@@ -38,8 +36,6 @@ export default function ResultModal({
   const [scoreB, setScoreB] = useState("");
   const [loading, setLoading] = useState(false);
   const [voidLoading, setVoidLoading] = useState(false);
-
-  if (!open) return null;
 
   const numA = parseInt(scoreA) || 0;
   const numB = parseInt(scoreB) || 0;

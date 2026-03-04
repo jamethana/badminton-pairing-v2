@@ -21,7 +21,7 @@ interface Props {
   pairings: Pairing[];
   currentUserId: string;
   mySlot: SessionPlayer | null;
-  unclaimedSlots: SessionPlayer[];
+  // react-3: unclaimedSlots is no longer passed from the server — derived client-side
 }
 
 export default function PlayerSessionClient({
@@ -30,14 +30,18 @@ export default function PlayerSessionClient({
   pairings: initialPairings,
   currentUserId,
   mySlot: initialMySlot,
-  unclaimedSlots: initialUnclaimed,
 }: Props) {
   const [pairings, setPairings] = useState(initialPairings);
   const [mySlot, setMySlot] = useState(initialMySlot);
-  const [unclaimedSlots, setUnclaimedSlots] = useState(initialUnclaimed);
   const [allPlayers, setAllPlayers] = useState(sessionPlayers);
   const [claiming, setClaiming] = useState(false);
   const [resultModal, setResultModal] = useState<{ pairingId: string } | null>(null);
+
+  // react-3: Derive unclaimedSlots from allPlayers during render instead of
+  // maintaining it as independent state that can drift.
+  const unclaimedSlots = allPlayers.filter(
+    (sp) => sp.user_id !== currentUserId && !(sp.users as Tables<"users"> | null)?.line_user_id
+  );
 
   const statsMap = computePlayerStats(
     pairings,
@@ -75,7 +79,7 @@ export default function PlayerSessionClient({
       if (res.ok) {
         const updated = await res.json();
         setMySlot(updated);
-        setUnclaimedSlots((prev) => prev.filter((s) => s.id !== slotId));
+        // react-3: Updating allPlayers automatically updates the derived unclaimedSlots
         setAllPlayers((prev) =>
           prev.map((sp) => (sp.id === slotId ? updated : sp))
         );
@@ -151,15 +155,15 @@ export default function PlayerSessionClient({
                     <div
                       className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white",
-                        getSkillColor((slot.users as { skill_level: number } | null)?.skill_level ?? 5)
+                        getSkillColor(slot.users?.skill_level ?? 5)
                       )}
                     >
-                      {(slot.users as { display_name: string } | null)?.display_name.charAt(0)}
+                      {slot.users?.display_name.charAt(0)}
                     </div>
                     <div className="text-left">
-                      <p className="font-medium">{(slot.users as { display_name: string } | null)?.display_name}</p>
+                      <p className="font-medium">{slot.users?.display_name}</p>
                       <p className="text-xs text-gray-400">
-                        Skill {(slot.users as { skill_level: number } | null)?.skill_level}
+                        Skill {slot.users?.skill_level}
                       </p>
                     </div>
                   </button>
@@ -276,7 +280,8 @@ export default function PlayerSessionClient({
           <div className="space-y-2">
             {completedPairings
               .slice(-5)
-              .reverse()
+              // quality-4: .toReversed() is non-mutating
+              .toReversed()
               .map((p) => {
                 const result = p.game_results ?? null;
                 const isMyGame = [
@@ -331,7 +336,6 @@ export default function PlayerSessionClient({
       {/* Result modal */}
       {resultModal && myCurrentGame && (
         <ResultModal
-          open={!!resultModal}
           pairingId={resultModal.pairingId}
           sessionId={session.id}
           teamA={[getPlayer(myCurrentGame.team_a_player_1)!, getPlayer(myCurrentGame.team_a_player_2)!]}
