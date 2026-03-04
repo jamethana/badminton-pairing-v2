@@ -267,19 +267,11 @@ export default function AssignmentModal({
                             <PlayerAvatar player={player} size={28} />
                             <div className="flex-1 min-w-0">
                               <p className="truncate text-sm font-medium leading-tight">
-                                <span
-                                  className={cn(
-                                    "mr-1 text-xs font-semibold",
-                                    getSkillTextColor(player.skill_level)
-                                  )}
-                                >
-                                  {player.skill_level}
-                                </span>
                                 {player.display_name}
                               </p>
                               <p className="text-[10px] text-gray-400 leading-tight">
                                 {(player.matchesPlayed ?? 0)}{" "}
-                                {(player.matchesPlayed ?? 0) === 1 ? "Match" : "Matches"}
+                                {(player.matchesPlayed ?? 0) === 1 ? "played" : "played"}
                                 <span
                                   className={cn(
                                     "ml-1",
@@ -316,9 +308,21 @@ export default function AssignmentModal({
           {teamASkill > 0 && teamBSkill > 0 && (
             <div className="mb-3 flex items-center justify-center gap-2 text-xs">
               <span className="text-gray-500">Balance:</span>
-              <span className={cn("font-semibold", skillDiff <= 2 ? "text-green-600" : "text-orange-500")}>
-                {teamASkill} vs {teamBSkill}
-                {skillDiff <= 2 ? " (Fair)" : ` (diff: ${skillDiff})`}
+              <span
+                className={cn(
+                  "font-semibold",
+                  skillDiff <= 1
+                    ? "text-green-600"
+                    : skillDiff <= 3
+                      ? "text-amber-600"
+                      : "text-red-500"
+                )}
+              >
+                {skillDiff <= 1
+                  ? "Very Fair"
+                  : skillDiff <= 3
+                    ? "Kinda Fair"
+                    : "Not Fair"}
               </span>
             </div>
           )}
@@ -339,7 +343,7 @@ export default function AssignmentModal({
                 <span className="text-gray-400">
                   {" "}
                   · {suggestedPlayer.matchesPlayed ?? 0}{" "}
-                  {(suggestedPlayer.matchesPlayed ?? 0) === 1 ? "Match" : "Matches"}
+                  {(suggestedPlayer.matchesPlayed ?? 0) === 1 ? "played" : "played"}
                   <span
                     className={cn(
                       "ml-1",
@@ -374,19 +378,11 @@ export default function AssignmentModal({
                     <PlayerAvatar player={player} size={28} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium leading-tight">
-                        <span
-                          className={cn(
-                            "mr-1 text-xs font-semibold",
-                            getSkillTextColor(player.skill_level)
-                          )}
-                        >
-                          {player.skill_level}
-                        </span>
                         {player.display_name}
                       </p>
                       <p className="text-[10px] text-gray-400 leading-tight">
                         {(player.matchesPlayed ?? 0)}{" "}
-                        {(player.matchesPlayed ?? 0) === 1 ? "Match" : "Matches"}
+                        {(player.matchesPlayed ?? 0) === 1 ? "played" : "played"}
                         <span
                           className={cn(
                             "ml-1",

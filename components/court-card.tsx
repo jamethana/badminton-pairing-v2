@@ -57,23 +57,16 @@ function PlayerSlot({ player }: { player: PlayerInfo }) {
         <p className="truncate text-sm font-medium leading-tight">
           {player.display_name}
         </p>
-        <p className="text-[10px] leading-tight text-gray-400">
-          S{player.skill_level}
-        </p>
       </div>
     </div>
   );
 }
 
 function TeamSlot({ players, label }: { players?: [PlayerInfo, PlayerInfo]; label: string }) {
-  const skillSum = players ? players[0].skill_level + players[1].skill_level : 0;
   return (
     <div className="flex-1 min-w-0">
       <div className="mb-1 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</span>
-        {players && (
-          <span className="text-xs text-gray-400">S:{skillSum}</span>
-        )}
       </div>
       {players ? (
         <div className="space-y-1.5">

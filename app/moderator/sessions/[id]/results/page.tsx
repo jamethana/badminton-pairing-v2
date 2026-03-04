@@ -94,13 +94,15 @@ export default async function SessionResultsPage({
                     <p className="mb-1 text-xs font-semibold text-gray-400">
                       Team A {result?.winner_team === "team_a" && "🏆"}
                     </p>
-                    {[players.a1, players.a2].map((p, i) => p && (
-                      <div key={i} className="flex items-center gap-1.5">
-                        <div className={cn("h-3 w-1 rounded-full", getSkillColor(p.skill_level))} />
-                        <span className="text-sm">{p.display_name}</span>
-                        <span className="text-xs text-gray-400">({p.skill_level})</span>
-                      </div>
-                    ))}
+                    {[players.a1, players.a2].map(
+                      (p, i) =>
+                        p && (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <div className={cn("h-3 w-1 rounded-full", getSkillColor(p.skill_level))} />
+                            <span className="text-sm">{p.display_name}</span>
+                          </div>
+                        )
+                    )}
                   </div>
 
                   <div className="flex items-center text-xs font-bold text-gray-300">VS</div>
@@ -110,13 +112,15 @@ export default async function SessionResultsPage({
                     <p className="mb-1 text-xs font-semibold text-gray-400">
                       Team B {result?.winner_team === "team_b" && "🏆"}
                     </p>
-                    {[players.b1, players.b2].map((p, i) => p && (
-                      <div key={i} className="flex items-center gap-1.5">
-                        <div className={cn("h-3 w-1 rounded-full", getSkillColor(p.skill_level))} />
-                        <span className="text-sm">{p.display_name}</span>
-                        <span className="text-xs text-gray-400">({p.skill_level})</span>
-                      </div>
-                    ))}
+                    {[players.b1, players.b2].map(
+                      (p, i) =>
+                        p && (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <div className={cn("h-3 w-1 rounded-full", getSkillColor(p.skill_level))} />
+                            <span className="text-sm">{p.display_name}</span>
+                          </div>
+                        )
+                    )}
                   </div>
                 </div>
               </div>
