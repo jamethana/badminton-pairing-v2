@@ -19,7 +19,7 @@ type SessionPlayer = Tables<"session_players"> & {
 
 // quality-5: Narrowed prop type — only pass the fields this component actually uses
 interface Props {
-  session: { id: string; status: SessionStatus; num_courts: number };
+  session: { id: string; status: SessionStatus; num_courts: number; court_names: Record<string, string> };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
   allUsers: Tables<"users">[];
@@ -35,6 +35,10 @@ export default function CourtDashboardClient({
   const [sessionPlayers, setSessionPlayers] = useState(initialSessionPlayers);
   const [pairings, setPairings] = useState(initialPairings);
   const [sessionStatus, setSessionStatus] = useState(session.status);
+  const [numCourts, setNumCourts] = useState(session.num_courts);
+  const [courtNames, setCourtNames] = useState<Record<string, string>>(session.court_names ?? {});
+  const [renamingCourt, setRenamingCourt] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [activeTab, setActiveTab] = useState<"game" | "stats">("game");
 
   // Assignment modal state
@@ -57,7 +61,8 @@ export default function CourtDashboardClient({
   const [playerSearch, setPlayerSearch] = useState("");
   const [showNewForm, setShowNewForm] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
-  const [newPlayerSkill, setNewPlayerSkill] = useState(5);
+  const [newPlayerSkill, setNewPlayerSkill] = useState(3);
+  const [newPlayerError, setNewPlayerError] = useState("");
 
   // react-2: Memoize all expensive derived values so they only recompute
   // when their dependencies change — not on every keypress in the add-player form.
@@ -290,12 +295,45 @@ export default function CourtDashboardClient({
   };
 
   const handleAddCourt = async () => {
+    setNumCourts((n) => n + 1);
+    const res = await fetch(`/api/sessions/${session.id}/courts`, { method: "POST" });
+    if (!res.ok) setNumCourts((n) => n - 1);
+  };
+
+  const handleRemoveCourt = async (courtNumber: number) => {
+    setNumCourts((n) => n - 1);
     const res = await fetch(`/api/sessions/${session.id}/courts`, {
-      method: "POST",
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ court_number: courtNumber }),
     });
-    if (res.ok) {
-      router.refresh();
+    if (!res.ok) {
+      setNumCourts((n) => n + 1);
     }
+  };
+
+  const handleSaveCourtName = async (courtNumber: number, name: string) => {
+    const trimmed = name.trim();
+    const updated = { ...courtNames };
+    if (trimmed) updated[String(courtNumber)] = trimmed;
+    else delete updated[String(courtNumber)];
+    setCourtNames(updated);
+    setRenamingCourt(null);
+    fetch(`/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ court_names: updated }),
+    });
+  };
+
+  const handleRemovePlayer = (spId: string) => {
+    const original = sessionPlayers.find((sp) => sp.id === spId);
+    setSessionPlayers((prev) => prev.filter((sp) => sp.id !== spId));
+    fetch(`/api/sessions/${session.id}/players/${spId}`, { method: "DELETE" }).then((res) => {
+      if (!res.ok && original) {
+        setSessionPlayers((prev) => [...prev, original]);
+      }
+    });
   };
 
   const alreadyInSessionIds = useMemo(
@@ -327,7 +365,17 @@ export default function CourtDashboardClient({
 
   const handleAddNewPlayer = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPlayerName.trim()) return;
+    const name = newPlayerName.trim();
+    if (!name) return;
+
+    const isDupe = allUsers.some(
+      (u) => u.display_name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (isDupe) {
+      setNewPlayerError("A player with that name already exists.");
+      return;
+    }
+    setNewPlayerError("");
 
     startAddingPlayer(async () => {
       const res = await fetch(`/api/sessions/${session.id}/players`, {
@@ -345,7 +393,6 @@ export default function CourtDashboardClient({
     });
   };
 
-  const numCourts = session.num_courts;
   const courts = Array.from({ length: numCourts }, (_, i) => i + 1);
 
   const resultPairing = resultModal
@@ -399,24 +446,40 @@ export default function CourtDashboardClient({
                   ])
                 : undefined;
 
+              const isLastCourt = courtNumber === numCourts;
+              const canRemove = !pairing && isLastCourt && numCourts > 1;
+              const courtLabel = courtNames[String(courtNumber)];
+
               return (
-                <CourtCard
-                  key={courtNumber}
-                  courtNumber={courtNumber}
-                  teamA={
-                    teamA && teamA[0] && teamA[1]
-                      ? (teamA as [NonNullable<typeof teamA[0]>, NonNullable<typeof teamA[1]>])
-                      : undefined
-                  }
-                  teamB={
-                    teamB && teamB[0] && teamB[1]
-                      ? (teamB as [NonNullable<typeof teamB[0]>, NonNullable<typeof teamB[1]>])
-                      : undefined
-                  }
-                  status={pairing ? "in_progress" : "available"}
-                  isPending={isPending}
-                  onClick={isPending ? undefined : () => handleCourtClick(courtNumber)}
-                />
+                <div key={courtNumber} className="group relative">
+                  <CourtCard
+                    courtNumber={courtNumber}
+                    courtLabel={courtLabel}
+                    teamA={
+                      teamA && teamA[0] && teamA[1]
+                        ? (teamA as [NonNullable<typeof teamA[0]>, NonNullable<typeof teamA[1]>])
+                        : undefined
+                    }
+                    teamB={
+                      teamB && teamB[0] && teamB[1]
+                        ? (teamB as [NonNullable<typeof teamB[0]>, NonNullable<typeof teamB[1]>])
+                        : undefined
+                    }
+                    status={pairing ? "in_progress" : "available"}
+                    isPending={isPending}
+                    isRenaming={renamingCourt === courtNumber}
+                    renameValue={renamingCourt === courtNumber ? renameValue : ""}
+                    onRenameChange={setRenameValue}
+                    onRenameSubmit={() => handleSaveCourtName(courtNumber, renameValue)}
+                    onRenameCancel={() => setRenamingCourt(null)}
+                    onRenameStart={() => {
+                      setRenamingCourt(courtNumber);
+                      setRenameValue(courtLabel ?? "");
+                    }}
+                    onRemove={canRemove ? () => handleRemoveCourt(courtNumber) : undefined}
+                    onClick={isPending || renamingCourt === courtNumber ? undefined : () => handleCourtClick(courtNumber)}
+                  />
+                </div>
               );
             })}
 
@@ -505,11 +568,14 @@ export default function CourtDashboardClient({
                       <input
                         type="text"
                         value={newPlayerName}
-                        onChange={(e) => setNewPlayerName(e.target.value)}
+                        onChange={(e) => { setNewPlayerName(e.target.value); setNewPlayerError(""); }}
                         placeholder="Player name"
                         autoFocus
                         className="w-full rounded border px-2 py-2 text-sm focus:border-green-400 focus:outline-none"
                       />
+                      {newPlayerError && (
+                        <p className="mt-1 text-xs text-red-600">{newPlayerError}</p>
+                      )}
                     </div>
                     <div className="w-20 flex-shrink-0">
                       <label className="mb-1 block text-xs font-medium text-gray-600">Skill (1–10)</label>
@@ -596,6 +662,17 @@ export default function CourtDashboardClient({
                       >
                         {isBusy ? "Playing" : sp.is_active ? "Active" : "Inactive"}
                       </button>
+                      {!isBusy && (
+                        <button
+                          onClick={() => handleRemovePlayer(sp.id)}
+                          className="flex-shrink-0 rounded-full p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          title="Remove from session"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   );
                 })}

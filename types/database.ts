@@ -63,6 +63,7 @@ export type Database = {
           num_courts: number;
           max_players: number;
           status: SessionStatus;
+          court_names: Record<string, string>;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -77,6 +78,7 @@ export type Database = {
           num_courts?: number;
           max_players?: number;
           status?: SessionStatus;
+          court_names?: Record<string, string>;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -91,6 +93,7 @@ export type Database = {
           num_courts?: number;
           max_players?: number;
           status?: SessionStatus;
+          court_names?: Record<string, string>;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

@@ -73,6 +73,15 @@ export async function POST(
   const parsed = AddNewPlayerSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  const { count: dupeCount } = await supabase
+    .from("users")
+    .select("id", { count: "exact", head: true })
+    .ilike("display_name", parsed.data.display_name);
+
+  if ((dupeCount ?? 0) > 0) {
+    return NextResponse.json({ error: "A player with that name already exists." }, { status: 409 });
+  }
+
   // react-5: Use admin client consistently for name-slot user creation (same as players/route.ts)
   const adminSupabase = createAdminClient();
   const { data: newUser, error: userError } = await adminSupabase

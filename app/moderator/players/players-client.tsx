@@ -24,14 +24,14 @@ export default function PlayersClient({ initialPlayers }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ display_name: string; skill_level: number }>({
     display_name: "",
-    skill_level: 5,
+    skill_level: 3,
   });
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Add player form state
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState({ display_name: "", skill_level: 5 });
+  const [addForm, setAddForm] = useState({ display_name: "", skill_level: 3 });
   const [addError, setAddError] = useState("");
 
   const startEdit = (player: AppUser) => {
@@ -85,6 +85,11 @@ export default function PlayersClient({ initialPlayers }: Props) {
     if (!name) return;
     setAddError("");
 
+    if (players.some((p) => p.display_name.trim().toLowerCase() === name.toLowerCase())) {
+      setAddError("A player with that name already exists.");
+      return;
+    }
+
     const tempId = `temp-${crypto.randomUUID()}`;
     const optimistic: AppUser = {
       id: tempId,
@@ -101,7 +106,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
     setPlayers((prev) =>
       [...prev, optimistic].toSorted((a, b) => a.display_name.localeCompare(b.display_name))
     );
-    setAddForm({ display_name: "", skill_level: 5 });
+    setAddForm({ display_name: "", skill_level: 3 });
     setShowAddForm(false);
 
     fetch("/api/players", {
@@ -149,7 +154,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
                 min={1}
                 max={10}
                 value={addForm.skill_level}
-                onChange={(e) => setAddForm((f) => ({ ...f, skill_level: parseInt(e.target.value) || 5 }))}
+                onChange={(e) => setAddForm((f) => ({ ...f, skill_level: parseInt(e.target.value) || 3 }))}
                 className="w-20 rounded border px-3 py-2 text-center text-sm focus:border-green-400 focus:outline-none"
               />
             </div>

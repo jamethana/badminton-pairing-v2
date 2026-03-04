@@ -61,6 +61,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: messages.join("; ") || "Invalid input" }, { status: 400 });
   }
 
+  const { supabase } = auth;
+  const { count: dupeCount } = await supabase
+    .from("users")
+    .select("id", { count: "exact", head: true })
+    .ilike("display_name", parsed.data.display_name);
+
+  if ((dupeCount ?? 0) > 0) {
+    return NextResponse.json({ error: "A player with that name already exists." }, { status: 409 });
+  }
+
   // react-5: Use admin client consistently for name-slot user creation
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase

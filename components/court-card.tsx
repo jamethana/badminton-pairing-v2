@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "./skill-bar";
 
@@ -11,10 +12,18 @@ interface PlayerInfo {
 
 interface CourtCardProps {
   courtNumber: number;
+  courtLabel?: string;
   teamA?: [PlayerInfo, PlayerInfo];
   teamB?: [PlayerInfo, PlayerInfo];
   status?: "in_progress" | "available";
   isPending?: boolean;
+  isRenaming?: boolean;
+  renameValue?: string;
+  onRenameChange?: (value: string) => void;
+  onRenameSubmit?: () => void;
+  onRenameCancel?: () => void;
+  onRenameStart?: () => void;
+  onRemove?: () => void;
   onClick?: () => void;
   className?: string;
 }
@@ -58,44 +67,106 @@ function TeamSlot({ players, label }: { players?: [PlayerInfo, PlayerInfo]; labe
 
 export default function CourtCard({
   courtNumber,
+  courtLabel,
   teamA,
   teamB,
   status = "available",
   isPending = false,
+  isRenaming = false,
+  renameValue = "",
+  onRenameChange,
+  onRenameSubmit,
+  onRenameCancel,
+  onRenameStart,
+  onRemove,
   onClick,
   className,
 }: CourtCardProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (isRenaming) inputRef.current?.focus();
+  }, [isRenaming]);
+
+  const displayName = courtLabel || `Court ${courtNumber}`;
+
   return (
     <div
-      onClick={onClick}
+      onClick={!isRenaming ? onClick : undefined}
       className={cn(
         "rounded-xl border bg-white p-4 shadow-sm transition-shadow",
         status === "in_progress" && "border-green-200 shadow-green-50",
         isPending && "opacity-60",
-        onClick && !isPending && "cursor-pointer hover:shadow-md",
+        onClick && !isPending && !isRenaming && "cursor-pointer hover:shadow-md",
         className
       )}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-bold text-gray-700">Court {courtNumber}</span>
-        <span
-          className={cn(
-            "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-            isPending
-              ? "bg-yellow-50 text-yellow-600"
-              : status === "in_progress"
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-500"
+      <div className="mb-3 flex items-center justify-between gap-2">
+        {/* Court label / inline rename */}
+        {isRenaming ? (
+          <form
+            onSubmit={(e) => { e.preventDefault(); onRenameSubmit?.(); }}
+            className="flex flex-1 items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              ref={inputRef}
+              value={renameValue}
+              onChange={(e) => onRenameChange?.(e.target.value)}
+              placeholder={`Court ${courtNumber}`}
+              className="flex-1 rounded border px-2 py-0.5 text-sm font-bold text-gray-700 focus:border-green-400 focus:outline-none"
+            />
+            <button type="submit" className="text-xs text-green-600 hover:underline">Save</button>
+            <button type="button" onClick={() => onRenameCancel?.()} className="text-xs text-gray-400 hover:underline">✕</button>
+          </form>
+        ) : (
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-sm font-bold text-gray-700 truncate">{displayName}</span>
+            {onRenameStart && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRenameStart(); }}
+                className="flex-shrink-0 rounded p-0.5 text-gray-300 hover:text-gray-500 transition-colors"
+                title="Rename court"
+              >
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Remove court button */}
+          {onRemove && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRemove(); }}
+              className="rounded p-0.5 text-gray-300 hover:text-red-500 transition-colors"
+              title="Remove court"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
           )}
-        >
-          {isPending && (
-            <svg className="h-2.5 w-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-            </svg>
-          )}
-          {isPending ? "Saving…" : status === "in_progress" ? "Playing" : "Available"}
-        </span>
+          <span
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+              isPending
+                ? "bg-yellow-50 text-yellow-600"
+                : status === "in_progress"
+                ? "bg-green-100 text-green-700"
+                : "bg-gray-100 text-gray-500"
+            )}
+          >
+            {isPending && (
+              <svg className="h-2.5 w-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            )}
+            {isPending ? "Saving…" : status === "in_progress" ? "Playing" : "Available"}
+          </span>
+        </div>
       </div>
 
       {status === "available" ? (
