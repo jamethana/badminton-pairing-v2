@@ -8,6 +8,7 @@ import AssignmentModal from "@/components/assignment-modal";
 import ResultModal from "@/components/result-modal";
 import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
 import { cn } from "@/lib/utils";
+import { getSkillColor } from "@/components/skill-bar";
 import type { Tables, SessionStatus } from "@/types/database";
 
 type Pairing = Tables<"pairings"> & {
@@ -553,37 +554,6 @@ export default function CourtDashboardClient({
               </div>
             </div>
 
-            {/* Available player chips — quick × to set inactive */}
-            {availablePlayers.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-1.5">
-                {availablePlayers.map((player) => {
-                  const sp = sessionPlayers.find((s) => s.users?.id === player.id);
-                  if (!sp) return null;
-                  return (
-                    <span
-                      key={player.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 py-1 pl-3 pr-1.5 text-sm font-medium text-green-800"
-                    >
-                      {player.display_name}
-                      <button
-                        onClick={() => handleToggleActive(sp.id, true)}
-                        title="Set inactive"
-                        className="flex h-4 w-4 items-center justify-center rounded-full text-green-400 hover:bg-red-100 hover:text-red-500"
-                      >
-                        <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-
-            {availablePlayers.length === 0 && !addingPlayer && sessionPlayers.length > 0 && (
-              <p className="mb-3 text-sm text-gray-400">No active players waiting.</p>
-            )}
-
             {addingPlayer && (
               <div className="mb-3 rounded-lg border bg-gray-50 p-3">
                 {/* Search existing players */}
@@ -735,10 +705,10 @@ export default function CourtDashboardClient({
                       {!isBusy && (
                         <button
                           onClick={() => handleRemovePlayer(sp.id)}
-                          className="flex-shrink-0 rounded-full p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500"
+                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-500"
                           title="Remove from session"
                         >
-                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -758,92 +728,96 @@ export default function CourtDashboardClient({
       )}
 
       {activeTab === "stats" && (
-        <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <tr>
-                {(
-                  [
-                    { col: "name" as const, label: "Player", align: "left" },
-                    { col: "active" as const, label: "Active", align: "center" },
-                    { col: "played" as const, label: "Played", align: "center" },
-                    { col: "wins" as const, label: "W", align: "center" },
-                    { col: "losses" as const, label: "L", align: "center" },
-                    { col: "winPct" as const, label: "Win%", align: "center" },
-                    { col: "sat" as const, label: "Sat", align: "center" },
-                    { col: "skill" as const, label: "Skill", align: "center" },
-                  ] as const
-                ).map(({ col, label, align }) => (
-                  <th
-                    key={col}
-                    className={cn(
-                      "py-3 select-none cursor-pointer hover:bg-gray-100 transition-colors",
-                      align === "left" ? "px-4 text-left" : "px-3 text-center"
-                    )}
-                    onClick={() => handleStatsSort(col)}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      {label}
-                      {statsSortCol === col ? (
-                        <span>{statsSortDir === "asc" ? "↑" : "↓"}</span>
-                      ) : (
-                        <span className="opacity-30">↕</span>
-                      )}
+        <div className="rounded-xl border bg-white">
+          {/* Sort pills */}
+          <div className="flex flex-wrap items-center gap-1.5 border-b px-4 py-2.5">
+            <span className="mr-1 text-xs text-gray-400">Sort:</span>
+            {(
+              [
+                { col: "name" as const, label: "Name" },
+                { col: "played" as const, label: "Played" },
+                { col: "wins" as const, label: "W" },
+                { col: "losses" as const, label: "L" },
+                { col: "winPct" as const, label: "Win%" },
+                { col: "sat" as const, label: "Sat" },
+                { col: "skill" as const, label: "Skill" },
+                { col: "active" as const, label: "Active" },
+              ] as const
+            ).map(({ col, label }) => (
+              <button
+                key={col}
+                onClick={() => handleStatsSort(col)}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-medium",
+                  statsSortCol === col
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                )}
+              >
+                {label}
+                {statsSortCol === col && (
+                  <span className="ml-0.5">{statsSortDir === "asc" ? "↑" : "↓"}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Player rows */}
+          <div className="divide-y">
+            {sortedStats.map(({ sp, user, matchesPlayed, wins, losses, winPct, gamesSince }) => (
+              <div
+                key={sp.id}
+                className={cn("flex items-center gap-3 px-4 py-3", !sp.is_active && "opacity-50")}
+              >
+                {/* Skill colour bar */}
+                <div className={cn("h-10 w-1.5 flex-shrink-0 rounded-full", getSkillColor(user.skill_level))} />
+
+                {/* Name + inline stats */}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-gray-900">{user.display_name}</p>
+                  <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
+                    <span className="text-xs text-gray-400">
+                      {matchesPlayed} played
                     </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {sortedStats.map(({ sp, user, matchesPlayed, wins, losses, winPct, gamesSince }) => (
-                <tr key={sp.id} className={cn(!sp.is_active && "opacity-50")}>
-                  <td className="px-4 py-3 font-medium">{user.display_name}</td>
-                  <td className="px-3 py-3 text-center">
-                    <button
-                      onClick={() => handleToggleActive(sp.id, sp.is_active)}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-xs font-medium",
-                        sp.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                      )}
-                    >
-                      {sp.is_active ? "Yes" : "No"}
-                    </button>
-                  </td>
-                  <td className="px-3 py-3 text-center font-medium">{matchesPlayed}</td>
-                  <td className="px-3 py-3 text-center font-medium text-green-600">
-                    {wins > 0 ? wins : "–"}
-                  </td>
-                  <td className="px-3 py-3 text-center font-medium text-red-500">
-                    {losses > 0 ? losses : "–"}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    {matchesPlayed > 0 ? (
+                    <span className="text-xs font-semibold text-green-600">{wins}W</span>
+                    <span className="text-xs font-semibold text-red-500">{losses}L</span>
+                    {matchesPlayed > 0 && (
                       <span
                         className={cn(
-                          "font-semibold",
+                          "text-xs font-semibold",
                           winPct >= 0.5 ? "text-green-600" : "text-red-500"
                         )}
                       >
                         {Math.round(winPct * 100)}%
                       </span>
-                    ) : (
-                      "–"
                     )}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    {gamesSince > 0 ? (
-                      <span className={cn("font-medium", gamesSince >= 3 && "text-amber-600")}>
-                        {gamesSince}
+                    {gamesSince > 0 && (
+                      <span
+                        className={cn(
+                          "text-xs",
+                          gamesSince >= 3 ? "font-semibold text-amber-600" : "text-gray-400"
+                        )}
+                      >
+                        sat {gamesSince}
                       </span>
-                    ) : "–"}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <span className="font-semibold">{user.skill_level}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    )}
+                    <span className="text-xs text-gray-400">S{user.skill_level}</span>
+                  </div>
+                </div>
+
+                {/* Active toggle */}
+                <button
+                  onClick={() => handleToggleActive(sp.id, sp.is_active)}
+                  className={cn(
+                    "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium",
+                    sp.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  )}
+                >
+                  {sp.is_active ? "Active" : "Inactive"}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

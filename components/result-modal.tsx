@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { getSkillColor } from "@/components/skill-bar";
 
 interface Player {
   id: string;
@@ -32,32 +31,22 @@ export default function ResultModal({
   onConfirm,
   onVoid,
 }: ResultModalProps) {
-  const [scoreA, setScoreA] = useState("");
-  const [scoreB, setScoreB] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingTeam, setLoadingTeam] = useState<"team_a" | "team_b" | null>(null);
   const [voidLoading, setVoidLoading] = useState(false);
+  const isLoading = loadingTeam !== null || voidLoading;
 
-  const numA = parseInt(scoreA) || 0;
-  const numB = parseInt(scoreB) || 0;
-  const canSubmit = scoreA !== "" && scoreB !== "" && numA !== numB;
-  const winner = numA > numB ? "team_a" : numB > numA ? "team_b" : null;
-
-  const handleSubmit = async () => {
-    if (!canSubmit || !winner) return;
-    setLoading(true);
+  const handleTeamTap = async (teamKey: "team_a" | "team_b") => {
+    if (isLoading) return;
+    setLoadingTeam(teamKey);
     try {
-      await onConfirm({
-        team_a_score: numA,
-        team_b_score: numB,
-        winner_team: winner,
-      });
+      await onConfirm({ team_a_score: 0, team_b_score: 0, winner_team: teamKey });
     } finally {
-      setLoading(false);
+      setLoadingTeam(null);
     }
   };
 
   const handleVoid = async () => {
-    if (!onVoid) return;
+    if (!onVoid || isLoading) return;
     setVoidLoading(true);
     try {
       await onVoid();
@@ -66,76 +55,83 @@ export default function ResultModal({
     }
   };
 
+  const teams = [
+    { key: "team_a" as const, label: "Team A", players: teamA },
+    { key: "team_b" as const, label: "Team B", players: teamB },
+  ];
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && !isLoading && onClose()}
     >
       <div className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Record Result</h2>
-          <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100">
-            <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Header */}
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Who won?</h2>
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="rounded-full p-2 text-gray-400 hover:bg-gray-100 disabled:opacity-40"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-4">
-          {([{ team: teamA, label: "Team A", key: "A" }, { team: teamB, label: "Team B", key: "B" }] as const).map(
-            ({ team, label, key }) => (
-              <div
+        {/* Team cards — tap to confirm */}
+        <div className="mb-5 grid grid-cols-2 gap-3">
+          {teams.map(({ key, label, players }) => {
+            const loading = loadingTeam === key;
+            return (
+              <button
                 key={key}
+                onClick={() => handleTeamTap(key)}
+                disabled={isLoading}
                 className={cn(
-                  "rounded-xl border p-3",
-                  winner === (key === "A" ? "team_a" : "team_b") && "border-green-400 bg-green-50"
+                  "relative flex min-h-[120px] flex-col items-start rounded-2xl border-2 p-4 text-left",
+                  "active:scale-95",
+                  isLoading && loadingTeam !== key
+                    ? "border-gray-100 bg-gray-50 opacity-40"
+                    : "border-gray-200 hover:border-green-400 hover:bg-green-50"
                 )}
               >
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-                <p className="text-sm">{team[0].display_name}</p>
-                <p className="text-sm">{team[1].display_name}</p>
-                <div className="mt-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={50}
-                    placeholder="Score"
-                    value={key === "A" ? scoreA : scoreB}
-                    onChange={(e) =>
-                      key === "A" ? setScoreA(e.target.value) : setScoreB(e.target.value)
-                    }
-                    className="text-center text-lg font-bold"
-                  />
-                </div>
-                {winner === (key === "A" ? "team_a" : "team_b") && (
-                  <p className="mt-1 text-center text-xs font-semibold text-green-600">Winner!</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  {label}
+                </p>
+                {players.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 py-0.5">
+                    <div className={cn("h-3 w-1.5 rounded-full flex-shrink-0", getSkillColor(p.skill_level))} />
+                    <span className="text-sm font-medium text-gray-800">{p.display_name}</span>
+                  </div>
+                ))}
+
+                {/* Loading spinner overlay */}
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-green-50/80">
+                    <svg className="h-6 w-6 animate-spin text-green-600" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                  </div>
                 )}
-              </div>
-            )
-          )}
+              </button>
+            );
+          })}
         </div>
 
-        {numA === numB && scoreA !== "" && scoreB !== "" && (
-          <p className="mb-2 text-center text-xs text-red-500">Scores cannot be equal — there must be a winner.</p>
-        )}
+        <p className="mb-4 text-center text-xs text-gray-400">Tap a team to record their win</p>
 
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit || loading}
-          className="mb-2 w-full bg-green-600 hover:bg-green-700"
-        >
-          {loading ? "Saving..." : "Save Result"}
-        </Button>
-
+        {/* Void game */}
         {onVoid && (
-          <Button
-            variant="outline"
+          <button
             onClick={handleVoid}
-            disabled={voidLoading}
-            className="w-full border-red-200 text-red-600 hover:bg-red-50"
+            disabled={isLoading}
+            className="w-full rounded-xl border border-red-100 py-3 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-40"
           >
-            {voidLoading ? "Voiding..." : "Void Game"}
-          </Button>
+            {voidLoading ? "Voiding…" : "Void Game"}
+          </button>
         )}
       </div>
     </div>

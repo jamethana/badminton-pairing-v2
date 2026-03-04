@@ -209,7 +209,7 @@ export default function PlayerSessionClient({
             <button
               onClick={handleToggleActive}
               className={cn(
-                "rounded-full px-4 py-2 text-sm font-semibold",
+                "rounded-full px-5 py-2.5 text-sm font-semibold",
                 mySlot.is_active
                   ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
                   : "bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-700"
@@ -327,8 +327,10 @@ export default function PlayerSessionClient({
                       <p className="min-w-0 text-xs text-gray-500">Court {p.court_number}</p>
                       {result && (
                         <span className="flex-shrink-0 font-bold text-gray-800">
-                          {result.team_a_score}–{result.team_b_score}
-                          {isMyGame && (iWon ? " 🏆" : " ✗")}
+                          {(result.team_a_score > 0 || result.team_b_score > 0)
+                            ? `${result.team_a_score}–${result.team_b_score} `
+                            : ""}
+                          {isMyGame && (iWon ? "🏆" : "✗")}
                         </span>
                       )}
                     </div>

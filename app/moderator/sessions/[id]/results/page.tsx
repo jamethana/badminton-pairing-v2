@@ -81,7 +81,7 @@ export default async function SessionResultsPage({
                       <> · {format(new Date(pairing.completed_at), "HH:mm")}</>
                     )}
                   </span>
-                  {result && (
+                  {result && (result.team_a_score > 0 || result.team_b_score > 0) && (
                     <span className="text-sm font-bold text-gray-700">
                       {result.team_a_score} – {result.team_b_score}
                     </span>
