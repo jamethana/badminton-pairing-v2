@@ -65,22 +65,22 @@ export default function PlayerBadge({
       </div>
 
       <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
-        <span className={cn("font-medium truncate", compact ? "text-sm" : "text-sm")}>
-          {name}
-        </span>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className={cn("font-medium truncate", compact ? "text-sm" : "text-sm")}>
+            {name}
+          </span>
+          {isLinked && (
+            <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] text-green-700 flex-shrink-0">
+              LINE
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Match + sat summary */}
           {(matchesPlayed !== undefined || gamesSinceLastPlayed !== undefined) && (
             <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-800">
               🏸 {matchesPlayed ?? 0} · ⏱ {gamesSinceLastPlayed ?? 0}
-            </span>
-          )}
-
-          {/* Linked LINE account indicator */}
-          {isLinked && (
-            <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs text-green-700">
-              LINE
             </span>
           )}
         </div>
