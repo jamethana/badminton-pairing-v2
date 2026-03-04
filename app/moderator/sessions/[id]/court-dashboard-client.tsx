@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import CourtCard from "@/components/court-card";
 import PlayerBadge from "@/components/player-badge";
@@ -78,6 +78,30 @@ export default function CourtDashboardClient({
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerSkill, setNewPlayerSkill] = useState(3);
   const [newPlayerError, setNewPlayerError] = useState("");
+
+  const [longPressPlayerId, setLongPressPlayerId] = useState<string | null>(null);
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimeoutRef.current !== null) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  };
+
+  const handlePlayerLongPressStart = (playerId: string) => {
+    clearLongPress();
+    longPressTriggeredRef.current = false;
+    longPressTimeoutRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      setLongPressPlayerId(playerId);
+    }, 500);
+  };
+
+  const handlePlayerLongPressEnd = () => {
+    clearLongPress();
+  };
 
   // react-2: Memoize all expensive derived values so they only recompute
   // when their dependencies change — not on every keypress in the add-player form.
@@ -369,6 +393,7 @@ export default function CourtDashboardClient({
   const handleRemovePlayer = (spId: string) => {
     const original = sessionPlayers.find((sp) => sp.id === spId);
     setSessionPlayers((prev) => prev.filter((sp) => sp.id !== spId));
+    setLongPressPlayerId((prev) => (prev === spId ? null : prev));
     fetch(`/api/sessions/${session.id}/players/${spId}`, { method: "DELETE" }).then((res) => {
       if (!res.ok && original) {
         setSessionPlayers((prev) => [...prev, original]);
@@ -681,6 +706,11 @@ export default function CourtDashboardClient({
                   const isBusy = busyIds.has(sp.users!.id);
                   const handleRowClick = () => {
                     if (isBusy) return;
+                    if (longPressTriggeredRef.current) {
+                      longPressTriggeredRef.current = false;
+                      return;
+                    }
+                    setLongPressPlayerId(null);
                     handleToggleActive(sp.id, sp.is_active);
                   };
 
@@ -688,6 +718,12 @@ export default function CourtDashboardClient({
                     <div
                       key={sp.id}
                       onClick={handleRowClick}
+                      onMouseDown={() => handlePlayerLongPressStart(sp.id)}
+                      onMouseUp={handlePlayerLongPressEnd}
+                      onMouseLeave={handlePlayerLongPressEnd}
+                      onTouchStart={() => handlePlayerLongPressStart(sp.id)}
+                      onTouchEnd={handlePlayerLongPressEnd}
+                      onTouchCancel={handlePlayerLongPressEnd}
                       className={cn(
                         "flex items-center gap-2 rounded-xl border px-2 py-1.5 transition-colors",
                         isBusy
@@ -709,19 +745,17 @@ export default function CourtDashboardClient({
                         isLinked={!!sp.users!.line_user_id}
                         className="flex-1"
                       />
-                      {!isBusy && (
+                      {!isBusy && longPressPlayerId === sp.id && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRemovePlayer(sp.id);
                           }}
-                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-500"
+                          className="flex h-8 px-3 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100"
                           title="Remove from session"
                         >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          Remove
                         </button>
                       )}
                     </div>

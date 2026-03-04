@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,30 @@ export default function AssignmentModal({
   });
   const [loading, setLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TeamKey | null>(null);
+  const [longPressKey, setLongPressKey] = useState<TeamKey | null>(null);
+
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimeoutRef.current !== null) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  };
+
+  const handleSlotLongPressStart = (key: TeamKey) => {
+    clearLongPress();
+    longPressTriggeredRef.current = false;
+    longPressTimeoutRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      setLongPressKey(key);
+    }, 500);
+  };
+
+  const handleSlotLongPressEnd = () => {
+    clearLongPress();
+  };
 
   useEffect(() => {
     if (suggestion) {
@@ -92,6 +116,13 @@ export default function AssignmentModal({
     id ? availablePlayers.find((p) => p.id === id) : null;
 
   const handleSlotClick = (key: TeamKey) => {
+    if (longPressTriggeredRef.current) {
+      // Long press just fired; don't also treat this as a tap.
+      longPressTriggeredRef.current = false;
+      return;
+    }
+
+    setLongPressKey(null);
     if (key === selectedSlot) {
       setSelectedSlot(null);
     } else if (selectedSlot !== null) {
@@ -128,6 +159,7 @@ export default function AssignmentModal({
   const handleRemoveSlot = (key: TeamKey) => {
     setSlots((prev) => ({ ...prev, [key]: null }));
     setSelectedSlot(null);
+    setLongPressKey(null);
   };
 
   // Suggest a best-match player for the currently selected slot
@@ -249,6 +281,12 @@ export default function AssignmentModal({
                       <div
                         key={key}
                         onClick={() => handleSlotClick(key)}
+                        onMouseDown={() => handleSlotLongPressStart(key)}
+                        onMouseUp={handleSlotLongPressEnd}
+                        onMouseLeave={handleSlotLongPressEnd}
+                        onTouchStart={() => handleSlotLongPressStart(key)}
+                        onTouchEnd={handleSlotLongPressEnd}
+                        onTouchCancel={handleSlotLongPressEnd}
                         className={cn(
                           "mt-1.5 flex min-h-[44px] items-center gap-2 rounded-lg px-2 py-2 cursor-pointer",
                           isSelected && "ring-2 ring-blue-500 bg-blue-50",
@@ -284,12 +322,17 @@ export default function AssignmentModal({
                                 </span>
                               </p>
                             </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleRemoveSlot(key); }}
-                              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0"
-                            >
-                              ×
-                            </button>
+                            {longPressKey === key && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveSlot(key);
+                                }}
+                                className="flex h-7 px-2 items-center justify-center rounded-full bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 flex-shrink-0"
+                              >
+                                Remove
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <span className={cn("text-sm text-gray-400", isSelected && "text-blue-600 font-medium")}>
