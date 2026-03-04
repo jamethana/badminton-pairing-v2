@@ -56,11 +56,6 @@ function RecentGameRow({
 
   const getName = (id: string) => userNameMap.get(id) ?? "?";
   const partner = myTeam.find((id) => id !== userId) ?? "";
-  const score = result
-    ? onA
-      ? `${result.team_a_score}–${result.team_b_score}`
-      : `${result.team_b_score}–${result.team_a_score}`
-    : null;
 
   return (
     <div
@@ -89,7 +84,6 @@ function RecentGameRow({
           )}
         </p>
       </div>
-      {score && <span className="shrink-0 text-sm font-bold text-gray-600">{score}</span>}
     </div>
   );
 }

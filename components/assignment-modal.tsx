@@ -165,9 +165,12 @@ export default function AssignmentModal({
       const sa = scoreFor(a);
       const sb = scoreFor(b);
 
-      if (sa.sat !== sb.sat) return sb.sat - sa.sat; // longer sat first
-      if (sa.played !== sb.played) return sa.played - sb.played; // fewer games first
-      return sa.diff - sb.diff; // better team balance
+      // 1) Prioritise team balance first: smaller diff is better
+      if (sa.diff !== sb.diff) return sa.diff - sb.diff;
+      // 2) Then longest sat time
+      if (sa.sat !== sb.sat) return sb.sat - sa.sat;
+      // 3) Then fewer total games played
+      return sa.played - sb.played;
     });
 
     return scored[0]?.id ?? null;
@@ -270,7 +273,7 @@ export default function AssignmentModal({
                                     getSkillTextColor(player.skill_level)
                                   )}
                                 >
-                                  S{player.skill_level}
+                                  {player.skill_level}
                                 </span>
                                 {player.display_name}
                               </p>
@@ -370,7 +373,7 @@ export default function AssignmentModal({
                             getSkillTextColor(player.skill_level)
                           )}
                         >
-                          S{player.skill_level}
+                          {player.skill_level}
                         </span>
                         {player.display_name}
                       </p>
