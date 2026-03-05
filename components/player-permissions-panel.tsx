@@ -14,7 +14,25 @@ interface PlayerPermissionsPanelProps {
   initialPermissions: PlayerPermissions;
 }
 
+type AssignmentLevel = "moderators" | "everyone";
 type ResultLevel = "none" | "own" | "any";
+
+const ASSIGNMENT_LEVELS: {
+  value: AssignmentLevel;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "moderators",
+    label: "Moderators only",
+    description: "Only moderators can assign games to empty courts.",
+  },
+  {
+    value: "everyone",
+    label: "Everyone in this session",
+    description: "Players can start games on any available court.",
+  },
+];
 
 const RESULT_LEVELS: { value: ResultLevel; label: string; description: string }[] = [
   {
@@ -33,6 +51,10 @@ const RESULT_LEVELS: { value: ResultLevel; label: string; description: string }[
     description: "Players can report results for any game in this session.",
   },
 ];
+
+function deriveAssignmentLevel(permissions: PlayerPermissions): AssignmentLevel {
+  return permissions.allow_player_assign_empty_court ? "everyone" : "moderators";
+}
 
 function deriveResultLevel(permissions: PlayerPermissions): ResultLevel {
   if (permissions.allow_player_record_any_result) return "any";
@@ -55,28 +77,63 @@ export default function PlayerPermissionsPanel({
   initialPermissions,
 }: PlayerPermissionsPanelProps) {
   const [permissions, setPermissions] = useState<PlayerPermissions>(initialPermissions);
-  const [courtSaving, setCourtSaving] = useState(false);
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [resultSaving, setResultSaving] = useState(false);
 
+  const assignmentLevel = deriveAssignmentLevel(permissions);
   const resultLevel = deriveResultLevel(permissions);
-  const headingId = useId();
-  const radioGroupRef = useRef<HTMLDivElement>(null);
+  const assignmentHeadingId = useId();
+  const resultHeadingId = useId();
+  const assignmentRadioGroupRef = useRef<HTMLDivElement>(null);
+  const resultRadioGroupRef = useRef<HTMLDivElement>(null);
 
-  // ── Court assignment toggle ───────────────────────────────────────────────
-  const handleCourtToggle = async () => {
-    const current = permissions.allow_player_assign_empty_court;
-    const next = !current;
-    setPermissions((prev) => ({ ...prev, allow_player_assign_empty_court: next }));
-    setCourtSaving(true);
+  // ── Court assignment level segmented control ─────────────────────────────
+  const handleAssignmentLevel = async (level: AssignmentLevel) => {
+    if (level === assignmentLevel || assignmentSaving) return;
+    const current = assignmentLevel;
+    const allow_player_assign_empty_court = level === "everyone";
+    setPermissions((prev) => ({ ...prev, allow_player_assign_empty_court }));
+    setAssignmentSaving(true);
     const res = await fetch(`/api/sessions/${sessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ allow_player_assign_empty_court: next }),
+      body: JSON.stringify({ allow_player_assign_empty_court }),
     });
     if (!res.ok) {
-      setPermissions((prev) => ({ ...prev, allow_player_assign_empty_court: current }));
+      setPermissions((prev) => ({
+        ...prev,
+        allow_player_assign_empty_court: current === "everyone",
+      }));
     }
-    setCourtSaving(false);
+    setAssignmentSaving(false);
+  };
+
+  const handleAssignmentKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    currentIdx: number
+  ) => {
+    const buttons = assignmentRadioGroupRef.current?.querySelectorAll<HTMLButtonElement>(
+      '[role="radio"]'
+    );
+    if (!buttons) return;
+    let nextIdx = currentIdx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      nextIdx = (currentIdx + 1) % ASSIGNMENT_LEVELS.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      nextIdx = (currentIdx - 1 + ASSIGNMENT_LEVELS.length) % ASSIGNMENT_LEVELS.length;
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      nextIdx = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      nextIdx = ASSIGNMENT_LEVELS.length - 1;
+    } else {
+      return;
+    }
+    buttons[nextIdx].focus();
+    handleAssignmentLevel(ASSIGNMENT_LEVELS[nextIdx].value);
   };
 
   // ── Result level segmented control ───────────────────────────────────────
@@ -102,7 +159,7 @@ export default function PlayerPermissionsPanel({
     e: React.KeyboardEvent<HTMLButtonElement>,
     currentIdx: number
   ) => {
-    const buttons = radioGroupRef.current?.querySelectorAll<HTMLButtonElement>(
+    const buttons = resultRadioGroupRef.current?.querySelectorAll<HTMLButtonElement>(
       '[role="radio"]'
     );
     if (!buttons) return;
@@ -126,6 +183,9 @@ export default function PlayerPermissionsPanel({
     handleResultLevel(RESULT_LEVELS[nextIdx].value);
   };
 
+  const selectedAssignmentOption = ASSIGNMENT_LEVELS.find(
+    (l) => l.value === assignmentLevel
+  )!;
   const selectedResultOption = RESULT_LEVELS.find((l) => l.value === resultLevel)!;
 
   return (
@@ -139,48 +199,57 @@ export default function PlayerPermissionsPanel({
       </div>
 
       <div className="divide-y">
-        {/* ── Court assignment toggle ── */}
-        <div className="flex items-start gap-3 px-4 py-3">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={permissions.allow_player_assign_empty_court}
-            aria-label="Allow players to assign games to empty courts"
-            disabled={courtSaving}
-            onClick={handleCourtToggle}
+        {/* ── Court assignment level ── */}
+        <div className="px-4 py-3">
+          <p
+            id={assignmentHeadingId}
+            className="mb-2 text-sm font-medium text-gray-700"
+          >
+            Who can assign games to empty courts?
+          </p>
+          <div
+            ref={assignmentRadioGroupRef}
+            role="radiogroup"
+            aria-labelledby={assignmentHeadingId}
             className={cn(
-              "relative mt-0.5 flex-shrink-0 h-5 w-9 rounded-full transition-colors",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1",
-              permissions.allow_player_assign_empty_court ? "bg-green-500" : "bg-gray-200",
-              courtSaving && "opacity-60 cursor-not-allowed"
+              "flex rounded-lg border border-gray-200 overflow-hidden",
+              assignmentSaving && "opacity-60 pointer-events-none"
             )}
           >
-            <span
-              className={cn(
-                "absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-                permissions.allow_player_assign_empty_court ? "translate-x-4" : "translate-x-0"
-              )}
-            />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p
-              className={cn(
-                "text-sm font-medium",
-                permissions.allow_player_assign_empty_court ? "text-gray-900" : "text-gray-500"
-              )}
-            >
-              Assign games to empty courts
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">
-              Players can start a new game on any available court.
-            </p>
+            {ASSIGNMENT_LEVELS.map(({ value, label }, idx) => {
+              const isSelected = value === assignmentLevel;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => handleAssignmentLevel(value)}
+                  onKeyDown={(e) => handleAssignmentKeyDown(e, idx)}
+                  className={cn(
+                    "flex-1 min-w-0 px-2 py-2 text-xs font-medium text-center transition-colors",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+                    idx > 0 && "border-l border-gray-200",
+                    isSelected
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
+          <p className="mt-1.5 text-xs text-gray-400">
+            {selectedAssignmentOption.description}
+          </p>
         </div>
 
         {/* ── Result recording level ── */}
         <div className="px-4 py-3">
           <p
-            id={headingId}
+            id={resultHeadingId}
             className="mb-2 text-sm font-medium text-gray-700"
           >
             Who can record match results?
@@ -188,9 +257,9 @@ export default function PlayerPermissionsPanel({
 
           {/* Segmented radio group */}
           <div
-            ref={radioGroupRef}
+            ref={resultRadioGroupRef}
             role="radiogroup"
-            aria-labelledby={headingId}
+            aria-labelledby={resultHeadingId}
             className={cn(
               "flex rounded-lg border border-gray-200 overflow-hidden",
               resultSaving && "opacity-60 pointer-events-none"
