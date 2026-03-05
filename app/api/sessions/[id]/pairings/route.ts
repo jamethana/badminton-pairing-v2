@@ -3,6 +3,7 @@ import { getAppUserId } from "@/lib/supabase/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generatePairing } from "@/lib/algorithms/pairing";
+import { canAssignCourt } from "@/lib/sessions/permissions";
 
 const GeneratePairingSchema = z.object({
   generate: z.literal(true),
@@ -48,8 +49,21 @@ export async function POST(
   const appUserId = getAppUserId(user);
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
-  if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const [{ data: appUser }, { data: session }] = await Promise.all([
+    supabase.from("users").select("is_moderator").eq("id", appUserId).single(),
+    supabase
+      .from("sessions")
+      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result")
+      .eq("id", id)
+      .single(),
+  ]);
+
+  const isModerator = appUser?.is_moderator ?? false;
+  if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+
+  if (!canAssignCourt({ isModerator, session })) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   // quality-2: Guard against malformed JSON bodies
   let body: unknown;

@@ -6,6 +6,7 @@ import CourtCard from "@/components/court-card";
 import PlayerBadge from "@/components/player-badge";
 import AssignmentModal from "@/components/assignment-modal";
 import ResultModal from "@/components/result-modal";
+import PlayerPermissionsPanel from "@/components/player-permissions-panel";
 import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "@/components/skill-bar";
@@ -20,7 +21,15 @@ type SessionPlayer = Tables<"session_players"> & {
 
 // quality-5: Narrowed prop type — only pass the fields this component actually uses
 interface Props {
-  session: { id: string; status: SessionStatus; num_courts: number; court_names: Record<string, string> };
+  session: {
+    id: string;
+    status: SessionStatus;
+    num_courts: number;
+    court_names: Record<string, string>;
+    allow_player_assign_empty_court: boolean;
+    allow_player_record_own_result: boolean;
+    allow_player_record_any_result: boolean;
+  };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
   allUsers: Tables<"users">[];
@@ -766,8 +775,18 @@ export default function CourtDashboardClient({
                   No players yet. Click &quot;+ Add Player&quot; to get started.
                 </p>
               )}
-            </div>
           </div>
+        </div>
+
+          {/* Player permissions */}
+          <PlayerPermissionsPanel
+            sessionId={session.id}
+            initialPermissions={{
+              allow_player_assign_empty_court: session.allow_player_assign_empty_court,
+              allow_player_record_own_result: session.allow_player_record_own_result,
+              allow_player_record_any_result: session.allow_player_record_any_result,
+            }}
+          />
 
         </>
       )}

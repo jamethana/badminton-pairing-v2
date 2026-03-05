@@ -58,7 +58,15 @@ export default async function SessionDashboardPage({
       </div>
 
       <CourtDashboardClient
-        session={session}
+        session={{
+          id: session.id,
+          status: session.status,
+          num_courts: session.num_courts,
+          court_names: session.court_names,
+          allow_player_assign_empty_court: session.allow_player_assign_empty_court,
+          allow_player_record_own_result: session.allow_player_record_own_result,
+          allow_player_record_any_result: session.allow_player_record_any_result,
+        }}
         initialSessionPlayers={sessionPlayers}
         initialPairings={pairings}
         allUsers={allUsers}

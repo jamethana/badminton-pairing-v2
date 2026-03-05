@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { computeTrueskillUpdateForCompletedGame } from "@/lib/ratings/trueskill";
+import { canRecordOwnResult, canRecordAnyResult } from "@/lib/sessions/permissions";
 
 const RecordResultSchema = z.object({
   team_a_score: z.number().int().min(0),
@@ -21,27 +22,28 @@ export async function POST(request: NextRequest, { params }: Params) {
   const appUserId = user.user_metadata?.app_user_id as string | undefined;
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
-  // Verify pairing belongs to session
-  const { data: pairing } = await supabase
-    .from("pairings")
-    .select("*")
-    .eq("id", pairingId)
-    .eq("session_id", id)
-    .single();
+  // Fetch pairing + session + user role in parallel
+  const [{ data: pairing }, { data: appUser }, { data: session }] = await Promise.all([
+    supabase.from("pairings").select("*").eq("id", pairingId).eq("session_id", id).single(),
+    supabase.from("users").select("is_moderator").eq("id", appUserId).single(),
+    supabase
+      .from("sessions")
+      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result")
+      .eq("id", id)
+      .single(),
+  ]);
 
   if (!pairing) return NextResponse.json({ error: "Pairing not found" }, { status: 404 });
+  if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-  // Check: moderator OR player in the pairing
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
   const isModerator = appUser?.is_moderator ?? false;
-  const isParticipant = [
-    pairing.team_a_player_1,
-    pairing.team_a_player_2,
-    pairing.team_b_player_1,
-    pairing.team_b_player_2,
-  ].includes(appUserId);
 
-  if (!isModerator && !isParticipant) {
+  // Check permission: moderator, or player with appropriate session flag
+  const allowed =
+    canRecordAnyResult({ isModerator, session }) ||
+    canRecordOwnResult({ isModerator, session, pairing, userId: appUserId });
+
+  if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

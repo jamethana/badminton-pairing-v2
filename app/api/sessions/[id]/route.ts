@@ -14,6 +14,10 @@ const SessionUpdateSchema = z
     max_players: z.number().int().min(1).optional(),
     status: z.enum(["draft", "active", "completed"]).optional(),
     notes: z.string().trim().max(2000).nullable().optional(),
+    allow_player_assign_empty_court: z.boolean().optional(),
+    allow_player_record_own_result: z.boolean().optional(),
+    allow_player_record_any_result: z.boolean().optional(),
+    court_names: z.record(z.string(), z.string()).optional(),
   })
   .refine(
     (data) => {

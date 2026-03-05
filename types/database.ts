@@ -74,6 +74,9 @@ export type Database = {
           status: SessionStatus;
           court_names: Record<string, string>;
           notes: string | null;
+          allow_player_assign_empty_court: boolean;
+          allow_player_record_own_result: boolean;
+          allow_player_record_any_result: boolean;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -90,6 +93,9 @@ export type Database = {
           status?: SessionStatus;
           court_names?: Record<string, string>;
           notes?: string | null;
+          allow_player_assign_empty_court?: boolean;
+          allow_player_record_own_result?: boolean;
+          allow_player_record_any_result?: boolean;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -106,6 +112,9 @@ export type Database = {
           status?: SessionStatus;
           court_names?: Record<string, string>;
           notes?: string | null;
+          allow_player_assign_empty_court?: boolean;
+          allow_player_record_own_result?: boolean;
+          allow_player_record_any_result?: boolean;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
