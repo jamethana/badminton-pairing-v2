@@ -49,7 +49,8 @@ export default function CourtDashboardClient({
   const [courtNames, setCourtNames] = useState<Record<string, string>>(session.court_names ?? {});
   const [renamingCourt, setRenamingCourt] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [activeTab, setActiveTab] = useState<"game" | "stats">("game");
+  const [activeTab, setActiveTab] = useState<"game" | "stats" | "settings">("game");
+  const [statusSaving, setStatusSaving] = useState(false);
 
   // Stats tab sort state
   type StatsSortCol = "name" | "active" | "played" | "wins" | "losses" | "winPct" | "sat" | "skill";
@@ -410,6 +411,23 @@ export default function CourtDashboardClient({
     });
   };
 
+  const handleStatusChange = async (newStatus: SessionStatus) => {
+    const prev = sessionStatus;
+    setSessionStatus(newStatus);
+    setStatusSaving(true);
+    const res = await fetch(`/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    setStatusSaving(false);
+    if (!res.ok) {
+      setSessionStatus(prev);
+    } else {
+      router.refresh();
+    }
+  };
+
   const alreadyInSessionIds = useMemo(
     () => new Set(sessionPlayers.map((sp) => sp.users?.id).filter(Boolean)),
     [sessionPlayers]
@@ -483,18 +501,18 @@ export default function CourtDashboardClient({
     <>
       {/* Tabs */}
       <div className="mb-4 flex border-b">
-        {(["game", "stats"] as const).map((tab) => (
+        {(["game", "stats", "settings"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "px-6 py-3 text-sm font-medium capitalize transition-colors",
+              "px-6 py-3 text-sm font-medium transition-colors",
               activeTab === tab
                 ? "border-b-2 border-green-600 text-green-700"
                 : "text-gray-500 hover:text-gray-700"
             )}
           >
-            {tab === "game" ? "Game" : "Stats"}
+            {tab === "game" ? "Game" : tab === "stats" ? "Stats" : "Session Settings"}
           </button>
         ))}
       </div>
@@ -778,16 +796,6 @@ export default function CourtDashboardClient({
           </div>
         </div>
 
-          {/* Player permissions */}
-          <PlayerPermissionsPanel
-            sessionId={session.id}
-            initialPermissions={{
-              allow_player_assign_empty_court: session.allow_player_assign_empty_court,
-              allow_player_record_own_result: session.allow_player_record_own_result,
-              allow_player_record_any_result: session.allow_player_record_any_result,
-            }}
-          />
-
         </>
       )}
 
@@ -880,6 +888,52 @@ export default function CourtDashboardClient({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {activeTab === "settings" && (
+        <div className="space-y-4">
+          {/* Session status */}
+          <div className="rounded-xl border bg-white p-4">
+            <h3 className="mb-1 text-sm font-semibold text-gray-700">Session Status</h3>
+            <p className="mb-3 text-xs text-gray-400">
+              Control the current lifecycle state of this session.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(["draft", "active", "completed"] as const).map((s) => (
+                <button
+                  key={s}
+                  disabled={statusSaving || sessionStatus === s}
+                  onClick={() => handleStatusChange(s)}
+                  className={cn(
+                    "rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-colors disabled:cursor-not-allowed",
+                    sessionStatus === s
+                      ? s === "active"
+                        ? "bg-green-100 text-green-700 ring-2 ring-green-400"
+                        : s === "completed"
+                        ? "bg-blue-100 text-blue-700 ring-2 ring-blue-400"
+                        : "bg-gray-200 text-gray-700 ring-2 ring-gray-400"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+              {statusSaving && (
+                <span className="self-center text-xs text-gray-400">Saving…</span>
+              )}
+            </div>
+          </div>
+
+          {/* Player permissions */}
+          <PlayerPermissionsPanel
+            sessionId={session.id}
+            initialPermissions={{
+              allow_player_assign_empty_court: session.allow_player_assign_empty_court,
+              allow_player_record_own_result: session.allow_player_record_own_result,
+              allow_player_record_any_result: session.allow_player_record_any_result,
+            }}
+          />
         </div>
       )}
 
