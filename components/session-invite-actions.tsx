@@ -44,16 +44,16 @@ export default function SessionInviteActions({ sessionId }: Props) {
     const viewportWidth = window.innerWidth || 0;
     const viewportHeight = window.innerHeight || 0;
 
-    let size = 220;
+    let size = 200;
     if (viewportWidth > 0) {
       const targetWidth = viewportWidth * 0.7;
       size = Math.min(size, Math.floor(targetWidth));
     }
     if (viewportHeight > 0) {
-      const targetHeight = viewportHeight * 0.45;
+      const targetHeight = viewportHeight * 0.3;
       size = Math.min(size, Math.floor(targetHeight));
     }
-    size = Math.max(140, Math.min(220, size));
+    size = Math.max(120, Math.min(200, size));
 
     setQrSize(size);
 
