@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
-export default function LoginButton() {
+interface Props {
+  redirectTo?: string;
+}
+
+export default function LoginButton({ redirectTo }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = () => {
@@ -16,6 +20,16 @@ export default function LoginButton() {
 
     // Store state in a short-lived cookie for server-side CSRF verification
     document.cookie = `line_oauth_state=${state}; path=/; max-age=600; SameSite=Lax`;
+
+    // Persist redirect URL for post-login (same-origin path only)
+    if (
+      redirectTo &&
+      typeof redirectTo === "string" &&
+      redirectTo.startsWith("/") &&
+      !redirectTo.startsWith("//")
+    ) {
+      document.cookie = `auth_redirect=${encodeURIComponent(redirectTo)}; path=/; max-age=600; SameSite=Lax`;
+    }
 
     const params = new URLSearchParams({
       response_type: "code",

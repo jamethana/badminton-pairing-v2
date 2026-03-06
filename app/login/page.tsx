@@ -2,15 +2,27 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import LoginButton from "./login-button";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (user) {
+    const params = await searchParams;
+    const next = params.next;
+    if (next && typeof next === "string" && next.startsWith("/") && !next.startsWith("//")) {
+      redirect(next);
+    }
     redirect("/");
   }
+
+  const params = await searchParams;
+  const redirectTo = typeof params.next === "string" ? params.next : undefined;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
@@ -36,7 +48,7 @@ export default async function LoginPage() {
             Sign in with LINE to join sessions and track your games
           </p>
         </div>
-        <LoginButton />
+        <LoginButton redirectTo={redirectTo} />
         <p className="mt-4 text-center text-xs text-gray-400">
           New? A moderator will add you to the session once you sign in.
         </p>

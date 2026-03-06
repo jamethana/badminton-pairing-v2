@@ -33,10 +33,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=invalid_state", request.url));
   }
 
+  // Determine post-login redirect: auth_redirect cookie (from invite link flow) or home
+  const authRedirect = request.cookies.get("auth_redirect")?.value;
+  let redirectPath = "/";
+  if (authRedirect) {
+    try {
+      const decoded = decodeURIComponent(authRedirect);
+      if (decoded.startsWith("/") && !decoded.startsWith("//")) {
+        redirectPath = decoded;
+      }
+    } catch {
+      // Invalid cookie value, use default
+    }
+  }
+
   // Build the redirect response early so we can set session cookies directly on it
-  const successResponse = NextResponse.redirect(new URL("/", request.url));
-  // Clear the state cookie now that it has been validated
+  const successResponse = NextResponse.redirect(new URL(redirectPath, request.url));
+  // Clear the state and auth_redirect cookies now that they have been used
   successResponse.cookies.set("line_oauth_state", "", { maxAge: 0, path: "/" });
+  successResponse.cookies.set("auth_redirect", "", { maxAge: 0, path: "/" });
 
   try {
     const callbackUrl = process.env.NEXT_PUBLIC_LINE_CALLBACK_URL!;
