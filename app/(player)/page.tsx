@@ -25,10 +25,37 @@ export default async function Home() {
     .select(`sessions(*)`)
     .eq("user_id", user.appUser.id);
 
-  const sessions: UserSession[] = (sessionPlayers ?? [])
+  const rawSessions = (sessionPlayers ?? [])
     .map((sp) => sp.sessions)
     .filter((s): s is NonNullable<typeof s> => s !== null)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Enrich sessions with creator display names
+  const uniqueCreatorIds = [
+    ...new Set(
+      rawSessions
+        .map((s) => s.created_by)
+        .filter((id): id is string => id !== null)
+    ),
+  ];
+  let creatorNameById = new Map<string, string>();
+  if (uniqueCreatorIds.length > 0) {
+    const { data: creatorUsers } = await supabase
+      .from("users")
+      .select("id, display_name")
+      .in("id", uniqueCreatorIds);
+    creatorNameById = new Map(
+      (creatorUsers ?? []).map((u) => [u.id, u.display_name])
+    );
+  }
+  const sessions: UserSession[] = rawSessions.map((s) => ({
+    id: s.id,
+    name: s.name,
+    date: s.date,
+    location: s.location,
+    status: s.status,
+    creatorDisplayName: s.created_by ? creatorNameById.get(s.created_by) : undefined,
+  }));
 
   const activeSessions = sessions.filter((s) => s.status === "active");
 

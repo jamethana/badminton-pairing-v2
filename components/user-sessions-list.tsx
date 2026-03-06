@@ -16,6 +16,7 @@ export type UserSession = {
   date: string;
   location: string | null;
   status: "draft" | "active" | "completed";
+  creatorDisplayName?: string;
 };
 
 interface Props {
@@ -63,6 +64,11 @@ export default function UserSessionsList({ sessions }: Props) {
                   {format(new Date(session.date + "T00:00:00"), "EEE, MMM d")}
                   {session.location && ` · ${session.location}`}
                 </p>
+                {session.creatorDisplayName && (
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    Created by {session.creatorDisplayName}
+                  </p>
+                )}
               </div>
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-medium ${

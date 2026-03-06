@@ -17,6 +17,7 @@ export type ModeratorSession = {
   date: string;
   location: string | null;
   status: "draft" | "active" | "completed";
+  creatorDisplayName?: string;
 };
 
 interface Props {
@@ -72,6 +73,11 @@ export default function ModeratorRecentSessionsList({ sessions }: Props) {
                   {format(new Date(session.date + "T00:00:00"), "EEE, MMM d")}
                   {session.location && ` · ${session.location}`}
                 </p>
+                {session.creatorDisplayName && (
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    Created by {session.creatorDisplayName}
+                  </p>
+                )}
               </div>
               <Badge className={STATUS_STYLES[session.status]}>{session.status}</Badge>
             </Link>

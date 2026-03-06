@@ -53,6 +53,8 @@ export default async function SessionsPage({ searchParams }: PageProps) {
     }));
   }
 
+  const creatorNameById = new Map(creators.map((c) => [c.id, c.display_name]));
+
   // Build filtered sessions query
   let query = supabase.from("sessions").select("*").order("date", { ascending: false });
 
@@ -96,7 +98,11 @@ export default async function SessionsPage({ searchParams }: PageProps) {
       <div className="rounded-xl border bg-white">
         <div className="divide-y">
           {sessions && sessions.length > 0 ? (
-            sessions.map((session) => (
+            sessions.map((session) => {
+              const creatorName = session.created_by
+                ? creatorNameById.get(session.created_by)
+                : undefined;
+              return (
               <div
                 key={session.id}
                 className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50"
@@ -115,6 +121,11 @@ export default async function SessionsPage({ searchParams }: PageProps) {
                   <p className="mt-0.5 text-xs text-gray-400">
                     {session.num_courts} courts · max {session.max_players} players
                   </p>
+                  {creatorName && (
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      Created by {creatorName}
+                    </p>
+                  )}
                 </Link>
                 <Badge className={STATUS_STYLES[session.status]}>
                   {session.status}
@@ -140,7 +151,8 @@ export default async function SessionsPage({ searchParams }: PageProps) {
                   />
                 )}
               </div>
-            ))
+              );
+            })
           ) : (
             <p className="px-4 py-8 text-center text-sm text-gray-400">
               {hasFilters ? (

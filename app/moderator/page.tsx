@@ -21,6 +21,33 @@ export default async function ModeratorDashboard() {
   const activeSessions = sessions?.filter((s) => s.status === "active") ?? [];
   const upcomingSessions = sessions?.filter((s) => s.status === "draft") ?? [];
 
+  // Enrich sessions with creator display names
+  const uniqueCreatorIds = [
+    ...new Set(
+      (sessions ?? [])
+        .map((s) => s.created_by)
+        .filter((id): id is string => id !== null)
+    ),
+  ];
+  let creatorNameById = new Map<string, string>();
+  if (uniqueCreatorIds.length > 0) {
+    const { data: creatorUsers } = await supabase
+      .from("users")
+      .select("id, display_name")
+      .in("id", uniqueCreatorIds);
+    creatorNameById = new Map(
+      (creatorUsers ?? []).map((u) => [u.id, u.display_name])
+    );
+  }
+  const sessionsWithCreator = (sessions ?? []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    date: s.date,
+    location: s.location,
+    status: s.status,
+    creatorDisplayName: s.created_by ? creatorNameById.get(s.created_by) : undefined,
+  }));
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -54,7 +81,7 @@ export default async function ModeratorDashboard() {
 
       {/* Recent sessions */}
       <div className="rounded-xl border bg-white">
-        <ModeratorRecentSessionsList sessions={sessions ?? []} />
+        <ModeratorRecentSessionsList sessions={sessionsWithCreator} />
       </div>
     </div>
   );
