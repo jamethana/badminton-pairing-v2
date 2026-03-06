@@ -936,17 +936,6 @@ export default function CourtDashboardClient({
                     <span className="text-xs text-gray-400">S{user.skill_level}</span>
                   </div>
                 </div>
-
-                {/* Active toggle */}
-                <button
-                  onClick={isCompleted ? undefined : () => handleToggleActive(sp.id, sp.is_active)}
-                  className={cn(
-                    "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium",
-                    sp.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                  )}
-                >
-                  {sp.is_active ? "Active" : "Inactive"}
-                </button>
               </div>
             ))}
           </div>

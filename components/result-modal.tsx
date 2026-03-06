@@ -33,15 +33,21 @@ export default function ResultModal({
   onConfirm,
   onVoid,
 }: ResultModalProps) {
+  const [pendingWinner, setPendingWinner] = useState<"team_a" | "team_b" | null>(null);
   const [loadingTeam, setLoadingTeam] = useState<"team_a" | "team_b" | null>(null);
   const [voidLoading, setVoidLoading] = useState(false);
   const isLoading = loadingTeam !== null || voidLoading;
 
-  const handleTeamTap = async (teamKey: "team_a" | "team_b") => {
+  const handleTeamTap = (teamKey: "team_a" | "team_b") => {
     if (isLoading) return;
-    setLoadingTeam(teamKey);
+    setPendingWinner(teamKey);
+  };
+
+  const handleConfirm = async () => {
+    if (!pendingWinner || isLoading) return;
+    setLoadingTeam(pendingWinner);
     try {
-      await onConfirm({ team_a_score: 0, team_b_score: 0, winner_team: teamKey });
+      await onConfirm({ team_a_score: 0, team_b_score: 0, winner_team: pendingWinner });
     } finally {
       setLoadingTeam(null);
     }
@@ -49,6 +55,7 @@ export default function ResultModal({
 
   const handleVoid = async () => {
     if (!onVoid || isLoading) return;
+    setPendingWinner(null);
     setVoidLoading(true);
     try {
       await onVoid();
@@ -61,6 +68,8 @@ export default function ResultModal({
     { key: "team_a" as const, label: "Team A", players: teamA },
     { key: "team_b" as const, label: "Team B", players: teamB },
   ];
+
+  const pendingLabel = pendingWinner === "team_a" ? "Team A" : pendingWinner === "team_b" ? "Team B" : null;
 
   return (
     <div
@@ -82,24 +91,34 @@ export default function ResultModal({
           </button>
         </div>
 
-        {/* Team cards — tap to confirm */}
-        <div className="mb-5 grid grid-cols-2 gap-3">
+        {/* Team cards — tap to select */}
+        <div className="mb-4 grid grid-cols-2 gap-3">
           {teams.map(({ key, label, players }) => {
+            const isSelected = pendingWinner === key;
+            const isOther = pendingWinner !== null && pendingWinner !== key;
             const loading = loadingTeam === key;
             return (
               <button
                 key={key}
                 onClick={() => handleTeamTap(key)}
                 disabled={isLoading}
+                aria-pressed={isSelected}
                 className={cn(
-                  "relative flex min-h-[120px] flex-col items-start rounded-2xl border-2 p-4 text-left",
+                  "relative flex min-h-[120px] flex-col items-start rounded-2xl border-2 p-4 text-left transition-all",
                   "active:scale-95",
-                  isLoading && loadingTeam !== key
-                    ? "border-gray-100 bg-gray-50 opacity-40"
-                    : "border-gray-200 hover:border-green-400 hover:bg-green-50"
+                  isSelected
+                    ? "border-green-500 bg-green-50 ring-2 ring-green-300 ring-offset-1"
+                    : isOther
+                      ? "border-gray-100 bg-gray-50 opacity-40"
+                      : isLoading
+                        ? "border-gray-100 bg-gray-50 opacity-40"
+                        : "border-gray-200 hover:border-green-400 hover:bg-green-50"
                 )}
               >
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                <p className={cn(
+                  "mb-3 text-xs font-semibold uppercase tracking-wide",
+                  isSelected ? "text-green-600" : "text-gray-400"
+                )}>
                   {label}
                 </p>
                 {players.map((p) => {
@@ -134,6 +153,15 @@ export default function ResultModal({
                   );
                 })}
 
+                {/* Selected checkmark */}
+                {isSelected && !loading && (
+                  <div className="absolute right-3 top-3">
+                    <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+
                 {/* Loading spinner overlay */}
                 {loading && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-green-50/80">
@@ -148,7 +176,28 @@ export default function ResultModal({
           })}
         </div>
 
-        <p className="mb-4 text-center text-xs text-gray-400">Tap a team to record their win</p>
+        {/* Confirmation row */}
+        {pendingWinner ? (
+          <div className="mb-4 flex items-center gap-3">
+            <button
+              onClick={() => setPendingWinner(null)}
+              disabled={isLoading}
+              className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              Change
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={isLoading}
+              autoFocus
+              className="flex-[2] rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40"
+            >
+              {isLoading ? "Recording…" : `Confirm ${pendingLabel} wins`}
+            </button>
+          </div>
+        ) : (
+          <p className="mb-4 text-center text-xs text-gray-400">Tap a team to select the winner</p>
+        )}
 
         {/* Void game */}
         {onVoid && (
