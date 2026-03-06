@@ -18,6 +18,8 @@ const SessionUpdateSchema = z
     allow_player_record_own_result: z.boolean().optional(),
     allow_player_record_any_result: z.boolean().optional(),
     show_skill_level_pills: z.boolean().optional(),
+    allow_player_add_remove_courts: z.boolean().optional(),
+    allow_player_access_invite_qr: z.boolean().optional(),
     court_names: z.record(z.string(), z.string()).optional(),
   })
   .refine(

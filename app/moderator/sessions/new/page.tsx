@@ -17,6 +17,12 @@ export default function NewSessionPage() {
     num_courts: 4,
     max_players: 24,
     notes: "",
+    allow_player_assign_empty_court: false,
+    allow_player_record_own_result: false,
+    allow_player_record_any_result: false,
+    show_skill_level_pills: true,
+    allow_player_add_remove_courts: false,
+    allow_player_access_invite_qr: false,
   };
 
   const handleSubmit = async (values: SessionFormValues) => {

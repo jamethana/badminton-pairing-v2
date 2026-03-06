@@ -12,6 +12,9 @@ import {
 } from "@/components/ui/select";
 import type { SessionStatus } from "@/types/database";
 
+type AssignmentLevel = "moderators" | "everyone";
+type ResultLevel = "none" | "own" | "any";
+
 export interface SessionFormValues {
   name: string;
   date: string;
@@ -22,6 +25,12 @@ export interface SessionFormValues {
   max_players: number;
   status?: SessionStatus;
   notes: string;
+  allow_player_assign_empty_court: boolean;
+  allow_player_record_own_result: boolean;
+  allow_player_record_any_result: boolean;
+  show_skill_level_pills: boolean;
+  allow_player_add_remove_courts: boolean;
+  allow_player_access_invite_qr: boolean;
 }
 
 interface SessionFormProps {
@@ -41,7 +50,7 @@ export default function SessionForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (field: keyof SessionFormValues, value: string | number) => {
+  const set = <K extends keyof SessionFormValues>(field: K, value: SessionFormValues[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -62,6 +71,25 @@ export default function SessionForm({
     }
   };
 
+  const assignmentLevel: AssignmentLevel = form.allow_player_assign_empty_court
+    ? "everyone"
+    : "moderators";
+
+  const resultLevel: ResultLevel = form.allow_player_record_any_result
+    ? "any"
+    : form.allow_player_record_own_result
+      ? "own"
+      : "none";
+
+  const setAssignmentLevel = (level: AssignmentLevel) => {
+    set("allow_player_assign_empty_court", level === "everyone");
+  };
+
+  const setResultLevel = (level: ResultLevel) => {
+    set("allow_player_record_own_result", level === "own");
+    set("allow_player_record_any_result", level === "any");
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Name */}
@@ -78,7 +106,7 @@ export default function SessionForm({
       </div>
 
       {/* Date + Location */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Date *
@@ -103,7 +131,7 @@ export default function SessionForm({
       </div>
 
       {/* Start / End Time */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Start Time *
@@ -129,7 +157,7 @@ export default function SessionForm({
       </div>
 
       {/* Courts + Max Players */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Courts
@@ -176,6 +204,133 @@ export default function SessionForm({
           </Select>
         </div>
       )}
+
+      {/* Permissions */}
+      <div className="space-y-3 rounded-lg border bg-gray-50 px-3 py-3">
+        <p className="text-sm font-semibold text-gray-800">Player permissions</p>
+        <p className="text-xs text-gray-500">
+          Choose what players can do in this session. You can change these later from the
+          session dashboard.
+        </p>
+
+        {/* Assign empty courts */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-gray-700">
+            Who can assign games to empty courts?
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className={`rounded-md border px-2 py-1.5 text-xs ${
+                assignmentLevel === "moderators"
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-200 bg-white text-gray-600"
+              }`}
+              onClick={() => setAssignmentLevel("moderators")}
+            >
+              Moderators only
+            </button>
+            <button
+              type="button"
+              className={`rounded-md border px-2 py-1.5 text-xs ${
+                assignmentLevel === "everyone"
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-200 bg-white text-gray-600"
+              }`}
+              onClick={() => setAssignmentLevel("everyone")}
+            >
+              Everyone in this session
+            </button>
+          </div>
+        </div>
+
+        {/* Record results */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-gray-700">
+            Who can record match results?
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              className={`rounded-md border px-2 py-1.5 text-xs ${
+                resultLevel === "none"
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-200 bg-white text-gray-600"
+              }`}
+              onClick={() => setResultLevel("none")}
+            >
+              Moderators only
+            </button>
+            <button
+              type="button"
+              className={`rounded-md border px-2 py-1.5 text-xs ${
+                resultLevel === "own"
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-200 bg-white text-gray-600"
+              }`}
+              onClick={() => setResultLevel("own")}
+            >
+              Own matches
+            </button>
+            <button
+              type="button"
+              className={`rounded-md border px-2 py-1.5 text-xs ${
+                resultLevel === "any"
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-200 bg-white text-gray-600"
+              }`}
+              onClick={() => setResultLevel("any")}
+            >
+              Any match
+            </button>
+          </div>
+        </div>
+
+        {/* Add/remove courts */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-gray-700">
+            Can players add or remove courts?
+          </p>
+          <label className="flex items-center gap-2 text-xs text-gray-700">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              checked={form.allow_player_add_remove_courts}
+              onChange={(e) => set("allow_player_add_remove_courts", e.target.checked)}
+            />
+            <span>Allow players in this session to add or remove courts.</span>
+          </label>
+        </div>
+
+        {/* Invite / QR access */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-gray-700">
+            Can players access the invite link & QR?
+          </p>
+          <label className="flex items-center gap-2 text-xs text-gray-700">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              checked={form.allow_player_access_invite_qr}
+              onChange={(e) => set("allow_player_access_invite_qr", e.target.checked)}
+            />
+            <span>Show the invite button to players on the session page.</span>
+          </label>
+        </div>
+
+        {/* Skill level pills */}
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 text-xs text-gray-700">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              checked={form.show_skill_level_pills}
+              onChange={(e) => set("show_skill_level_pills", e.target.checked)}
+            />
+            <span>Show skill level pills next to player names.</span>
+          </label>
+        </div>
+      </div>
 
       {/* Notes */}
       <div>

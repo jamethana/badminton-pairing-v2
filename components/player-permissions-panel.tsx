@@ -7,6 +7,8 @@ interface PlayerPermissions {
   allow_player_assign_empty_court: boolean;
   allow_player_record_own_result: boolean;
   allow_player_record_any_result: boolean;
+  allow_player_add_remove_courts: boolean;
+  allow_player_access_invite_qr: boolean;
 }
 
 interface PlayerPermissionsPanelProps {
@@ -16,6 +18,8 @@ interface PlayerPermissionsPanelProps {
 
 type AssignmentLevel = "moderators" | "everyone";
 type ResultLevel = "none" | "own" | "any";
+type CourtsLevel = "moderators" | "everyone";
+type InviteLevel = "moderators" | "everyone";
 
 const ASSIGNMENT_LEVELS: {
   value: AssignmentLevel;
@@ -79,6 +83,8 @@ export default function PlayerPermissionsPanel({
   const [permissions, setPermissions] = useState<PlayerPermissions>(initialPermissions);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [resultSaving, setResultSaving] = useState(false);
+  const [courtsSaving, setCourtsSaving] = useState(false);
+  const [inviteSaving, setInviteSaving] = useState(false);
 
   const assignmentLevel = deriveAssignmentLevel(permissions);
   const resultLevel = deriveResultLevel(permissions);
@@ -86,6 +92,8 @@ export default function PlayerPermissionsPanel({
   const resultHeadingId = useId();
   const assignmentRadioGroupRef = useRef<HTMLDivElement>(null);
   const resultRadioGroupRef = useRef<HTMLDivElement>(null);
+  const courtsToggleId = useId();
+  const inviteToggleId = useId();
 
   // ── Court assignment level segmented control ─────────────────────────────
   const handleAssignmentLevel = async (level: AssignmentLevel) => {
@@ -295,6 +303,87 @@ export default function PlayerPermissionsPanel({
           <p className="mt-1.5 text-xs text-gray-400">
             {selectedResultOption.description}
           </p>
+        </div>
+
+        {/* ── Add / remove courts ── */}
+        <div className="px-4 py-3">
+          <p
+            id={courtsToggleId}
+            className="mb-2 text-sm font-medium text-gray-700"
+          >
+            Can players add or remove courts?
+          </p>
+          <label className="flex items-center gap-2 text-xs text-gray-700">
+            <input
+              id={courtsToggleId}
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              checked={permissions.allow_player_add_remove_courts}
+              disabled={courtsSaving}
+              onChange={async (e) => {
+                const next = e.target.checked;
+                const prev = permissions.allow_player_add_remove_courts;
+                setPermissions((p) => ({ ...p, allow_player_add_remove_courts: next }));
+                setCourtsSaving(true);
+                const res = await fetch(`/api/sessions/${sessionId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ allow_player_add_remove_courts: next }),
+                });
+                if (!res.ok) {
+                  setPermissions((p) => ({
+                    ...p,
+                    allow_player_add_remove_courts: prev,
+                  }));
+                }
+                setCourtsSaving(false);
+              }}
+            />
+            <span>
+              Allow players in this session to add or remove courts (when no game is in
+              progress on that court).
+            </span>
+          </label>
+        </div>
+
+        {/* ── Invite / QR access ── */}
+        <div className="px-4 py-3">
+          <p
+            id={inviteToggleId}
+            className="mb-2 text-sm font-medium text-gray-700"
+          >
+            Can players access the invite link & QR code?
+          </p>
+          <label className="flex items-center gap-2 text-xs text-gray-700">
+            <input
+              id={inviteToggleId}
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              checked={permissions.allow_player_access_invite_qr}
+              disabled={inviteSaving}
+              onChange={async (e) => {
+                const next = e.target.checked;
+                const prev = permissions.allow_player_access_invite_qr;
+                setPermissions((p) => ({ ...p, allow_player_access_invite_qr: next }));
+                setInviteSaving(true);
+                const res = await fetch(`/api/sessions/${sessionId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ allow_player_access_invite_qr: next }),
+                });
+                if (!res.ok) {
+                  setPermissions((p) => ({
+                    ...p,
+                    allow_player_access_invite_qr: prev,
+                  }));
+                }
+                setInviteSaving(false);
+              }}
+            />
+            <span>
+              Show the invite button and QR code to players on the session page.
+            </span>
+          </label>
         </div>
       </div>
     </div>

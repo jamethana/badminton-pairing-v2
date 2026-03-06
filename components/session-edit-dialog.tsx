@@ -24,6 +24,12 @@ export interface SessionEditProps {
   max_players: number;
   status: SessionStatus;
   notes: string | null;
+  allow_player_assign_empty_court: boolean;
+  allow_player_record_own_result: boolean;
+  allow_player_record_any_result: boolean;
+  show_skill_level_pills: boolean;
+  allow_player_add_remove_courts: boolean;
+  allow_player_access_invite_qr: boolean;
 }
 
 export default function SessionEditDialog({
@@ -37,6 +43,12 @@ export default function SessionEditDialog({
   max_players,
   status,
   notes,
+  allow_player_assign_empty_court,
+  allow_player_record_own_result,
+  allow_player_record_any_result,
+  show_skill_level_pills,
+  allow_player_add_remove_courts,
+  allow_player_access_invite_qr,
 }: SessionEditProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -51,6 +63,12 @@ export default function SessionEditDialog({
     max_players,
     status,
     notes: notes ?? "",
+    allow_player_assign_empty_court,
+    allow_player_record_own_result,
+    allow_player_record_any_result,
+    show_skill_level_pills,
+    allow_player_add_remove_courts,
+    allow_player_access_invite_qr,
   };
 
   const handleSubmit = async (values: SessionFormValues) => {

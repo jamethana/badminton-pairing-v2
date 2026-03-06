@@ -73,6 +73,8 @@ export default async function SessionDashboardPage({
           allow_player_record_own_result: session.allow_player_record_own_result,
           allow_player_record_any_result: session.allow_player_record_any_result,
           show_skill_level_pills: session.show_skill_level_pills ?? true,
+          allow_player_add_remove_courts: session.allow_player_add_remove_courts,
+          allow_player_access_invite_qr: session.allow_player_access_invite_qr,
         }}
         initialSessionPlayers={sessionPlayers}
         initialPairings={pairings}

@@ -131,6 +131,12 @@ export default async function SessionsPage({ searchParams }: PageProps) {
                     max_players={session.max_players}
                     status={session.status}
                     notes={session.notes}
+                    allow_player_assign_empty_court={session.allow_player_assign_empty_court}
+                    allow_player_record_own_result={session.allow_player_record_own_result}
+                    allow_player_record_any_result={session.allow_player_record_any_result}
+                    show_skill_level_pills={session.show_skill_level_pills}
+                    allow_player_add_remove_courts={session.allow_player_add_remove_courts}
+                    allow_player_access_invite_qr={session.allow_player_access_invite_qr}
                   />
                 )}
               </div>

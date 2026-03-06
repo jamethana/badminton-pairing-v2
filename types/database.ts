@@ -78,6 +78,8 @@ export type Database = {
           allow_player_record_own_result: boolean;
           allow_player_record_any_result: boolean;
           show_skill_level_pills: boolean;
+          allow_player_add_remove_courts: boolean;
+          allow_player_access_invite_qr: boolean;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -98,6 +100,8 @@ export type Database = {
           allow_player_record_own_result?: boolean;
           allow_player_record_any_result?: boolean;
           show_skill_level_pills?: boolean;
+          allow_player_add_remove_courts?: boolean;
+          allow_player_access_invite_qr?: boolean;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -118,6 +122,8 @@ export type Database = {
           allow_player_record_own_result?: boolean;
           allow_player_record_any_result?: boolean;
           show_skill_level_pills?: boolean;
+          allow_player_add_remove_courts?: boolean;
+          allow_player_access_invite_qr?: boolean;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

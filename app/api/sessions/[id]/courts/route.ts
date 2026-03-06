@@ -2,13 +2,20 @@ import { createClient } from "@/lib/supabase/server";
 import { getAppUserId } from "@/lib/supabase/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-async function requireModerator(supabase: Awaited<ReturnType<typeof createClient>>) {
+async function getAuthContext(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const appUserId = getAppUserId(user);
   if (!appUserId) return null;
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
-  return appUser?.is_moderator ? true : null;
+  const { data: appUser } = await supabase
+    .from("users")
+    .select("is_moderator")
+    .eq("id", appUserId)
+    .single();
+  return {
+    appUserId,
+    isModerator: appUser?.is_moderator ?? false,
+  };
 }
 
 export async function POST(
@@ -17,16 +24,29 @@ export async function POST(
 ) {
   const { id } = await params;
   const supabase = await createClient();
-  if (!await requireModerator(supabase)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const auth = await getAuthContext(supabase);
+  if (!auth) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("num_courts, status")
+    .select("num_courts, status, allow_player_add_remove_courts")
     .eq("id", id)
     .single();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }
+
+  // Only moderators or session members (when the flag is enabled) may modify courts.
+  let canModifyCourts = auth.isModerator;
+  if (!canModifyCourts && session.allow_player_add_remove_courts) {
+    const { count } = await supabase
+      .from("session_players")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", id)
+      .eq("user_id", auth.appUserId);
+    canModifyCourts = (count ?? 0) > 0;
+  }
+  if (!canModifyCourts) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   if (session.status === "completed") {
     return NextResponse.json(
@@ -52,7 +72,8 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const supabase = await createClient();
-  if (!await requireModerator(supabase)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const auth = await getAuthContext(supabase);
+  if (!auth) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json().catch(() => ({}));
   const courtNumber: number = body.court_number;
@@ -71,12 +92,24 @@ export async function DELETE(
 
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("num_courts, court_names, status")
+    .select("num_courts, court_names, status, allow_player_add_remove_courts")
     .eq("id", id)
     .single();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }
+
+  // Only moderators or session members (when the flag is enabled) may modify courts.
+  let canModifyCourts = auth.isModerator;
+  if (!canModifyCourts && session.allow_player_add_remove_courts) {
+    const { count } = await supabase
+      .from("session_players")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", id)
+      .eq("user_id", auth.appUserId);
+    canModifyCourts = (count ?? 0) > 0;
+  }
+  if (!canModifyCourts) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   if (session.status === "completed") {
     return NextResponse.json(

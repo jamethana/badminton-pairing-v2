@@ -12,6 +12,13 @@ const CreateSessionSchema = z.object({
   location: z.string().trim().max(120).optional(),
   num_courts: z.number().int().min(1).max(10).default(4),
   max_players: z.number().int().min(1).max(50).default(24),
+  notes: z.string().trim().max(2000).optional(),
+  allow_player_assign_empty_court: z.boolean().optional(),
+  allow_player_record_own_result: z.boolean().optional(),
+  allow_player_record_any_result: z.boolean().optional(),
+  show_skill_level_pills: z.boolean().optional(),
+  allow_player_add_remove_courts: z.boolean().optional(),
+  allow_player_access_invite_qr: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -51,9 +58,23 @@ export async function POST(request: NextRequest) {
   const parsed = CreateSessionSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  const payload = {
+    ...parsed.data,
+    // Normalize optional text fields to null when empty
+    location:
+      typeof parsed.data.location === "string"
+        ? parsed.data.location.trim() || null
+        : parsed.data.location ?? null,
+    notes:
+      typeof parsed.data.notes === "string"
+        ? parsed.data.notes.trim() || null
+        : parsed.data.notes ?? null,
+    created_by: appUserId,
+  };
+
   const { data, error } = await supabase
     .from("sessions")
-    .insert({ ...parsed.data, created_by: appUserId })
+    .insert(payload)
     .select()
     .single();
 

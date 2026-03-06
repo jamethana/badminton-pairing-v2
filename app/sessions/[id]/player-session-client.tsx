@@ -45,6 +45,7 @@ export default function PlayerSessionClient({
   const errorTimeoutRef = useRef<number | null>(null);
 
   const isCompleted = session.status === "completed";
+  const [numCourts, setNumCourts] = useState(session.num_courts);
 
   // Modal states
   const [resultModal, setResultModal] = useState<{
@@ -343,6 +344,46 @@ export default function PlayerSessionClient({
   if (canRecordAnyResult) permLabels.push("record any result");
   else if (canRecordOwnResult) permLabels.push("record own result");
 
+  const lastCourtHasGame = useMemo(
+    () =>
+      pairings.some(
+        (p) => p.court_number === numCourts && p.status === "in_progress",
+      ),
+    [pairings, numCourts]
+  );
+
+  const handleAddCourt = async () => {
+    if (isCompleted || !session.allow_player_add_remove_courts) return;
+    setNumCourts((n) => n + 1);
+    const res = await fetch(`/api/sessions/${session.id}/courts`, { method: "POST" });
+    if (!res.ok) {
+      setNumCourts((n) => n - 1);
+      showError("Could not add a new court. Please try again.");
+    }
+  };
+
+  const handleRemoveLastCourt = async () => {
+    if (isCompleted || !session.allow_player_add_remove_courts) return;
+    if (numCourts <= 1) {
+      showError("You cannot remove the last court.");
+      return;
+    }
+    if (lastCourtHasGame) {
+      showError("There is an active game on the last court.");
+      return;
+    }
+    setNumCourts((n) => n - 1);
+    const res = await fetch(`/api/sessions/${session.id}/courts`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ court_number: numCourts }),
+    });
+    if (!res.ok) {
+      setNumCourts((n) => n + 1);
+      showError("Could not remove that court. Please try again.");
+    }
+  };
+
   // ── Pre-join view ────────────────────────────────────────────────────────
   if (!mySlot) {
     return (
@@ -504,10 +545,35 @@ export default function PlayerSessionClient({
           {/* Full courts view */}
           <div className="rounded-xl border bg-white p-4">
             <h2 className="mb-3 font-semibold text-gray-800">
-              Courts ({session.num_courts})
+              Courts ({numCourts})
             </h2>
+            {session.allow_player_add_remove_courts && !isCompleted && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                <span className="font-medium text-gray-700">Players can manage courts.</span>
+                <button
+                  type="button"
+                  onClick={handleAddCourt}
+                  className="rounded-full bg-green-50 px-3 py-1 font-semibold text-green-700 hover:bg-green-100"
+                >
+                  + Add court
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveLastCourt}
+                  disabled={numCourts <= 1 || lastCourtHasGame}
+                  className={cn(
+                    "rounded-full px-3 py-1 font-semibold",
+                    numCourts <= 1 || lastCourtHasGame
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-red-50 text-red-600 hover:bg-red-100"
+                  )}
+                >
+                  Remove last court
+                </button>
+              </div>
+            )}
             <SessionCourtsView
-              numCourts={session.num_courts}
+              numCourts={numCourts}
               courtNames={session.court_names}
               pairings={pairings}
               sessionPlayers={allPlayers}

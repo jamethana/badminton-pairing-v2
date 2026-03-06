@@ -30,6 +30,8 @@ interface Props {
     allow_player_record_own_result: boolean;
     allow_player_record_any_result: boolean;
     show_skill_level_pills: boolean;
+    allow_player_add_remove_courts: boolean;
+    allow_player_access_invite_qr: boolean;
   };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
@@ -983,6 +985,8 @@ export default function CourtDashboardClient({
               allow_player_assign_empty_court: session.allow_player_assign_empty_court,
               allow_player_record_own_result: session.allow_player_record_own_result,
               allow_player_record_any_result: session.allow_player_record_any_result,
+              allow_player_add_remove_courts: session.allow_player_add_remove_courts,
+              allow_player_access_invite_qr: session.allow_player_access_invite_qr,
             }}
           />
 
