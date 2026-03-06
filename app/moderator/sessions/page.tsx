@@ -39,7 +39,7 @@ export default async function SessionsPage() {
                 className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50"
               >
                 <Link
-                  href={`/moderator/sessions/${session.id}`}
+                  href={session.status === "completed" ? `/moderator/sessions/${session.id}/results` : `/moderator/sessions/${session.id}`}
                   className="min-w-0 flex-1"
                 >
                   <p className="font-semibold text-gray-900">{session.name}</p>
@@ -56,18 +56,20 @@ export default async function SessionsPage() {
                 <Badge className={STATUS_STYLES[session.status]}>
                   {session.status}
                 </Badge>
-                <SessionEditDialog
-                  id={session.id}
-                  name={session.name}
-                  date={session.date}
-                  start_time={session.start_time}
-                  end_time={session.end_time}
-                  location={session.location}
-                  num_courts={session.num_courts}
-                  max_players={session.max_players}
-                  status={session.status}
-                  notes={session.notes}
-                />
+                {session.status !== "completed" && (
+                  <SessionEditDialog
+                    id={session.id}
+                    name={session.name}
+                    date={session.date}
+                    start_time={session.start_time}
+                    end_time={session.end_time}
+                    location={session.location}
+                    num_courts={session.num_courts}
+                    max_players={session.max_players}
+                    status={session.status}
+                    notes={session.notes}
+                  />
+                )}
               </div>
             ))
           ) : (

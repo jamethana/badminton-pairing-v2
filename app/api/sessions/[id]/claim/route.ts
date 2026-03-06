@@ -19,6 +19,22 @@ export async function POST(
   const appUserId = user.user_metadata?.app_user_id as string | undefined;
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
+  // Prevent changes when the session is completed
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot claim a slot in a completed session. Ask a moderator to reopen it." },
+      { status: 409 }
+    );
+  }
+
   const body = await request.json();
   const parsed = ClaimSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

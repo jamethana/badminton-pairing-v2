@@ -1,0 +1,28 @@
+---
+description: Use skeleton text / content shimmer for loading states across the UI
+globs: ["**/app/**/*.tsx", "**/components/**/*.tsx"]
+alwaysApply: true
+---
+# Skeleton Loading (Content Shimmer)
+
+Use **skeleton loading** (skeleton text / content shimmer) everywhere it makes sense so users see layout placeholders instead of blank jumps or only spinners.
+
+## When to use
+
+- **Route-level loading**: Any route segment that does async data fetching should have a `loading.tsx` that renders a skeleton matching the page layout (Next.js shows it automatically while the page loads).
+- **Inline loading**: When a component or modal fetches data after mount (e.g. assign modal AI suggestion, tabs that load on switch), show skeleton placeholders in the slots where content will appear—not just a spinner or empty space.
+
+## Pattern
+
+- Use gray placeholder blocks that mirror the real content layout: `bg-gray-200` (or `bg-gray-100` for subtle areas), `rounded` / `rounded-full` for avatars, with `animate-pulse`.
+- Skeleton blocks should approximate the size and position of titles, subtitles, avatars, cards, and list rows. Examples:
+  - Title: `h-6 w-40 rounded bg-gray-200 animate-pulse`
+  - Subtitle / line: `h-4 w-64 rounded bg-gray-200 animate-pulse`
+  - Avatar: `h-8 w-8 rounded-full bg-gray-200 animate-pulse` (or h-14 w-14 for larger)
+  - List row: a short bar + a longer bar, e.g. `h-8 w-1 rounded-full` and `h-4 flex-1 rounded` with `animate-pulse`
+- Keep the same overall structure as the loaded view (same nav bar placeholder, same card/section layout) so the transition from skeleton to content doesn’t cause layout shift.
+- Prefer skeleton UIs over full-page spinners; use spinners only for small, focused actions (e.g. submit button “Saving…”).
+
+## Reference
+
+Existing implementations: `app/profile/loading.tsx`, `app/sessions/[id]/loading.tsx`, `app/moderator/sessions/[id]/loading.tsx`, `app/stats/loading.tsx`, and inline in `components/assignment-modal.tsx` (suggestionLoading slots).

@@ -28,13 +28,20 @@ export async function POST(request: NextRequest, { params }: Params) {
     supabase.from("users").select("is_moderator").eq("id", appUserId).single(),
     supabase
       .from("sessions")
-      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result")
+      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result, status")
       .eq("id", id)
       .single(),
   ]);
 
   if (!pairing) return NextResponse.json({ error: "Pairing not found" }, { status: 404 });
   if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot record results for a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
 
   const isModerator = appUser?.is_moderator ?? false;
 

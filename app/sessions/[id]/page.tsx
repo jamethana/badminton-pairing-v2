@@ -33,6 +33,11 @@ export default async function PlayerSessionPage({
   if (!sessionRes.data) notFound();
 
   const session = sessionRes.data;
+
+  if (session.status === "completed") {
+    redirect(`/sessions/${id}/results`);
+  }
+
   const sessionPlayers = allPlayersRes.data ?? [];
   const pairings = pairingsRes.data ?? [];
 

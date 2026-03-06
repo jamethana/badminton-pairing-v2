@@ -1,16 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/supabase/auth";
+import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
-import Link from "next/link";
-import ReopenSessionButton from "@/components/reopen-session-button";
+import NavBar from "@/components/nav-bar";
+import { getViewAs } from "@/lib/view-as";
 import SessionResultsClient from "./results-client";
 
-export default async function SessionResultsPage({
+export default async function PlayerSessionResultsPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
+  if (!user) redirect("/login");
+
   const supabase = await createClient();
 
   const [sessionRes, pairingsRes, playersRes] = await Promise.all([
@@ -23,7 +27,7 @@ export default async function SessionResultsPage({
       .order("sequence_number", { ascending: true }),
     supabase
       .from("session_players")
-      .select(`id, is_active, users(id, display_name, skill_level, picture_url, skill_level, calculated_skill_rating, is_moderator, created_at, updated_at, line_user_id, auth_secret, trueskill_mu, trueskill_sigma, trueskill_updated_at)`)
+      .select(`id, is_active, users(*)`)
       .eq("session_id", id),
   ]);
 
@@ -44,15 +48,15 @@ export default async function SessionResultsPage({
   );
 
   return (
-    <div>
-      <div className="mb-4 flex items-start gap-3">
-        <Link
-          href={`/moderator/sessions/${id}`}
-          className="mt-0.5 shrink-0 rounded-lg border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-        >
-          ← Dashboard
-        </Link>
-        <div className="min-w-0 flex-1">
+    <div className="min-h-screen bg-gray-50">
+      <NavBar
+        isModerator={user.appUser.is_moderator}
+        displayName={user.appUser.display_name}
+        pictureUrl={user.appUser.picture_url}
+        viewAs={viewAs}
+      />
+      <main className="mx-auto max-w-2xl px-4 py-6">
+        <div className="mb-4">
           <h1 className="text-xl font-bold text-gray-900">{session.name}</h1>
           <p className="text-sm text-gray-500">
             {format(new Date(session.date + "T00:00:00"), "EEE, MMM d, yyyy")}
@@ -61,16 +65,13 @@ export default async function SessionResultsPage({
             {session.start_time.slice(0, 5)} – {session.end_time.slice(0, 5)}
           </p>
         </div>
-        {session.status === "completed" && (
-          <ReopenSessionButton sessionId={session.id} />
-        )}
-      </div>
 
-      <SessionResultsClient
-        pairings={pairings}
-        sessionPlayers={sessionPlayers}
-        playerMap={Object.fromEntries(playerMap)}
-      />
+        <SessionResultsClient
+          pairings={pairings}
+          sessionPlayers={sessionPlayers}
+          playerMap={Object.fromEntries(playerMap)}
+        />
+      </main>
     </div>
   );
 }

@@ -297,8 +297,8 @@ export default function AssignmentModal({
                       >
                         {suggestionLoading && !player ? (
                           <div className="flex flex-1 items-center gap-2">
-                            <div className="h-8 w-1 rounded-full bg-gray-200 animate-pulse" />
-                            <div className="h-4 flex-1 rounded bg-gray-200 animate-pulse" />
+                            <div className="h-8 w-1 rounded-full bg-gray-200 animate-pulse motion-reduce:animate-none" />
+                            <div className="h-4 flex-1 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
                           </div>
                         ) : player ? (
                           <div className="flex flex-1 items-center gap-2 min-w-0">

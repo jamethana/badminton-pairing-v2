@@ -21,6 +21,22 @@ export async function POST(
     return NextResponse.json({ error: "No app user" }, { status: 403 });
   }
 
+  // Prevent changes when the session is completed
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot join a completed session. Ask a moderator to reopen it." },
+      { status: 409 }
+    );
+  }
+
   // Ensure the player is not already in this session
   const { data: existingSlot, error: existingError } = await supabase
     .from("session_players")

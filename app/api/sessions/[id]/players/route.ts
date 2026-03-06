@@ -48,6 +48,22 @@ export async function POST(
   const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Prevent changes when the session is completed
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot add players to a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
+
   // quality-2: Guard against malformed JSON bodies
   let body: unknown;
   try {

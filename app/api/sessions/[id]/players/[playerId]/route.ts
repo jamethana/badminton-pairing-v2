@@ -12,6 +12,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const appUserId = user.user_metadata?.app_user_id as string | undefined;
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
+  // Prevent changes when the session is completed
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot update players in a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
+
   const body = await request.json();
 
   // Players can only toggle their own is_active; moderators can toggle anyone
@@ -59,6 +75,22 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
   const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // Prevent changes when the session is completed
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot update players in a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
 
   const { error } = await supabase
     .from("session_players")

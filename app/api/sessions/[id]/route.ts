@@ -83,6 +83,34 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+   // When a session is completed, treat it as read-only except for changing the status
+   // back to "draft" or "active". This prevents court/player configuration changes
+   // while still allowing moderators to reopen the session.
+   const { data: session, error: sessionError } = await supabase
+     .from("sessions")
+     .select("status")
+     .eq("id", id)
+     .single();
+
+   if (sessionError || !session) {
+     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+   }
+
+   const updateKeys = Object.keys(parsed.data);
+   const isCompleted = session.status === "completed";
+   const isStatusOnlyUpdate =
+     updateKeys.length === 1 &&
+     updateKeys[0] === "status" &&
+     parsed.data.status !== undefined &&
+     parsed.data.status !== session.status;
+
+   if (isCompleted && !isStatusOnlyUpdate && updateKeys.length > 0) {
+     return NextResponse.json(
+       { error: "Completed sessions are read-only. Change status back to draft or active first." },
+       { status: 409 }
+     );
+   }
+
   const { data, error } = await supabase
     .from("sessions")
     .update({ ...parsed.data, updated_at: new Date().toISOString() })

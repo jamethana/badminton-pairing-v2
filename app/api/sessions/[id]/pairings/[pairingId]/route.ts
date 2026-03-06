@@ -15,6 +15,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Prevent changes when the session is completed
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot modify pairings in a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
+
   const body = await request.json();
   const allowed: Record<string, unknown> = {};
 

@@ -44,6 +44,8 @@ export default function PlayerSessionClient({
   const [uiError, setUiError] = useState<string | null>(null);
   const errorTimeoutRef = useRef<number | null>(null);
 
+  const isCompleted = session.status === "completed";
+
   // Modal states
   const [resultModal, setResultModal] = useState<{
     pairingId: string;
@@ -121,6 +123,7 @@ export default function PlayerSessionClient({
 
   // ── Claim / self-join handlers ───────────────────────────────────────────
   const handleClaim = async (slotId: string) => {
+    if (isCompleted) return;
     setClaiming(true);
     try {
       const res = await fetch(`/api/sessions/${session.id}/claim`, {
@@ -139,6 +142,7 @@ export default function PlayerSessionClient({
   };
 
   const handleAddSelf = async () => {
+    if (isCompleted) return;
     if (mySlot || addingSelf) return;
     setAddingSelf(true);
     try {
@@ -155,6 +159,7 @@ export default function PlayerSessionClient({
 
   // ── Active toggle ────────────────────────────────────────────────────────
   const handleToggleActive = async () => {
+    if (isCompleted) return;
     if (!mySlot) return;
     const newActive = !mySlot.is_active;
     const optimistic = { ...mySlot, is_active: newActive };
@@ -177,6 +182,7 @@ export default function PlayerSessionClient({
     team_b_score: number;
     winner_team: "team_a" | "team_b";
   }) => {
+    if (isCompleted) return;
     if (!resultModal) return;
     const { pairingId } = resultModal;
     const now = new Date().toISOString();
@@ -222,6 +228,7 @@ export default function PlayerSessionClient({
   };
 
   const handleEmptyCourtClickWithPermission = (courtNumber: number) => {
+    if (isCompleted) return;
     if (!canAssignEmptyCourt) {
       showError("You don’t have permission to assign players to a court. Ask a moderator.");
       return;
@@ -230,6 +237,7 @@ export default function PlayerSessionClient({
   };
 
   const handleInProgressCourtClickWithPermission = (courtNumber: number, pairingId: string) => {
+    if (isCompleted) return;
     const p = pairings.find((x) => x.id === pairingId);
     if (!p) return;
 
@@ -260,6 +268,7 @@ export default function PlayerSessionClient({
     teamA: [string, string];
     teamB: [string, string];
   }) => {
+    if (isCompleted) return;
     if (!assignModal) return;
     const tempId = `temp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
@@ -347,8 +356,8 @@ export default function PlayerSessionClient({
                 {unclaimedSlots.map((slot) => (
                   <button
                     key={slot.id}
-                    onClick={() => handleClaim(slot.id)}
-                    disabled={claiming}
+                    onClick={isCompleted ? undefined : () => handleClaim(slot.id)}
+                    disabled={claiming || isCompleted}
                     className="flex w-full items-center gap-3 rounded-lg border px-4 py-3 hover:bg-green-50 hover:border-green-400 transition-colors disabled:opacity-60"
                   >
                     <div
@@ -380,8 +389,8 @@ export default function PlayerSessionClient({
             </p>
             <button
               type="button"
-              onClick={handleAddSelf}
-              disabled={claiming || addingSelf}
+              onClick={isCompleted ? undefined : handleAddSelf}
+              disabled={claiming || addingSelf || isCompleted}
               className={cn(
                 "w-full rounded-lg px-4 py-2.5 text-sm font-semibold border border-dashed",
                 addingSelf
@@ -433,7 +442,7 @@ export default function PlayerSessionClient({
                 </p>
               </div>
               <button
-                onClick={handleToggleActive}
+                onClick={isCompleted ? undefined : handleToggleActive}
                 className={cn(
                   "rounded-full px-5 py-2.5 text-sm font-semibold",
                   mySlot.is_active
@@ -508,8 +517,8 @@ export default function PlayerSessionClient({
                   ? "Tap to assign players"
                   : "No permission to assign players"
               }
-              onEmptyCourtClick={handleEmptyCourtClickWithPermission}
-              onInProgressCourtClick={handleInProgressCourtClickWithPermission}
+              onEmptyCourtClick={isCompleted ? undefined : handleEmptyCourtClickWithPermission}
+              onInProgressCourtClick={isCompleted ? undefined : handleInProgressCourtClickWithPermission}
             />
           </div>
 

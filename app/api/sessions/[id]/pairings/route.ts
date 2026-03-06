@@ -53,13 +53,20 @@ export async function POST(
     supabase.from("users").select("is_moderator").eq("id", appUserId).single(),
     supabase
       .from("sessions")
-      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result")
+      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result, status")
       .eq("id", id)
       .single(),
   ]);
 
   const isModerator = appUser?.is_moderator ?? false;
   if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot create or assign pairings for a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
 
   if (!canAssignCourt({ isModerator, session })) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

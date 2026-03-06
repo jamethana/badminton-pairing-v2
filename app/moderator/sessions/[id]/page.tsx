@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
 import CourtDashboardClient from "./court-dashboard-client";
 import SessionInviteActions from "@/components/session-invite-actions";
@@ -29,6 +29,10 @@ export default async function SessionDashboardPage({
   if (!sessionRes.data) notFound();
 
   const session = sessionRes.data;
+
+  if (session.status === "completed") {
+    redirect(`/moderator/sessions/${id}/results`);
+  }
   const sessionPlayers = playersRes.data ?? [];
   const pairings = pairingsRes.data ?? [];
   const allUsers = allUsersRes.data ?? [];
@@ -50,8 +54,6 @@ export default async function SessionDashboardPage({
             className={`rounded-full px-3 py-1 text-xs font-semibold ${
               session.status === "active"
                 ? "bg-green-100 text-green-700"
-                : session.status === "completed"
-                ? "bg-blue-100 text-blue-700"
                 : "bg-gray-100 text-gray-600"
             }`}
           >

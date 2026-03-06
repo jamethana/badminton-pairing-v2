@@ -52,6 +52,8 @@ export default function CourtDashboardClient({
   const [activeTab, setActiveTab] = useState<"game" | "stats" | "settings">("game");
   const [statusSaving, setStatusSaving] = useState(false);
 
+  const isCompleted = sessionStatus === "completed";
+
   // Stats tab sort state
   type StatsSortCol = "name" | "active" | "played" | "wins" | "losses" | "winPct" | "sat" | "skill";
   const [statsSortCol, setStatsSortCol] = useState<StatsSortCol>("played");
@@ -198,6 +200,7 @@ export default function CourtDashboardClient({
     sessionPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
 
   const handleCourtClick = (courtNumber: number) => {
+    if (isCompleted) return;
     const existing = getCourtPairing(courtNumber);
     if (existing) {
       setResultModal({ pairingId: existing.id, courtNumber });
@@ -230,6 +233,7 @@ export default function CourtDashboardClient({
     teamA: [string, string];
     teamB: [string, string];
   }) => {
+    if (isCompleted) return;
     if (!assignModal) return;
 
     // opt-2: Close modal and add a temporary pairing immediately
@@ -291,6 +295,7 @@ export default function CourtDashboardClient({
     team_b_score: number;
     winner_team: "team_a" | "team_b";
   }) => {
+    if (isCompleted) return;
     if (!resultModal) return;
     const { pairingId } = resultModal;
 
@@ -320,6 +325,7 @@ export default function CourtDashboardClient({
   };
 
   const handleVoidGame = async () => {
+    if (isCompleted) return;
     if (!resultModal) return;
     const { pairingId } = resultModal;
 
@@ -349,6 +355,7 @@ export default function CourtDashboardClient({
   };
 
   const handleToggleActive = async (spId: string, currentActive: boolean) => {
+    if (isCompleted) return;
     // opt-4: Flip immediately, rollback on failure
     setSessionPlayers((prev) =>
       prev.map((sp) => (sp.id === spId ? { ...sp, is_active: !currentActive } : sp))
@@ -369,12 +376,14 @@ export default function CourtDashboardClient({
   };
 
   const handleAddCourt = async () => {
+    if (isCompleted) return;
     setNumCourts((n) => n + 1);
     const res = await fetch(`/api/sessions/${session.id}/courts`, { method: "POST" });
     if (!res.ok) setNumCourts((n) => n - 1);
   };
 
   const handleRemoveCourt = async (courtNumber: number) => {
+    if (isCompleted) return;
     setNumCourts((n) => n - 1);
     const res = await fetch(`/api/sessions/${session.id}/courts`, {
       method: "DELETE",
@@ -387,6 +396,7 @@ export default function CourtDashboardClient({
   };
 
   const handleSaveCourtName = async (courtNumber: number, name: string) => {
+    if (isCompleted) return;
     const trimmed = name.trim();
     const updated = { ...courtNames };
     if (trimmed) updated[String(courtNumber)] = trimmed;
@@ -401,6 +411,7 @@ export default function CourtDashboardClient({
   };
 
   const handleRemovePlayer = (spId: string) => {
+    if (isCompleted) return;
     const original = sessionPlayers.find((sp) => sp.id === spId);
     setSessionPlayers((prev) => prev.filter((sp) => sp.id !== spId));
     setLongPressPlayerId((prev) => (prev === spId ? null : prev));
@@ -441,6 +452,7 @@ export default function CourtDashboardClient({
   }, [allUsers, alreadyInSessionIds, playerSearch]);
 
   const handlePickExistingPlayer = (userId: string) => {
+    if (isCompleted) return;
     startAddingPlayer(async () => {
       const res = await fetch(`/api/sessions/${session.id}/players`, {
         method: "POST",
@@ -456,6 +468,7 @@ export default function CourtDashboardClient({
   };
 
   const handleAddNewPlayer = (e: React.FormEvent) => {
+    if (isCompleted) return;
     e.preventDefault();
     const name = newPlayerName.trim();
     if (!name) return;
@@ -568,20 +581,26 @@ export default function CourtDashboardClient({
                       setRenamingCourt(courtNumber);
                       setRenameValue(courtLabel ?? "");
                     }}
-                    onRemove={canRemove ? () => handleRemoveCourt(courtNumber) : undefined}
-                    onClick={isPending || renamingCourt === courtNumber ? undefined : () => handleCourtClick(courtNumber)}
+                    onRemove={!isCompleted && canRemove ? () => handleRemoveCourt(courtNumber) : undefined}
+                    onClick={
+                      isPending || renamingCourt === courtNumber || isCompleted
+                        ? undefined
+                        : () => handleCourtClick(courtNumber)
+                    }
                   />
                 </div>
               );
             })}
 
             {/* Add court button */}
-            <button
-              onClick={handleAddCourt}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-8 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500"
-            >
-              <span className="text-lg">+</span> Add Court
-            </button>
+            {!isCompleted && (
+              <button
+                onClick={handleAddCourt}
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-8 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500"
+              >
+                <span className="text-lg">+</span> Add Court
+              </button>
+            )}
           </div>
 
           {/* Available players */}
@@ -597,12 +616,14 @@ export default function CourtDashboardClient({
               </div>
               <div className="flex gap-2">
                 <span className="text-xs text-gray-400">{completedPairings.length} games played</span>
-                <button
-                  onClick={() => setAddingPlayer(!addingPlayer)}
-                  className="rounded-lg bg-green-50 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
-                >
-                  + Add Player
-                </button>
+                {!isCompleted && (
+                  <button
+                    onClick={() => setAddingPlayer(!addingPlayer)}
+                    className="rounded-lg bg-green-50 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+                  >
+                    + Add Player
+                  </button>
+                )}
               </div>
             </div>
 
@@ -744,13 +765,13 @@ export default function CourtDashboardClient({
                   return (
                     <div
                       key={sp.id}
-                      onClick={handleRowClick}
-                      onMouseDown={() => handlePlayerLongPressStart(sp.id)}
-                      onMouseUp={handlePlayerLongPressEnd}
-                      onMouseLeave={handlePlayerLongPressEnd}
-                      onTouchStart={() => handlePlayerLongPressStart(sp.id)}
-                      onTouchEnd={handlePlayerLongPressEnd}
-                      onTouchCancel={handlePlayerLongPressEnd}
+                      onClick={isCompleted ? undefined : handleRowClick}
+                      onMouseDown={isCompleted ? undefined : () => handlePlayerLongPressStart(sp.id)}
+                      onMouseUp={isCompleted ? undefined : handlePlayerLongPressEnd}
+                      onMouseLeave={isCompleted ? undefined : handlePlayerLongPressEnd}
+                      onTouchStart={isCompleted ? undefined : () => handlePlayerLongPressStart(sp.id)}
+                      onTouchEnd={isCompleted ? undefined : handlePlayerLongPressEnd}
+                      onTouchCancel={isCompleted ? undefined : handlePlayerLongPressEnd}
                       className={cn(
                         "flex items-center gap-2 rounded-xl border px-2 py-1.5 transition-colors",
                         isBusy
@@ -877,7 +898,7 @@ export default function CourtDashboardClient({
 
                 {/* Active toggle */}
                 <button
-                  onClick={() => handleToggleActive(sp.id, sp.is_active)}
+                  onClick={isCompleted ? undefined : () => handleToggleActive(sp.id, sp.is_active)}
                   className={cn(
                     "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium",
                     sp.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"

@@ -1,6 +1,6 @@
 export default function SessionDetailLoading() {
   return (
-    <div className="animate-pulse">
+    <div className="animate-pulse motion-reduce:animate-none">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>

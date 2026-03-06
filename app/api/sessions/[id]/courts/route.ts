@@ -19,8 +19,21 @@ export async function POST(
   const supabase = await createClient();
   if (!await requireModerator(supabase)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data: session } = await supabase.from("sessions").select("num_courts").eq("id", id).single();
-  if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("num_courts, status")
+    .eq("id", id)
+    .single();
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot modify courts for a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
 
   const { data, error } = await supabase
     .from("sessions")
@@ -56,12 +69,21 @@ export async function DELETE(
     return NextResponse.json({ error: "Court has an active game" }, { status: 409 });
   }
 
-  const { data: session } = await supabase
+  const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("num_courts, court_names")
+    .select("num_courts, court_names, status")
     .eq("id", id)
     .single();
-  if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  if (sessionError || !session) {
+    return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
+  }
+
+  if (session.status === "completed") {
+    return NextResponse.json(
+      { error: "Cannot modify courts for a completed session. Change status first." },
+      { status: 409 }
+    );
+  }
   if (session.num_courts <= 1) return NextResponse.json({ error: "Cannot remove the last court" }, { status: 400 });
 
   // Remove the court name entry if it exists
