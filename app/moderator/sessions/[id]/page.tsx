@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import CourtDashboardClient from "./court-dashboard-client";
+import SessionInviteActions from "@/components/session-invite-actions";
 
 export default async function SessionDashboardPage({
   params,
@@ -44,17 +45,20 @@ export default async function SessionDashboardPage({
             {session.start_time.slice(0, 5)} – {session.end_time.slice(0, 5)}
           </p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            session.status === "active"
-              ? "bg-green-100 text-green-700"
-              : session.status === "completed"
-              ? "bg-blue-100 text-blue-700"
-              : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          {session.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              session.status === "active"
+                ? "bg-green-100 text-green-700"
+                : session.status === "completed"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {session.status}
+          </span>
+          <SessionInviteActions sessionId={session.id} />
+        </div>
       </div>
 
       <CourtDashboardClient
