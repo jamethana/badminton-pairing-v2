@@ -83,8 +83,14 @@ export default function SessionInviteActions({ sessionId }: Props) {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-2">
             {qrOpen ? (
-              <div className="rounded-lg border bg-white p-4">
-                <QRCode value={sessionUrl} size={220} />
+              <div className="w-full max-w-[260px] rounded-lg border bg-white p-4">
+                <div className="aspect-square w-full">
+                  <QRCode
+                    value={sessionUrl}
+                    style={{ display: "block", width: "100%", height: "100%" }}
+                    viewBox="0 0 256 256"
+                  />
+                </div>
               </div>
             ) : null}
             <p className="text-center text-xs text-gray-500">
