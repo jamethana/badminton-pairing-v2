@@ -36,12 +36,13 @@ export function canRecordOwnResult({
   userId: string;
 }): boolean {
   if (isModerator) return true;
-  const isParticipant = [
+  const playerIds = [
     pairing.team_a_player_1,
     pairing.team_a_player_2,
     pairing.team_b_player_1,
     pairing.team_b_player_2,
-  ].includes(userId);
+  ].filter((id): id is string => id != null);
+  const isParticipant = playerIds.includes(userId);
   return (
     isParticipant &&
     (session.allow_player_record_own_result || session.allow_player_record_any_result)

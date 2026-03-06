@@ -31,10 +31,10 @@ type PairingRow = {
   court_number: number;
   sequence_number: number;
   status: string;
-  team_a_player_1: string;
-  team_a_player_2: string;
-  team_b_player_1: string;
-  team_b_player_2: string;
+  team_a_player_1: string | null;
+  team_a_player_2: string | null;
+  team_b_player_1: string | null;
+  team_b_player_2: string | null;
   created_at: string;
   completed_at: string | null;
 };

@@ -11,6 +11,7 @@ import AssignmentModal from "@/components/assignment-modal";
 import SessionCourtsView from "@/components/session-courts-view";
 import PlayerBadge from "@/components/player-badge";
 import { computePlayerStats } from "@/lib/utils/session-stats";
+import { getDeletedUserPlaceholder } from "@/lib/utils/deleted-user";
 import type { Tables } from "@/types/database";
 
 type Session = Tables<"sessions">;
@@ -152,8 +153,11 @@ export default function PlayerSessionClient({
   const canRecordOwnResult = session.allow_player_record_own_result;
   const canRecordResult = canRecordAnyResult || canRecordOwnResult;
 
-  const getPlayer = (id: string) =>
-    allPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
+  const getPlayer = (id: string | null) => {
+    if (id == null) return getDeletedUserPlaceholder();
+    const user = allPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
+    return user ?? getDeletedUserPlaceholder();
+  };
 
   const showError = (message: string) => {
     setUiError(message);
@@ -172,10 +176,9 @@ export default function PlayerSessionClient({
     pairings
       .filter((p) => p.status === "in_progress")
       .forEach((p) => {
-        ids.add(p.team_a_player_1);
-        ids.add(p.team_a_player_2);
-        ids.add(p.team_b_player_1);
-        ids.add(p.team_b_player_2);
+        [p.team_a_player_1, p.team_a_player_2, p.team_b_player_1, p.team_b_player_2]
+          .filter((id): id is string => id != null)
+          .forEach((id) => ids.add(id));
       });
     return ids;
   }, [pairings]);
@@ -394,17 +397,24 @@ export default function PlayerSessionClient({
   const myCurrentGame = useMemo(
     () =>
       mySlot
-        ? inProgressPairings.find((p) =>
-            [p.team_a_player_1, p.team_a_player_2, p.team_b_player_1, p.team_b_player_2].includes(
-              currentUserId
-            )
-          ) ?? null
+        ? inProgressPairings.find((p) => {
+            const ids = [
+              p.team_a_player_1,
+              p.team_a_player_2,
+              p.team_b_player_1,
+              p.team_b_player_2,
+            ].filter((id): id is string => id != null);
+            return ids.includes(currentUserId);
+          }) ?? null
         : null,
     [mySlot, inProgressPairings, currentUserId]
   );
 
   const myTeam = myCurrentGame
-    ? [myCurrentGame.team_a_player_1, myCurrentGame.team_a_player_2].includes(currentUserId)
+    ? [
+        myCurrentGame.team_a_player_1,
+        myCurrentGame.team_a_player_2,
+      ].filter((id): id is string => id != null).includes(currentUserId)
       ? "A"
       : "B"
     : null;
@@ -693,17 +703,24 @@ export default function PlayerSessionClient({
                   .toReversed()
                   .map((p) => {
                     const result = p.game_results ?? null;
-                    const isMyGame = [
-                      p.team_a_player_1, p.team_a_player_2,
-                      p.team_b_player_1, p.team_b_player_2,
-                    ].includes(currentUserId);
+                    const playerIds = [
+                      p.team_a_player_1,
+                      p.team_a_player_2,
+                      p.team_b_player_1,
+                      p.team_b_player_2,
+                    ].filter((id): id is string => id != null);
+                    const isMyGame = playerIds.includes(currentUserId);
+                    const teamAIds = [p.team_a_player_1, p.team_a_player_2].filter(
+                      (id): id is string => id != null
+                    );
+                    const teamBIds = [p.team_b_player_1, p.team_b_player_2].filter(
+                      (id): id is string => id != null
+                    );
                     const iWon =
                       isMyGame &&
                       result &&
-                      ((result.winner_team === "team_a" &&
-                        [p.team_a_player_1, p.team_a_player_2].includes(currentUserId)) ||
-                        (result.winner_team === "team_b" &&
-                          [p.team_b_player_1, p.team_b_player_2].includes(currentUserId)));
+                      ((result.winner_team === "team_a" && teamAIds.includes(currentUserId)) ||
+                        (result.winner_team === "team_b" && teamBIds.includes(currentUserId)));
 
                     return (
                       <div
@@ -836,12 +853,12 @@ export default function PlayerSessionClient({
           pairingId={resultModal.pairingId}
           sessionId={session.id}
           teamA={[
-            getPlayer(resultPairing.team_a_player_1)!,
-            getPlayer(resultPairing.team_a_player_2)!,
+            getPlayer(resultPairing.team_a_player_1),
+            getPlayer(resultPairing.team_a_player_2),
           ]}
           teamB={[
-            getPlayer(resultPairing.team_b_player_1)!,
-            getPlayer(resultPairing.team_b_player_2)!,
+            getPlayer(resultPairing.team_b_player_1),
+            getPlayer(resultPairing.team_b_player_2),
           ]}
           onClose={() => setResultModal(null)}
           onConfirm={handleRecordResult}

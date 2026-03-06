@@ -1,6 +1,7 @@
 import type { CareerStats, PairingFull } from "@/lib/utils/player-career-stats";
 import type { Tables } from "@/types/database";
 import { getSkillColor } from "@/components/skill-bar";
+import { DELETED_USER_DISPLAY_NAME } from "@/lib/utils/deleted-user";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +42,8 @@ function RecentGameRow({
   userId: string;
   userNameMap: Map<string, string>;
 }) {
-  const onA = pairing.team_a_player_1 === userId || pairing.team_a_player_2 === userId;
+  const onA =
+    pairing.team_a_player_1 === userId || pairing.team_a_player_2 === userId;
   const result = pairing.game_results;
   const won = result?.winner_team
     ? (onA && result.winner_team === "team_a") || (!onA && result.winner_team === "team_b")
@@ -54,8 +56,9 @@ function RecentGameRow({
     ? [pairing.team_b_player_1, pairing.team_b_player_2]
     : [pairing.team_a_player_1, pairing.team_a_player_2];
 
-  const getName = (id: string) => userNameMap.get(id) ?? "?";
-  const partner = myTeam.find((id) => id !== userId) ?? "";
+  const getName = (id: string | null) =>
+    id != null ? (userNameMap.get(id) ?? DELETED_USER_DISPLAY_NAME) : DELETED_USER_DISPLAY_NAME;
+  const partner = myTeam.find((id) => id !== userId) ?? null;
 
   return (
     <div

@@ -1,6 +1,7 @@
 "use client";
 
 import CourtCard from "@/components/court-card";
+import { getDeletedUserPlaceholder } from "@/lib/utils/deleted-user";
 import type { Tables } from "@/types/database";
 
 type Pairing = Tables<"pairings"> & {
@@ -8,6 +9,13 @@ type Pairing = Tables<"pairings"> & {
 };
 type SessionPlayer = Tables<"session_players"> & {
   users: Tables<"users"> | null;
+};
+
+type PlayerInfo = {
+  id: string;
+  display_name: string;
+  skill_level: number;
+  picture_url?: string | null;
 };
 
 interface SessionCourtsViewProps {
@@ -43,8 +51,11 @@ export default function SessionCourtsView({
 }: SessionCourtsViewProps) {
   const courts = Array.from({ length: numCourts }, (_, i) => i + 1);
 
-  const getPlayerById = (id: string) =>
-    sessionPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
+  const getPlayerById = (id: string | null) => {
+    if (id == null) return getDeletedUserPlaceholder();
+    const user = sessionPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
+    return user ?? getDeletedUserPlaceholder();
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -53,28 +64,23 @@ export default function SessionCourtsView({
         const isPending = pairing?.id.startsWith("temp-");
         const courtLabel = courtNames[String(courtNumber)];
 
+        const playerIds = pairing
+          ? [
+              pairing.team_a_player_1,
+              pairing.team_a_player_2,
+              pairing.team_b_player_1,
+              pairing.team_b_player_2,
+            ].filter((id): id is string => id != null)
+          : [];
         const isMyGame =
-          currentUserId && pairing
-            ? [
-                pairing.team_a_player_1,
-                pairing.team_a_player_2,
-                pairing.team_b_player_1,
-                pairing.team_b_player_2,
-              ].includes(currentUserId)
-            : false;
+          currentUserId != null && pairing ? playerIds.includes(currentUserId) : false;
 
         const teamA = pairing
-          ? ([
-              getPlayerById(pairing.team_a_player_1),
-              getPlayerById(pairing.team_a_player_2),
-            ] as [ReturnType<typeof getPlayerById>, ReturnType<typeof getPlayerById>])
+          ? ([getPlayerById(pairing.team_a_player_1), getPlayerById(pairing.team_a_player_2)] as const)
           : undefined;
 
         const teamB = pairing
-          ? ([
-              getPlayerById(pairing.team_b_player_1),
-              getPlayerById(pairing.team_b_player_2),
-            ] as [ReturnType<typeof getPlayerById>, ReturnType<typeof getPlayerById>])
+          ? ([getPlayerById(pairing.team_b_player_1), getPlayerById(pairing.team_b_player_2)] as const)
           : undefined;
 
         const handleClick = pairing
@@ -90,16 +96,8 @@ export default function SessionCourtsView({
             key={courtNumber}
             courtNumber={courtNumber}
             courtLabel={courtLabel}
-            teamA={
-              teamA && teamA[0] && teamA[1]
-                ? (teamA as [NonNullable<typeof teamA[0]>, NonNullable<typeof teamA[1]>])
-                : undefined
-            }
-            teamB={
-              teamB && teamB[0] && teamB[1]
-                ? (teamB as [NonNullable<typeof teamB[0]>, NonNullable<typeof teamB[1]>])
-                : undefined
-            }
+            teamA={teamA as [PlayerInfo, PlayerInfo] | undefined}
+            teamB={teamB as [PlayerInfo, PlayerInfo] | undefined}
             status={pairing ? "in_progress" : "available"}
             isPending={isPending}
             emptyStateText={pairing ? undefined : emptyCourtText}

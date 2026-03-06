@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import SessionResultsList from "@/components/session-results-list";
 import SessionStatsTab from "@/components/session-stats-tab";
+import { getDeletedUserPlaceholder } from "@/lib/utils/deleted-user";
 import type { Tables } from "@/types/database";
 import type { PairingWithResult } from "@/lib/utils/session-stats";
 
@@ -35,7 +36,8 @@ export default function ResultsClient({
 }: ResultsClientProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>("results");
 
-  const getPlayer = (id: string) => playerMap[id];
+  const getPlayer = (id: string | null) =>
+    id != null && playerMap[id] ? playerMap[id] : getDeletedUserPlaceholder();
 
   return (
     <>

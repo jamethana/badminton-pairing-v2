@@ -33,11 +33,11 @@ export function computePlayerStats(
     });
   }
 
-  // Only count completed pairings for match counts/wins
+  // Only count completed pairings for match counts/wins (ignore null slots — deleted user)
   const completed = pairings.filter((p) => p.status === "completed");
   for (const p of completed) {
-    const teamA = [p.team_a_player_1, p.team_a_player_2];
-    const teamB = [p.team_b_player_1, p.team_b_player_2];
+    const teamA = [p.team_a_player_1, p.team_a_player_2].filter((id): id is string => id != null);
+    const teamB = [p.team_b_player_1, p.team_b_player_2].filter((id): id is string => id != null);
     const allPlayers = [...teamA, ...teamB];
     const result = p.game_results;
 
@@ -68,7 +68,9 @@ export function computePlayerStats(
     // Find the last sequence_number where this player played (completed game)
     let lastSeqPlayed = -1;
     for (const p of completed) {
-      const players = [p.team_a_player_1, p.team_a_player_2, p.team_b_player_1, p.team_b_player_2];
+      const players = [p.team_a_player_1, p.team_a_player_2, p.team_b_player_1, p.team_b_player_2].filter(
+        (id): id is string => id != null
+      );
       if (players.includes(pid)) {
         if (p.sequence_number > lastSeqPlayed) {
           lastSeqPlayed = p.sequence_number;
@@ -94,10 +96,13 @@ export function getPlayersInCurrentGame(pairings: PairingWithResult[]): Set<stri
   const inProgress = pairings.filter((p) => p.status === "in_progress");
   const busy = new Set<string>();
   for (const p of inProgress) {
-    busy.add(p.team_a_player_1);
-    busy.add(p.team_a_player_2);
-    busy.add(p.team_b_player_1);
-    busy.add(p.team_b_player_2);
+    const ids = [
+      p.team_a_player_1,
+      p.team_a_player_2,
+      p.team_b_player_1,
+      p.team_b_player_2,
+    ].filter((id): id is string => id != null);
+    ids.forEach((id) => busy.add(id));
   }
   return busy;
 }

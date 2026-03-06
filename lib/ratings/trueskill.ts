@@ -33,6 +33,16 @@ export function computeTrueskillUpdateForCompletedGame(params: {
 }): TrueskillSnapshot[] {
   const { usersById, pairing, result } = params;
 
+  // Skip pairings with any deleted user (null slot) — don't update ratings
+  if (
+    pairing.team_a_player_1 == null ||
+    pairing.team_a_player_2 == null ||
+    pairing.team_b_player_1 == null ||
+    pairing.team_b_player_2 == null
+  ) {
+    return [];
+  }
+
   const a1 = usersById.get(pairing.team_a_player_1);
   const a2 = usersById.get(pairing.team_a_player_2);
   const b1 = usersById.get(pairing.team_b_player_1);

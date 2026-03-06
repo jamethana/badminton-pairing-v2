@@ -16,7 +16,8 @@ type PlayerInfo = {
 
 interface SessionResultsListProps {
   pairings: Pairing[];
-  getPlayer: (id: string) => PlayerInfo | undefined;
+  /** Resolves pairing slot id (or null for deleted user) to display info; use placeholder for null. */
+  getPlayer: (id: string | null) => PlayerInfo;
 }
 
 export default function SessionResultsList({ pairings, getPlayer }: SessionResultsListProps) {

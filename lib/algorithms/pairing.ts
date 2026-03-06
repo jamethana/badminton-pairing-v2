@@ -59,15 +59,19 @@ export function generatePairing(
   }
   for (const pairing of allPairings) {
     if (pairing.status === "voided") continue;
-    const teamA = [pairing.team_a_player_1, pairing.team_a_player_2];
-    const teamB = [pairing.team_b_player_1, pairing.team_b_player_2];
+    const teamA = [pairing.team_a_player_1, pairing.team_a_player_2].filter(
+      (id): id is string => id != null
+    );
+    const teamB = [pairing.team_b_player_1, pairing.team_b_player_2].filter(
+      (id): id is string => id != null
+    );
 
-    // Partners
-    if (partnerHistory.has(teamA[0]) && partnerHistory.has(teamA[1])) {
+    // Partners (only when both slots are non-null)
+    if (teamA.length === 2 && partnerHistory.has(teamA[0]) && partnerHistory.has(teamA[1])) {
       partnerHistory.get(teamA[0])!.add(teamA[1]);
       partnerHistory.get(teamA[1])!.add(teamA[0]);
     }
-    if (partnerHistory.has(teamB[0]) && partnerHistory.has(teamB[1])) {
+    if (teamB.length === 2 && partnerHistory.has(teamB[0]) && partnerHistory.has(teamB[1])) {
       partnerHistory.get(teamB[0])!.add(teamB[1]);
       partnerHistory.get(teamB[1])!.add(teamB[0]);
     }

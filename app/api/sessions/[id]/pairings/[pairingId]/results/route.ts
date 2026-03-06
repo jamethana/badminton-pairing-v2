@@ -82,12 +82,12 @@ export async function POST(request: NextRequest, { params }: Params) {
     pairing.team_a_player_2,
     pairing.team_b_player_1,
     pairing.team_b_player_2,
-  ];
+  ].filter((id): id is string => id != null);
 
-  const { data: players, error: playersError } = await adminSupabase
-    .from("users")
-    .select("*")
-    .in("id", playerIds);
+  const { data: players, error: playersError } =
+    playerIds.length === 4
+      ? await adminSupabase.from("users").select("*").in("id", playerIds)
+      : { data: null, error: new Error("Missing player slot (deleted user)") };
 
   if (playersError || !players || players.length !== 4) {
     // Still mark pairing completed even if rating update fails; log but don't block UX.

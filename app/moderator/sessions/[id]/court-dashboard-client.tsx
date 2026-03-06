@@ -10,6 +10,7 @@ import AssignmentModal from "@/components/assignment-modal";
 import ResultModal from "@/components/result-modal";
 import PlayerPermissionsPanel from "@/components/player-permissions-panel";
 import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
+import { getDeletedUserPlaceholder } from "@/lib/utils/deleted-user";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "@/components/skill-bar";
 import type { Tables, SessionStatus } from "@/types/database";
@@ -246,8 +247,12 @@ export default function CourtDashboardClient({
   const getCourtPairing = (courtNumber: number) =>
     pairings.find((p) => p.court_number === courtNumber && p.status === "in_progress");
 
-  const getPlayerById = (id: string) =>
-    sessionPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
+  const getPlayerById = (id: string | null) => {
+    if (id == null) return getDeletedUserPlaceholder();
+    const fromSession =
+      sessionPlayers.find((sp) => sp.users?.id === id)?.users ?? userById.get(id) ?? null;
+    return fromSession ?? getDeletedUserPlaceholder();
+  };
 
   const handleCourtClick = (courtNumber: number) => {
     if (isCompleted) return;
@@ -634,16 +639,8 @@ export default function CourtDashboardClient({
                   <CourtCard
                     courtNumber={courtNumber}
                     courtLabel={courtLabel}
-                    teamA={
-                      teamA && teamA[0] && teamA[1]
-                        ? (teamA as [NonNullable<typeof teamA[0]>, NonNullable<typeof teamA[1]>])
-                        : undefined
-                    }
-                    teamB={
-                      teamB && teamB[0] && teamB[1]
-                        ? (teamB as [NonNullable<typeof teamB[0]>, NonNullable<typeof teamB[1]>])
-                        : undefined
-                    }
+                    teamA={teamA}
+                    teamB={teamB}
                     status={pairing ? "in_progress" : "available"}
                     isPending={isPending}
                     isRenaming={renamingCourt === courtNumber}
@@ -1151,12 +1148,12 @@ export default function CourtDashboardClient({
           pairingId={resultModal.pairingId}
           sessionId={session.id}
           teamA={[
-            getPlayerById(resultPairing.team_a_player_1)!,
-            getPlayerById(resultPairing.team_a_player_2)!,
+            getPlayerById(resultPairing.team_a_player_1),
+            getPlayerById(resultPairing.team_a_player_2),
           ]}
           teamB={[
-            getPlayerById(resultPairing.team_b_player_1)!,
-            getPlayerById(resultPairing.team_b_player_2)!,
+            getPlayerById(resultPairing.team_b_player_1),
+            getPlayerById(resultPairing.team_b_player_2),
           ]}
           onClose={() => setResultModal(null)}
           onConfirm={handleRecordResult}

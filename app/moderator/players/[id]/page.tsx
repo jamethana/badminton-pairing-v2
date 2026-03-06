@@ -34,13 +34,12 @@ export default async function ModeratorPlayerStatsPage({
   const player = playerRes.data;
   const safePairings = (pairingsRes.data ?? []) as PairingFull[];
 
-  // Collect all unique player IDs for name lookup
+  // Collect all unique player IDs for name lookup (exclude null — deleted user)
   const allPlayerIds = new Set<string>();
   for (const p of safePairings) {
-    allPlayerIds.add(p.team_a_player_1);
-    allPlayerIds.add(p.team_a_player_2);
-    allPlayerIds.add(p.team_b_player_1);
-    allPlayerIds.add(p.team_b_player_2);
+    [p.team_a_player_1, p.team_a_player_2, p.team_b_player_1, p.team_b_player_2]
+      .filter((id): id is string => id != null)
+      .forEach((id) => allPlayerIds.add(id));
   }
   allPlayerIds.delete(playerId);
 
