@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { SessionStatus } from "@/types/database";
 
 type AssignmentLevel = "moderators" | "everyone";
@@ -89,6 +90,30 @@ export default function SessionForm({
     set("allow_player_record_own_result", level === "own");
     set("allow_player_record_any_result", level === "any");
   };
+
+  const courtsLevel: AssignmentLevel = form.allow_player_add_remove_courts
+    ? "everyone"
+    : "moderators";
+  const inviteLevel: AssignmentLevel = form.allow_player_access_invite_qr
+    ? "everyone"
+    : "moderators";
+
+  const setCourtsLevel = (level: AssignmentLevel) => {
+    set("allow_player_add_remove_courts", level === "everyone");
+  };
+  const setInviteLevel = (level: AssignmentLevel) => {
+    set("allow_player_access_invite_qr", level === "everyone");
+  };
+
+  const segmentButtonClass = (isSelected: boolean, idx: number) =>
+    cn(
+      "flex-1 min-w-0 px-2 py-2 text-xs font-medium text-center transition-colors",
+      "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+      idx > 0 && "border-l border-gray-200",
+      isSelected
+        ? "bg-green-600 text-white"
+        : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+    );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -206,7 +231,7 @@ export default function SessionForm({
       )}
 
       {/* Permissions */}
-      <div className="space-y-3 rounded-lg border bg-gray-50 px-3 py-3">
+      <div className="space-y-4 rounded-lg border bg-gray-50 px-3 py-3">
         <p className="text-sm font-semibold text-gray-800">Player permissions</p>
         <p className="text-xs text-gray-500">
           Choose what players can do in this session. You can change these later from the
@@ -215,120 +240,113 @@ export default function SessionForm({
 
         {/* Assign empty courts */}
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-gray-700">
+          <p className="mb-2 text-sm font-medium text-gray-700">
             Who can assign games to empty courts?
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className={`rounded-md border px-2 py-1.5 text-xs ${
-                assignmentLevel === "moderators"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-200 bg-white text-gray-600"
-              }`}
-              onClick={() => setAssignmentLevel("moderators")}
-            >
-              Moderators only
-            </button>
-            <button
-              type="button"
-              className={`rounded-md border px-2 py-1.5 text-xs ${
-                assignmentLevel === "everyone"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-200 bg-white text-gray-600"
-              }`}
-              onClick={() => setAssignmentLevel("everyone")}
-            >
-              Everyone in this session
-            </button>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[
+              { value: "moderators" as const, label: "Moderators only" },
+              { value: "everyone" as const, label: "Everyone in this session" },
+            ].map(({ value, label }, idx) => (
+              <button
+                key={value}
+                type="button"
+                className={segmentButtonClass(assignmentLevel === value, idx)}
+                onClick={() => setAssignmentLevel(value)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Record results */}
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-gray-700">
+          <p className="mb-2 text-sm font-medium text-gray-700">
             Who can record match results?
           </p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              className={`rounded-md border px-2 py-1.5 text-xs ${
-                resultLevel === "none"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-200 bg-white text-gray-600"
-              }`}
-              onClick={() => setResultLevel("none")}
-            >
-              Moderators only
-            </button>
-            <button
-              type="button"
-              className={`rounded-md border px-2 py-1.5 text-xs ${
-                resultLevel === "own"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-200 bg-white text-gray-600"
-              }`}
-              onClick={() => setResultLevel("own")}
-            >
-              Own matches
-            </button>
-            <button
-              type="button"
-              className={`rounded-md border px-2 py-1.5 text-xs ${
-                resultLevel === "any"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-200 bg-white text-gray-600"
-              }`}
-              onClick={() => setResultLevel("any")}
-            >
-              Any match
-            </button>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[
+              { value: "none" as const, label: "Moderators only" },
+              { value: "own" as const, label: "Own matches" },
+              { value: "any" as const, label: "Any match" },
+            ].map(({ value, label }, idx) => (
+              <button
+                key={value}
+                type="button"
+                className={segmentButtonClass(resultLevel === value, idx)}
+                onClick={() => setResultLevel(value)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Add/remove courts */}
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-gray-700">
-            Can players add or remove courts?
+          <p className="mb-2 text-sm font-medium text-gray-700">
+            Who can add or remove courts?
           </p>
-          <label className="flex items-center gap-2 text-xs text-gray-700">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              checked={form.allow_player_add_remove_courts}
-              onChange={(e) => set("allow_player_add_remove_courts", e.target.checked)}
-            />
-            <span>Allow players in this session to add or remove courts.</span>
-          </label>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[
+              { value: "moderators" as const, label: "Moderators only" },
+              { value: "everyone" as const, label: "Everyone in this session" },
+            ].map(({ value, label }, idx) => (
+              <button
+                key={value}
+                type="button"
+                className={segmentButtonClass(courtsLevel === value, idx)}
+                onClick={() => setCourtsLevel(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Invite / QR access */}
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-gray-700">
-            Can players access the invite link & QR?
+          <p className="mb-2 text-sm font-medium text-gray-700">
+            Who can access the invite link & QR code?
           </p>
-          <label className="flex items-center gap-2 text-xs text-gray-700">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              checked={form.allow_player_access_invite_qr}
-              onChange={(e) => set("allow_player_access_invite_qr", e.target.checked)}
-            />
-            <span>Show the invite button to players on the session page.</span>
-          </label>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[
+              { value: "moderators" as const, label: "Moderators only" },
+              { value: "everyone" as const, label: "Everyone in this session" },
+            ].map(({ value, label }, idx) => (
+              <button
+                key={value}
+                type="button"
+                className={segmentButtonClass(inviteLevel === value, idx)}
+                onClick={() => setInviteLevel(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Skill level pills */}
+        {/* Skill level in player list */}
         <div className="space-y-1.5">
-          <label className="flex items-center gap-2 text-xs text-gray-700">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              checked={form.show_skill_level_pills}
-              onChange={(e) => set("show_skill_level_pills", e.target.checked)}
-            />
-            <span>Show skill level pills next to player names.</span>
-          </label>
+          <p className="mb-2 text-sm font-medium text-gray-700">
+            Show skill level in player list?
+          </p>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[
+              { value: false, label: "Hide" },
+              { value: true, label: "Show" },
+            ].map(({ value, label }, idx) => (
+              <button
+                key={label}
+                type="button"
+                className={segmentButtonClass(form.show_skill_level_pills === value, idx)}
+                onClick={() => set("show_skill_level_pills", value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -56,6 +56,32 @@ const RESULT_LEVELS: { value: ResultLevel; label: string; description: string }[
   },
 ];
 
+const COURTS_LEVELS: { value: CourtsLevel; label: string; description: string }[] = [
+  {
+    value: "moderators",
+    label: "Moderators only",
+    description: "Only moderators can add or remove courts.",
+  },
+  {
+    value: "everyone",
+    label: "Everyone in this session",
+    description: "Players can add or remove courts when no game is in progress.",
+  },
+];
+
+const INVITE_LEVELS: { value: InviteLevel; label: string; description: string }[] = [
+  {
+    value: "moderators",
+    label: "Moderators only",
+    description: "Only moderators see the invite button and QR code.",
+  },
+  {
+    value: "everyone",
+    label: "Everyone in this session",
+    description: "Players see the invite button and QR code on the session page.",
+  },
+];
+
 function deriveAssignmentLevel(permissions: PlayerPermissions): AssignmentLevel {
   return permissions.allow_player_assign_empty_court ? "everyone" : "moderators";
 }
@@ -76,6 +102,14 @@ function resultLevelToFlags(level: ResultLevel): Pick<
   };
 }
 
+function deriveCourtsLevel(permissions: PlayerPermissions): CourtsLevel {
+  return permissions.allow_player_add_remove_courts ? "everyone" : "moderators";
+}
+
+function deriveInviteLevel(permissions: PlayerPermissions): InviteLevel {
+  return permissions.allow_player_access_invite_qr ? "everyone" : "moderators";
+}
+
 export default function PlayerPermissionsPanel({
   sessionId,
   initialPermissions,
@@ -88,12 +122,16 @@ export default function PlayerPermissionsPanel({
 
   const assignmentLevel = deriveAssignmentLevel(permissions);
   const resultLevel = deriveResultLevel(permissions);
+  const courtsLevel = deriveCourtsLevel(permissions);
+  const inviteLevel = deriveInviteLevel(permissions);
   const assignmentHeadingId = useId();
   const resultHeadingId = useId();
+  const courtsHeadingId = useId();
+  const inviteHeadingId = useId();
   const assignmentRadioGroupRef = useRef<HTMLDivElement>(null);
   const resultRadioGroupRef = useRef<HTMLDivElement>(null);
-  const courtsToggleId = useId();
-  const inviteToggleId = useId();
+  const courtsRadioGroupRef = useRef<HTMLDivElement>(null);
+  const inviteRadioGroupRef = useRef<HTMLDivElement>(null);
 
   // ── Court assignment level segmented control ─────────────────────────────
   const handleAssignmentLevel = async (level: AssignmentLevel) => {
@@ -191,10 +229,110 @@ export default function PlayerPermissionsPanel({
     handleResultLevel(RESULT_LEVELS[nextIdx].value);
   };
 
+  // ── Courts level segmented control ──────────────────────────────────────
+  const handleCourtsLevel = async (level: CourtsLevel) => {
+    if (level === courtsLevel || courtsSaving) return;
+    const current = courtsLevel;
+    const allow_player_add_remove_courts = level === "everyone";
+    setPermissions((prev) => ({ ...prev, allow_player_add_remove_courts }));
+    setCourtsSaving(true);
+    const res = await fetch(`/api/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allow_player_add_remove_courts }),
+    });
+    if (!res.ok) {
+      setPermissions((prev) => ({
+        ...prev,
+        allow_player_add_remove_courts: current === "everyone",
+      }));
+    }
+    setCourtsSaving(false);
+  };
+
+  const handleCourtsKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    currentIdx: number
+  ) => {
+    const buttons = courtsRadioGroupRef.current?.querySelectorAll<HTMLButtonElement>(
+      '[role="radio"]'
+    );
+    if (!buttons) return;
+    let nextIdx = currentIdx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      nextIdx = (currentIdx + 1) % COURTS_LEVELS.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      nextIdx = (currentIdx - 1 + COURTS_LEVELS.length) % COURTS_LEVELS.length;
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      nextIdx = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      nextIdx = COURTS_LEVELS.length - 1;
+    } else {
+      return;
+    }
+    buttons[nextIdx].focus();
+    handleCourtsLevel(COURTS_LEVELS[nextIdx].value);
+  };
+
+  // ── Invite level segmented control ──────────────────────────────────────
+  const handleInviteLevel = async (level: InviteLevel) => {
+    if (level === inviteLevel || inviteSaving) return;
+    const current = inviteLevel;
+    const allow_player_access_invite_qr = level === "everyone";
+    setPermissions((prev) => ({ ...prev, allow_player_access_invite_qr }));
+    setInviteSaving(true);
+    const res = await fetch(`/api/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allow_player_access_invite_qr }),
+    });
+    if (!res.ok) {
+      setPermissions((prev) => ({
+        ...prev,
+        allow_player_access_invite_qr: current === "everyone",
+      }));
+    }
+    setInviteSaving(false);
+  };
+
+  const handleInviteKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    currentIdx: number
+  ) => {
+    const buttons = inviteRadioGroupRef.current?.querySelectorAll<HTMLButtonElement>(
+      '[role="radio"]'
+    );
+    if (!buttons) return;
+    let nextIdx = currentIdx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      nextIdx = (currentIdx + 1) % INVITE_LEVELS.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      nextIdx = (currentIdx - 1 + INVITE_LEVELS.length) % INVITE_LEVELS.length;
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      nextIdx = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      nextIdx = INVITE_LEVELS.length - 1;
+    } else {
+      return;
+    }
+    buttons[nextIdx].focus();
+    handleInviteLevel(INVITE_LEVELS[nextIdx].value);
+  };
+
   const selectedAssignmentOption = ASSIGNMENT_LEVELS.find(
     (l) => l.value === assignmentLevel
   )!;
   const selectedResultOption = RESULT_LEVELS.find((l) => l.value === resultLevel)!;
+  const selectedCourtsOption = COURTS_LEVELS.find((l) => l.value === courtsLevel)!;
+  const selectedInviteOption = INVITE_LEVELS.find((l) => l.value === inviteLevel)!;
 
   return (
     <div className="rounded-xl border bg-white">
@@ -308,82 +446,95 @@ export default function PlayerPermissionsPanel({
         {/* ── Add / remove courts ── */}
         <div className="px-4 py-3">
           <p
-            id={courtsToggleId}
+            id={courtsHeadingId}
             className="mb-2 text-sm font-medium text-gray-700"
           >
-            Can players add or remove courts?
+            Who can add or remove courts?
           </p>
-          <label className="flex items-center gap-2 text-xs text-gray-700">
-            <input
-              id={courtsToggleId}
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              checked={permissions.allow_player_add_remove_courts}
-              disabled={courtsSaving}
-              onChange={async (e) => {
-                const next = e.target.checked;
-                const prev = permissions.allow_player_add_remove_courts;
-                setPermissions((p) => ({ ...p, allow_player_add_remove_courts: next }));
-                setCourtsSaving(true);
-                const res = await fetch(`/api/sessions/${sessionId}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ allow_player_add_remove_courts: next }),
-                });
-                if (!res.ok) {
-                  setPermissions((p) => ({
-                    ...p,
-                    allow_player_add_remove_courts: prev,
-                  }));
-                }
-                setCourtsSaving(false);
-              }}
-            />
-            <span>
-              Allow players in this session to add or remove courts (when no game is in
-              progress on that court).
-            </span>
-          </label>
+          <div
+            ref={courtsRadioGroupRef}
+            role="radiogroup"
+            aria-labelledby={courtsHeadingId}
+            className={cn(
+              "flex rounded-lg border border-gray-200 overflow-hidden",
+              courtsSaving && "opacity-60 pointer-events-none"
+            )}
+          >
+            {COURTS_LEVELS.map(({ value, label }, idx) => {
+              const isSelected = value === courtsLevel;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => handleCourtsLevel(value)}
+                  onKeyDown={(e) => handleCourtsKeyDown(e, idx)}
+                  className={cn(
+                    "flex-1 min-w-0 px-2 py-2 text-xs font-medium text-center transition-colors",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+                    idx > 0 && "border-l border-gray-200",
+                    isSelected
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-xs text-gray-400">
+            {selectedCourtsOption.description}
+          </p>
         </div>
 
         {/* ── Invite / QR access ── */}
         <div className="px-4 py-3">
           <p
-            id={inviteToggleId}
+            id={inviteHeadingId}
             className="mb-2 text-sm font-medium text-gray-700"
           >
-            Can players access the invite link & QR code?
+            Who can access the invite link & QR code?
           </p>
-          <label className="flex items-center gap-2 text-xs text-gray-700">
-            <input
-              id={inviteToggleId}
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              checked={permissions.allow_player_access_invite_qr}
-              disabled={inviteSaving}
-              onChange={async (e) => {
-                const next = e.target.checked;
-                const prev = permissions.allow_player_access_invite_qr;
-                setPermissions((p) => ({ ...p, allow_player_access_invite_qr: next }));
-                setInviteSaving(true);
-                const res = await fetch(`/api/sessions/${sessionId}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ allow_player_access_invite_qr: next }),
-                });
-                if (!res.ok) {
-                  setPermissions((p) => ({
-                    ...p,
-                    allow_player_access_invite_qr: prev,
-                  }));
-                }
-                setInviteSaving(false);
-              }}
-            />
-            <span>
-              Show the invite button and QR code to players on the session page.
-            </span>
-          </label>
+          <div
+            ref={inviteRadioGroupRef}
+            role="radiogroup"
+            aria-labelledby={inviteHeadingId}
+            className={cn(
+              "flex rounded-lg border border-gray-200 overflow-hidden",
+              inviteSaving && "opacity-60 pointer-events-none"
+            )}
+          >
+            {INVITE_LEVELS.map(({ value, label }, idx) => {
+              const isSelected = value === inviteLevel;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => handleInviteLevel(value)}
+                  onKeyDown={(e) => handleInviteKeyDown(e, idx)}
+                  className={cn(
+                    "flex-1 min-w-0 px-2 py-2 text-xs font-medium text-center transition-colors",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+                    idx > 0 && "border-l border-gray-200",
+                    isSelected
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-xs text-gray-400">
+            {selectedInviteOption.description}
+          </p>
         </div>
       </div>
     </div>

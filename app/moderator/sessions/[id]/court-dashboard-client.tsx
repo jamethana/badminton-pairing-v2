@@ -1022,34 +1022,41 @@ export default function CourtDashboardClient({
         <div className="space-y-4">
           {/* Session status */}
           <div className="rounded-xl border bg-white p-4">
-            <h3 className="mb-1 text-sm font-semibold text-gray-700">Session Status</h3>
-            <p className="mb-3 text-xs text-gray-400">
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">Session Status</h3>
+            <p className="mb-2 text-xs text-gray-400">
               Control the current lifecycle state of this session.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {(["draft", "active", "completed"] as const).map((s) => (
-                <button
-                  key={s}
-                  disabled={statusSaving || sessionStatus === s}
-                  onClick={() => handleStatusChange(s)}
-                  className={cn(
-                    "rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-colors disabled:cursor-not-allowed",
-                    sessionStatus === s
-                      ? s === "active"
-                        ? "bg-green-100 text-green-700 ring-2 ring-green-400"
-                        : s === "completed"
-                        ? "bg-blue-100 text-blue-700 ring-2 ring-blue-400"
-                        : "bg-gray-200 text-gray-700 ring-2 ring-gray-400"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-              {statusSaving && (
-                <span className="self-center text-xs text-gray-400">Saving…</span>
+            <div
+              className={cn(
+                "flex rounded-lg border border-gray-200 overflow-hidden",
+                statusSaving && "opacity-60 pointer-events-none"
               )}
+            >
+              {(["draft", "active", "completed"] as const).map((s, idx) => {
+                const isSelected = sessionStatus === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={statusSaving || isSelected}
+                    onClick={() => handleStatusChange(s)}
+                    className={cn(
+                      "flex-1 min-w-0 px-2 py-2 text-xs font-medium text-center capitalize transition-colors disabled:cursor-not-allowed",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+                      idx > 0 && "border-l border-gray-200",
+                      isSelected
+                        ? "bg-green-600 text-white"
+                        : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                    )}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
             </div>
+            {statusSaving && (
+              <p className="mt-1.5 text-xs text-gray-400">Saving…</p>
+            )}
           </div>
 
           {/* Player permissions */}
@@ -1066,37 +1073,51 @@ export default function CourtDashboardClient({
 
           {/* Display: show skill level pills in Available Players list */}
           <div className="rounded-xl border bg-white p-4">
-            <h3 className="mb-1 text-sm font-semibold text-gray-700">Display</h3>
-            <p className="mb-3 text-xs text-gray-400">
-              Choose what to show in the Available Players list on the Game tab.
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">Display</h3>
+            <p className="mb-2 text-xs text-gray-400">
+              Show skill level in the Available Players list on the Game tab.
             </p>
-            <label
+            <div
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
+                "flex rounded-lg border border-gray-200 overflow-hidden",
                 showSkillLevelPillsSaving && "opacity-60 pointer-events-none"
               )}
             >
-              <input
-                type="checkbox"
-                checked={showSkillLevelPills}
-                onChange={async (e) => {
-                  const next = e.target.checked;
-                  setShowSkillLevelPills(next);
-                  setShowSkillLevelPillsSaving(true);
-                  const res = await fetch(`/api/sessions/${session.id}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ show_skill_level_pills: next }),
-                  });
-                  setShowSkillLevelPillsSaving(false);
-                  if (!res.ok) setShowSkillLevelPills((prev) => !prev);
-                }}
-                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                Show skill level in player list
-              </span>
-            </label>
+              {(["Hide", "Show"] as const).map((label, idx) => {
+                const value = label === "Show";
+                const isSelected =
+                  (value && showSkillLevelPills) || (!value && !showSkillLevelPills);
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    disabled={showSkillLevelPillsSaving || isSelected}
+                    onClick={async () => {
+                      if (showSkillLevelPills === value) return;
+                      setShowSkillLevelPills(value);
+                      setShowSkillLevelPillsSaving(true);
+                      const res = await fetch(`/api/sessions/${session.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ show_skill_level_pills: value }),
+                      });
+                      setShowSkillLevelPillsSaving(false);
+                      if (!res.ok) setShowSkillLevelPills((prev) => !prev);
+                    }}
+                    className={cn(
+                      "flex-1 min-w-0 px-2 py-2 text-xs font-medium text-center transition-colors disabled:cursor-not-allowed",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+                      idx > 0 && "border-l border-gray-200",
+                      isSelected
+                        ? "bg-green-600 text-white"
+                        : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
             {showSkillLevelPillsSaving && (
               <p className="mt-1.5 text-xs text-gray-400">Saving…</p>
             )}
