@@ -28,6 +28,7 @@ export default function SessionInviteActions({ sessionId }: Props) {
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [sessionUrl, setSessionUrl] = useState("");
+  const [qrSize, setQrSize] = useState(240);
 
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/sessions/${sessionId}`;
@@ -37,7 +38,17 @@ export default function SessionInviteActions({ sessionId }: Props) {
   };
 
   const handleShowQR = () => {
-    setSessionUrl(`${window.location.origin}/sessions/${sessionId}`);
+    const url = `${window.location.origin}/sessions/${sessionId}`;
+    setSessionUrl(url);
+
+    const viewportWidth = window.innerWidth || 0;
+    let size = 240;
+    if (viewportWidth > 0) {
+      const target = viewportWidth * 0.7;
+      size = Math.min(240, Math.max(160, Math.floor(target)));
+    }
+    setQrSize(size);
+
     setQrOpen(true);
   };
 
@@ -83,12 +94,12 @@ export default function SessionInviteActions({ sessionId }: Props) {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-2">
             {qrOpen ? (
-              <div className="w-full max-w-[260px] rounded-lg border bg-white p-4">
-                <div className="aspect-square w-full">
+              <div className="w-full max-w-[280px] rounded-lg border bg-white p-4">
+                <div className="flex justify-center">
                   <QRCode
                     value={sessionUrl}
-                    style={{ display: "block", width: "100%", height: "100%" }}
-                    viewBox="0 0 256 256"
+                    size={qrSize}
+                    className="block"
                   />
                 </div>
               </div>
