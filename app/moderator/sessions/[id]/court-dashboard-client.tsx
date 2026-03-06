@@ -129,7 +129,10 @@ export default function CourtDashboardClient({
       const sp: SessionPlayer = { ...row, users: user };
       setSessionPlayers((prev) => {
         const idx = prev.findIndex((p) => p.id === row.id);
-        if (idx >= 0) return prev.map((p) => (p.id === row.id ? sp : p));
+        if (idx >= 0) {
+          const merged = { ...sp, users: sp.users ?? prev[idx].users };
+          return prev.map((p) => (p.id === row.id ? merged : p));
+        }
         return [...prev, sp];
       });
     },
@@ -515,7 +518,9 @@ export default function CourtDashboardClient({
         });
         if (res.ok) {
           const sp = await res.json();
-          setSessionPlayers((prev) => [...prev, sp]);
+          setSessionPlayers((prev) =>
+            prev.some((p) => p.id === sp.id) ? prev : [...prev, sp]
+          );
         }
       }
       setSelectedUserIds([]);
@@ -548,7 +553,9 @@ export default function CourtDashboardClient({
       });
       if (res.ok) {
         const sp = await res.json();
-        setSessionPlayers((prev) => [...prev, sp]);
+        setSessionPlayers((prev) =>
+          prev.some((p) => p.id === sp.id) ? prev : [...prev, sp]
+        );
         setNewPlayerName("");
         setNewPlayerSkill(5);
         setShowNewForm(false);
