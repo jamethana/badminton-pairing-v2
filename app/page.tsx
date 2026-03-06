@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import NavBar from "@/components/nav-bar";
+import { getViewAs } from "@/lib/view-as";
 
 const STATUS_STYLES = {
   draft: "bg-gray-100 text-gray-600",
@@ -12,13 +13,14 @@ const STATUS_STYLES = {
 };
 
 export default async function Home() {
-  const user = await getCurrentUser();
+  const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
 
   if (!user) {
     redirect("/login");
   }
 
-  if (user.appUser.is_moderator) {
+  // Moderators go to their dashboard unless they've switched to player view
+  if (user.appUser.is_moderator && viewAs !== "player") {
     redirect("/moderator");
   }
 
@@ -40,9 +42,10 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar
-        isModerator={false}
+        isModerator={user.appUser.is_moderator}
         displayName={user.appUser.display_name}
         pictureUrl={user.appUser.picture_url}
+        viewAs={viewAs}
       />
       <main className="mx-auto max-w-2xl px-4 py-6">
         <div className="mb-6">

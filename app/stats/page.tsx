@@ -5,9 +5,10 @@ import NavBar from "@/components/nav-bar";
 import PlayerStatsView from "@/components/player-stats-view";
 import { computeCareerStats } from "@/lib/utils/player-career-stats";
 import type { PairingFull } from "@/lib/utils/player-career-stats";
+import { getViewAs } from "@/lib/view-as";
 
 export default async function MyStatsPage() {
-  const currentUser = await getCurrentUser();
+  const [currentUser, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
   if (!currentUser) redirect("/login");
 
   const { appUser } = currentUser;
@@ -48,7 +49,12 @@ export default async function MyStatsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar isModerator={false} displayName={appUser.display_name} pictureUrl={appUser.picture_url} />
+      <NavBar
+        isModerator={appUser.is_moderator}
+        displayName={appUser.display_name}
+        pictureUrl={appUser.picture_url}
+        viewAs={viewAs}
+      />
       <main className="mx-auto max-w-2xl px-4 py-6">
         <div className="mb-5">
           <h1 className="text-2xl font-bold text-gray-900">My Stats</h1>

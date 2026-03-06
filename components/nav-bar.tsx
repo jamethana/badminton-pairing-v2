@@ -3,15 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import ProfileMenu from "@/components/profile-menu";
+import type { ViewAs } from "@/lib/view-as";
 
 interface NavBarProps {
   isModerator: boolean;
   displayName: string;
   pictureUrl?: string | null;
+  viewAs?: ViewAs | null;
 }
 
-export default function NavBar({ isModerator, displayName, pictureUrl }: NavBarProps) {
+export default function NavBar({ isModerator, displayName, pictureUrl, viewAs }: NavBarProps) {
   const pathname = usePathname();
+
+  // Compute the effective view: moderator paths always show moderator nav.
+  // Moderators with view_as=player see the player nav on non-moderator pages.
+  const effectiveView: "player" | "moderator" =
+    pathname.startsWith("/moderator") && isModerator
+      ? "moderator"
+      : isModerator && viewAs === "player"
+        ? "player"
+        : isModerator
+          ? "moderator"
+          : "player";
 
   const modLinks = [
     { href: "/moderator", label: "Dashboard" },
@@ -24,13 +38,13 @@ export default function NavBar({ isModerator, displayName, pictureUrl }: NavBarP
     { href: "/stats", label: "My Stats" },
   ];
 
-  const links = isModerator ? modLinks : playerLinks;
+  const links = effectiveView === "moderator" ? modLinks : playerLinks;
 
   return (
     <nav className="sticky top-0 z-40 border-b bg-white shadow-sm">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
-          <Link href={isModerator ? "/moderator" : "/"} className="flex items-center gap-2">
+          <Link href={effectiveView === "moderator" ? "/moderator" : "/"} className="flex items-center gap-2">
             <span className="text-lg font-bold text-green-700">🏸 Badminton</span>
           </Link>
           <div className="hidden items-center gap-4 sm:flex">
@@ -40,8 +54,7 @@ export default function NavBar({ isModerator, displayName, pictureUrl }: NavBarP
                 href={link.href}
                 className={cn(
                   "text-sm font-medium transition-colors",
-                  // For the moderator dashboard root, only highlight on exact match
-                  isModerator && link.href === "/moderator"
+                  effectiveView === "moderator" && link.href === "/moderator"
                     ? pathname === "/moderator"
                       ? "text-green-700"
                       : "text-gray-500 hover:text-gray-800"
@@ -56,32 +69,12 @@ export default function NavBar({ isModerator, displayName, pictureUrl }: NavBarP
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            {pictureUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pictureUrl} alt={displayName} className="h-8 w-8 rounded-full" />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
-                {displayName.charAt(0)}
-              </div>
-            )}
-            <span className="hidden text-sm font-medium text-gray-700 sm:block">{displayName}</span>
-            {isModerator && (
-              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                Mod
-              </span>
-            )}
-          </div>
-          <form action="/api/auth/logout" method="POST">
-            <button
-              type="submit"
-              className="rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
+        <ProfileMenu
+          displayName={displayName}
+          pictureUrl={pictureUrl}
+          isModerator={isModerator}
+          effectiveView={effectiveView}
+        />
       </div>
 
       {/* Mobile nav */}
@@ -92,7 +85,7 @@ export default function NavBar({ isModerator, displayName, pictureUrl }: NavBarP
             href={link.href}
             className={cn(
               "flex-1 py-2 text-center text-xs font-medium",
-              isModerator && link.href === "/moderator"
+              effectiveView === "moderator" && link.href === "/moderator"
                 ? pathname === "/moderator"
                   ? "border-b-2 border-green-600 text-green-700"
                   : "text-gray-500"

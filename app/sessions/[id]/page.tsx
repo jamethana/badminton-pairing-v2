@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
 import NavBar from "@/components/nav-bar";
 import PlayerSessionClient from "./player-session-client";
+import { getViewAs } from "@/lib/view-as";
 
 export default async function PlayerSessionPage({
   params,
@@ -11,7 +12,7 @@ export default async function PlayerSessionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getCurrentUser();
+  const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
   if (!user) redirect("/login");
 
   const supabase = await createClient();
@@ -41,9 +42,10 @@ export default async function PlayerSessionPage({
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar
-        isModerator={false}
+        isModerator={user.appUser.is_moderator}
         displayName={user.appUser.display_name}
         pictureUrl={user.appUser.picture_url}
+        viewAs={viewAs}
       />
       <main className="mx-auto max-w-2xl px-4 py-6">
         <div className="mb-4">

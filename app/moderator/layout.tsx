@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/auth";
+import { getViewAs } from "@/lib/view-as";
 import NavBar from "@/components/nav-bar";
 
 export default async function ModeratorLayout({
@@ -7,7 +8,7 @@ export default async function ModeratorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
   if (!user) redirect("/login");
   if (!user.appUser.is_moderator) redirect("/");
 
@@ -17,6 +18,7 @@ export default async function ModeratorLayout({
         isModerator
         displayName={user.appUser.display_name}
         pictureUrl={user.appUser.picture_url}
+        viewAs={viewAs}
       />
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
     </div>
