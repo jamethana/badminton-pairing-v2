@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "@/components/skill-bar";
+import { useSessionRealtime } from "@/hooks/use-session-realtime";
+import { createClient } from "@/lib/supabase/client";
 import ResultModal from "@/components/result-modal";
 import AssignmentModal from "@/components/assignment-modal";
 import SessionCourtsView from "@/components/session-courts-view";
@@ -46,6 +49,73 @@ export default function PlayerSessionClient({
 
   const isCompleted = session.status === "completed";
   const [numCourts, setNumCourts] = useState(session.num_courts);
+  const [sessionUpdatedToast, setSessionUpdatedToast] = useState(false);
+
+  const router = useRouter();
+
+  const refetchSessionPlayers = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("session_players")
+      .select("*, users(*)")
+      .eq("session_id", session.id);
+    if (data) {
+      setAllPlayers(data as SessionPlayer[]);
+      setMySlot((prev) => {
+        if (!prev) return null;
+        const updated = data.find((sp) => sp.id === prev!.id);
+        return updated ? (updated as SessionPlayer) : prev;
+      });
+    }
+  }, [session.id]);
+
+  const refetchPairings = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("pairings")
+      .select("*, game_results(*)")
+      .eq("session_id", session.id)
+      .order("sequence_number", { ascending: true });
+    if (data) setPairings(data as Pairing[]);
+  }, [session.id]);
+
+  useSessionRealtime(session.id, {
+    onSession: (row) => {
+      setNumCourts(row.num_courts);
+      if (row.status === "completed") router.refresh();
+    },
+    onSessionPlayers: () => {
+      void refetchSessionPlayers();
+    },
+    onPairings: (op, row) => {
+      if (op === "DELETE") {
+        setPairings((prev) => prev.filter((p) => p.id !== row.id));
+        return;
+      }
+      if (row.id.startsWith("temp-")) return;
+      const pairing: Pairing = {
+        ...row,
+        status: row.status as "in_progress" | "completed" | "voided",
+        game_results: null,
+      };
+      setPairings((prev) => {
+        const idx = prev.findIndex((p) => p.id === row.id);
+        if (idx >= 0) return prev.map((p) => (p.id === row.id ? pairing : p));
+        return [...prev, pairing];
+      });
+    },
+    onGameResults: (_, row) => {
+      setPairings((prev) => {
+        if (!prev.some((p) => p.id === row.pairing_id)) return prev;
+        void refetchPairings();
+        return prev;
+      });
+    },
+    onRemoteUpdate: () => {
+      setSessionUpdatedToast(true);
+      setTimeout(() => setSessionUpdatedToast(false), 3000);
+    },
+  });
 
   // Modal states
   const [resultModal, setResultModal] = useState<{
@@ -388,6 +458,15 @@ export default function PlayerSessionClient({
   if (!mySlot) {
     return (
       <div className="space-y-4">
+        {sessionUpdatedToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-800"
+          >
+            Session updated by another user
+          </div>
+        )}
         <div className="rounded-xl border bg-white p-4">
           <h2 className="mb-3 font-semibold text-gray-800">Claim Your Slot</h2>
           {unclaimedSlots.length > 0 ? (
@@ -450,6 +529,15 @@ export default function PlayerSessionClient({
   // ── Post-join view ───────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
+      {sessionUpdatedToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-800"
+        >
+          Session updated by another user
+        </div>
+      )}
       {/* Tabs */}
       <div className="flex border-b bg-white rounded-t-xl overflow-hidden">
         {(["game", "players"] as ActiveTab[]).map((tab) => (

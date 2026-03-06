@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import CourtCard from "@/components/court-card";
+import { useSessionRealtime } from "@/hooks/use-session-realtime";
+import { createClient } from "@/lib/supabase/client";
 import PlayerBadge from "@/components/player-badge";
 import AssignmentModal from "@/components/assignment-modal";
 import ResultModal from "@/components/result-modal";
@@ -96,6 +98,69 @@ export default function CourtDashboardClient({
   const [newPlayerSkill, setNewPlayerSkill] = useState(3);
   const [newPlayerError, setNewPlayerError] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [sessionUpdatedToast, setSessionUpdatedToast] = useState(false);
+
+  // Realtime: merge remote changes so multiple moderators stay in sync
+  const userById = useMemo(() => new Map(allUsers.map((u) => [u.id, u])), [allUsers]);
+
+  const refetchPairings = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("pairings")
+      .select("*, game_results(*)")
+      .eq("session_id", session.id)
+      .order("sequence_number", { ascending: true });
+    if (data) setPairings(data as Pairing[]);
+  }, [session.id]);
+
+  useSessionRealtime(session.id, {
+    onSession: (row) => {
+      setSessionStatus(row.status as SessionStatus);
+      setNumCourts(row.num_courts);
+      setCourtNames(row.court_names ?? {});
+      setShowSkillLevelPills(row.show_skill_level_pills ?? true);
+    },
+    onSessionPlayers: (op, row) => {
+      if (op === "DELETE") {
+        setSessionPlayers((prev) => prev.filter((sp) => sp.id !== row.id));
+        return;
+      }
+      const user = userById.get(row.user_id) ?? null;
+      const sp: SessionPlayer = { ...row, users: user };
+      setSessionPlayers((prev) => {
+        const idx = prev.findIndex((p) => p.id === row.id);
+        if (idx >= 0) return prev.map((p) => (p.id === row.id ? sp : p));
+        return [...prev, sp];
+      });
+    },
+    onPairings: (op, row) => {
+      if (op === "DELETE") {
+        setPairings((prev) => prev.filter((p) => p.id !== row.id));
+        return;
+      }
+      const pairing: Pairing = {
+        ...row,
+        status: row.status as "in_progress" | "completed" | "voided",
+        game_results: null,
+      };
+      setPairings((prev) => {
+        const idx = prev.findIndex((p) => p.id === row.id);
+        if (idx >= 0) return prev.map((p) => (p.id === row.id ? pairing : p));
+        return [...prev, pairing];
+      });
+    },
+    onGameResults: (_, row) => {
+      setPairings((prev) => {
+        if (!prev.some((p) => p.id === row.pairing_id)) return prev;
+        void refetchPairings();
+        return prev;
+      });
+    },
+    onRemoteUpdate: () => {
+      setSessionUpdatedToast(true);
+      setTimeout(() => setSessionUpdatedToast(false), 3000);
+    },
+  });
 
   // react-2: Memoize all expensive derived values so they only recompute
   // when their dependencies change — not on every keypress in the add-player form.
@@ -505,6 +570,15 @@ export default function CourtDashboardClient({
 
   return (
     <>
+      {sessionUpdatedToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-800"
+        >
+          Session updated by another user
+        </div>
+      )}
       {/* Tabs */}
       <div className="mb-4 flex border-b">
         {(["game", "stats", "settings"] as const).map((tab) => (
