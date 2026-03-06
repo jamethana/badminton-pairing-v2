@@ -10,6 +10,7 @@ interface PlayerBadgeProps {
   gamesSinceLastPlayed?: number;
   isActive?: boolean;
   isLinked?: boolean;
+  showSkillLevelPill?: boolean;
   compact?: boolean;
   className?: string;
   onClick?: () => void;
@@ -23,6 +24,7 @@ export default function PlayerBadge({
   gamesSinceLastPlayed,
   isActive = true,
   isLinked = false,
+  showSkillLevelPill = false,
   compact = false,
   className,
   onClick,
@@ -77,6 +79,11 @@ export default function PlayerBadge({
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
+          {showSkillLevelPill && (
+            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">
+              S{skillLevel}
+            </span>
+          )}
           {/* Match + sat summary */}
           {(matchesPlayed !== undefined || gamesSinceLastPlayed !== undefined) && (
             <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-800">

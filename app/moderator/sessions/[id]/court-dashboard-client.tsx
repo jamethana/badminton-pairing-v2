@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition, useRef } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import CourtCard from "@/components/court-card";
 import PlayerBadge from "@/components/player-badge";
@@ -90,30 +90,7 @@ export default function CourtDashboardClient({
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerSkill, setNewPlayerSkill] = useState(3);
   const [newPlayerError, setNewPlayerError] = useState("");
-
-  const [longPressPlayerId, setLongPressPlayerId] = useState<string | null>(null);
-  const longPressTimeoutRef = useRef<number | null>(null);
-  const longPressTriggeredRef = useRef(false);
-
-  const clearLongPress = () => {
-    if (longPressTimeoutRef.current !== null) {
-      window.clearTimeout(longPressTimeoutRef.current);
-      longPressTimeoutRef.current = null;
-    }
-  };
-
-  const handlePlayerLongPressStart = (playerId: string) => {
-    clearLongPress();
-    longPressTriggeredRef.current = false;
-    longPressTimeoutRef.current = window.setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      setLongPressPlayerId(playerId);
-    }, 500);
-  };
-
-  const handlePlayerLongPressEnd = () => {
-    clearLongPress();
-  };
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   // react-2: Memoize all expensive derived values so they only recompute
   // when their dependencies change — not on every keypress in the add-player form.
@@ -414,7 +391,6 @@ export default function CourtDashboardClient({
     if (isCompleted) return;
     const original = sessionPlayers.find((sp) => sp.id === spId);
     setSessionPlayers((prev) => prev.filter((sp) => sp.id !== spId));
-    setLongPressPlayerId((prev) => (prev === spId ? null : prev));
     fetch(`/api/sessions/${session.id}/players/${spId}`, { method: "DELETE" }).then((res) => {
       if (!res.ok && original) {
         setSessionPlayers((prev) => [...prev, original]);
@@ -451,19 +427,30 @@ export default function CourtDashboardClient({
       .filter((u) => !q || u.display_name.toLowerCase().includes(q));
   }, [allUsers, alreadyInSessionIds, playerSearch]);
 
-  const handlePickExistingPlayer = (userId: string) => {
-    if (isCompleted) return;
+  const toggleSelectExistingUser = (userId: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleAddSelectedExisting = () => {
+    if (isCompleted || selectedUserIds.length === 0) return;
     startAddingPlayer(async () => {
-      const res = await fetch(`/api/sessions/${session.id}/players`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId }),
-      });
-      if (res.ok) {
-        const sp = await res.json();
-        setSessionPlayers((prev) => [...prev, sp]);
-        setPlayerSearch("");
+      for (const userId of selectedUserIds) {
+        const res = await fetch(`/api/sessions/${session.id}/players`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: userId }),
+        });
+        if (res.ok) {
+          const sp = await res.json();
+          setSessionPlayers((prev) => [...prev, sp]);
+        }
       }
+      setSelectedUserIds([]);
+      setPlayerSearch("");
+      setShowNewForm(false);
+      setAddingPlayer(false);
     });
   };
 
@@ -644,21 +631,43 @@ export default function CourtDashboardClient({
                 {/* Existing player list */}
                 {searchedUsers.length > 0 && (
                   <ul className="mb-2 max-h-48 overflow-y-auto divide-y rounded border bg-white">
-                    {searchedUsers.map((u) => (
-                      <li key={u.id}>
-                        <button
-                          type="button"
-                          disabled={isAddingPlayer}
-                          onClick={() => handlePickExistingPlayer(u.id)}
-                          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-green-50 disabled:opacity-60"
-                        >
-                          <span className="font-medium text-gray-800">{u.display_name}</span>
-                          <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                            Skill {u.skill_level}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                    {searchedUsers.map((u) => {
+                      const isSelected = selectedUserIds.includes(u.id);
+                      return (
+                        <li key={u.id}>
+                          <button
+                            type="button"
+                            disabled={isAddingPlayer}
+                            onClick={() => toggleSelectExistingUser(u.id)}
+                            className={cn(
+                              "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 disabled:opacity-60",
+                              isSelected && "bg-green-50 ring-1 ring-green-400"
+                            )}
+                          >
+                            {u.picture_url ? (
+                              <img
+                                src={u.picture_url}
+                                alt=""
+                                className="h-8 w-8 flex-shrink-0 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-500"
+                                aria-hidden
+                              >
+                                {(u.display_name ?? "?").slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                            <span className="min-w-0 flex-1 truncate font-medium text-gray-800">
+                              {u.display_name}
+                            </span>
+                            <span className="ml-2 flex-shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                              Skill {u.skill_level}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
                 {searchedUsers.length === 0 && playerSearch && !showNewForm && (
@@ -720,17 +729,30 @@ export default function CourtDashboardClient({
                   </form>
                 )}
 
-                <div className="mt-2 border-t pt-2">
+                <div className="mt-2 flex items-center justify-between border-t pt-2">
                   <button
                     type="button"
                     onClick={() => {
                       setAddingPlayer(false);
                       setPlayerSearch("");
                       setShowNewForm(false);
+                      setSelectedUserIds([]);
                     }}
                     className="text-xs text-gray-500 hover:underline"
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddSelectedExisting}
+                    disabled={isAddingPlayer || selectedUserIds.length === 0}
+                    className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                  >
+                    {isAddingPlayer
+                      ? "Adding…"
+                      : selectedUserIds.length > 0
+                      ? `Add (${selectedUserIds.length})`
+                      : "Add"}
                   </button>
                 </div>
               </div>
@@ -754,11 +776,6 @@ export default function CourtDashboardClient({
                   const isBusy = busyIds.has(sp.users!.id);
                   const handleRowClick = () => {
                     if (isBusy) return;
-                    if (longPressTriggeredRef.current) {
-                      longPressTriggeredRef.current = false;
-                      return;
-                    }
-                    setLongPressPlayerId(null);
                     handleToggleActive(sp.id, sp.is_active);
                   };
 
@@ -766,12 +783,6 @@ export default function CourtDashboardClient({
                     <div
                       key={sp.id}
                       onClick={isCompleted ? undefined : handleRowClick}
-                      onMouseDown={isCompleted ? undefined : () => handlePlayerLongPressStart(sp.id)}
-                      onMouseUp={isCompleted ? undefined : handlePlayerLongPressEnd}
-                      onMouseLeave={isCompleted ? undefined : handlePlayerLongPressEnd}
-                      onTouchStart={isCompleted ? undefined : () => handlePlayerLongPressStart(sp.id)}
-                      onTouchEnd={isCompleted ? undefined : handlePlayerLongPressEnd}
-                      onTouchCancel={isCompleted ? undefined : handlePlayerLongPressEnd}
                       className={cn(
                         "flex items-center gap-2 rounded-xl border px-2 py-1.5 transition-colors",
                         isBusy
@@ -791,19 +802,24 @@ export default function CourtDashboardClient({
                         gamesSinceLastPlayed={stats?.gamesSinceLastPlayed}
                         isActive={sp.is_active}
                         isLinked={!!sp.users!.line_user_id}
+                        showSkillLevelPill
                         className="flex-1"
                       />
-                      {!isBusy && longPressPlayerId === sp.id && (
+                      {!isBusy && !isCompleted && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (!window.confirm(`Remove ${sp.users!.display_name} from this session?`)) return;
                             handleRemovePlayer(sp.id);
                           }}
-                          className="flex h-8 px-3 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100"
+                          aria-label={`Remove ${sp.users!.display_name} from session`}
+                          className="flex h-8 flex-shrink-0 items-center rounded-lg px-2.5 text-xs font-medium text-gray-400 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1"
                           title="Remove from session"
                         >
-                          Remove
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
                       )}
                     </div>
@@ -862,6 +878,20 @@ export default function CourtDashboardClient({
                 key={sp.id}
                 className={cn("flex items-center gap-3 px-4 py-3", !sp.is_active && "opacity-50")}
               >
+                {user.picture_url ? (
+                  <img
+                    src={user.picture_url}
+                    alt=""
+                    className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-500"
+                    aria-hidden
+                  >
+                    {(user.display_name ?? "?").slice(0, 1).toUpperCase()}
+                  </div>
+                )}
                 {/* Skill colour bar */}
                 <div className={cn("h-10 w-1.5 flex-shrink-0 rounded-full", getSkillColor(user.skill_level))} />
 
