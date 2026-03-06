@@ -30,6 +30,9 @@ export default function SessionInviteActions({ sessionId }: Props) {
   const [sessionUrl, setSessionUrl] = useState("");
   const [qrSize, setQrSize] = useState(240);
 
+  const displayUrl =
+    sessionUrl.length > 52 ? `${sessionUrl.slice(0, 48)}…` : sessionUrl;
+
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/sessions/${sessionId}`;
     await navigator.clipboard.writeText(url);
@@ -115,9 +118,12 @@ export default function SessionInviteActions({ sessionId }: Props) {
             <p className="text-center text-xs text-gray-500">
               Players can scan this code to open the session and join.
             </p>
-            <div className="flex w-full items-center gap-2 rounded-md border bg-gray-50 px-3 py-2">
-              <span className="min-w-0 flex-1 truncate text-xs text-gray-700">
-                {sessionUrl}
+            <div className="flex min-w-0 w-full items-center gap-2 rounded-md border bg-gray-50 px-3 py-2">
+              <span
+                className="min-w-0 flex-1 truncate text-xs text-gray-700"
+                title={sessionUrl}
+              >
+                {displayUrl}
               </span>
               <button
                 type="button"
