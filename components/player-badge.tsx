@@ -49,19 +49,26 @@ export default function PlayerBadge({
       {/* Skill bar on left edge */}
       <div className={cn("w-1.5 rounded-full self-stretch", getSkillColor(skillLevel))} />
 
-      {/* Avatar */}
-      <div className={cn("flex-shrink-0 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center", compact ? "w-6 h-6" : "w-7 h-7")}>
-        {pictureUrl ? (
-          <Image
-            src={pictureUrl}
-            alt={name}
-            width={compact ? 24 : 28}
-            height={compact ? 24 : 28}
-            className="object-cover w-full h-full"
-          />
-        ) : (
-          <span className={cn("font-semibold text-gray-500", compact ? "text-[10px]" : "text-xs")}>
-            {initials}
+      {/* Avatar + zzz */}
+      <div className="flex flex-shrink-0 items-center gap-1">
+        <div className={cn("rounded-full overflow-hidden bg-gray-200 flex items-center justify-center", compact ? "w-6 h-6" : "w-7 h-7")}>
+          {pictureUrl ? (
+            <Image
+              src={pictureUrl}
+              alt={name}
+              width={compact ? 24 : 28}
+              height={compact ? 24 : 28}
+              className="object-cover w-full h-full"
+            />
+          ) : (
+            <span className={cn("font-semibold text-gray-500", compact ? "text-[10px]" : "text-xs")}>
+              {initials}
+            </span>
+          )}
+        </div>
+        {!isActive && (
+          <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+            zzz
           </span>
         )}
       </div>

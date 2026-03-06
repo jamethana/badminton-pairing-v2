@@ -646,6 +646,11 @@ export default function PlayerSessionClient({
                         Ready
                       </span>
                     )}
+                    {!isBusy && !sp.is_active && (
+                      <span className="flex-shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                        zzz
+                      </span>
+                    )}
                   </div>
                 );
               })}

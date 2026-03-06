@@ -140,20 +140,27 @@ export default function SessionStatsTab({
             key={sp.id}
             className={cn("flex items-center gap-3 px-4 py-3", !sp.is_active && "opacity-50")}
           >
-            {user.picture_url ? (
-              <img
-                src={user.picture_url}
-                alt=""
-                className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-500"
-                aria-hidden
-              >
-                {(user.display_name ?? "?").slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <div className="flex flex-shrink-0 flex-col items-center gap-0.5">
+              {user.picture_url ? (
+                <img
+                  src={user.picture_url}
+                  alt=""
+                  className="h-9 w-9 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-500"
+                  aria-hidden
+                >
+                  {(user.display_name ?? "?").slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              {!sp.is_active && (
+                <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+                  zzz
+                </span>
+              )}
+            </div>
             <div className={cn("h-10 w-1.5 flex-shrink-0 rounded-full", getSkillColor(user.skill_level))} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium text-gray-900">{user.display_name}</p>
