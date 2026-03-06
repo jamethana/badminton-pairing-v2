@@ -16,11 +16,17 @@ type SessionPlayer = {
 interface SessionStatsTabProps {
   sessionPlayers: SessionPlayer[];
   pairings: PairingWithResult[];
+  /** When true, hide Skill and Sat to reduce competitiveness (e.g. player-facing results). */
+  hideCompetitiveStats?: boolean;
 }
 
 type StatsSortCol = "name" | "played" | "wins" | "losses" | "winPct" | "sat" | "skill";
 
-export default function SessionStatsTab({ sessionPlayers, pairings }: SessionStatsTabProps) {
+export default function SessionStatsTab({
+  sessionPlayers,
+  pairings,
+  hideCompetitiveStats = false,
+}: SessionStatsTabProps) {
   const [sortCol, setSortCol] = useState<StatsSortCol>("played");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -62,9 +68,11 @@ export default function SessionStatsTab({ sessionPlayers, pairings }: SessionSta
         };
       });
 
+    const effectiveSortCol =
+      hideCompetitiveStats && (sortCol === "sat" || sortCol === "skill") ? "played" : sortCol;
     const dir = sortDir === "asc" ? 1 : -1;
     return rows.toSorted((a, b) => {
-      switch (sortCol) {
+      switch (effectiveSortCol) {
         case "name":
           return dir * a.user.display_name.localeCompare(b.user.display_name);
         case "played":
@@ -83,9 +91,9 @@ export default function SessionStatsTab({ sessionPlayers, pairings }: SessionSta
           return 0;
       }
     });
-  }, [sessionPlayers, statsMap, sortCol, sortDir]);
+  }, [sessionPlayers, statsMap, sortCol, sortDir, hideCompetitiveStats]);
 
-  const sortPills: { col: StatsSortCol; label: string }[] = [
+  const allSortPills: { col: StatsSortCol; label: string }[] = [
     { col: "name", label: "Name" },
     { col: "played", label: "Played" },
     { col: "wins", label: "W" },
@@ -94,6 +102,9 @@ export default function SessionStatsTab({ sessionPlayers, pairings }: SessionSta
     { col: "sat", label: "Sat" },
     { col: "skill", label: "Skill" },
   ];
+  const sortPills = hideCompetitiveStats
+    ? allSortPills.filter((p) => p.col !== "sat" && p.col !== "skill")
+    : allSortPills;
 
   return (
     <div className="rounded-xl border bg-white">
@@ -129,6 +140,20 @@ export default function SessionStatsTab({ sessionPlayers, pairings }: SessionSta
             key={sp.id}
             className={cn("flex items-center gap-3 px-4 py-3", !sp.is_active && "opacity-50")}
           >
+            {user.picture_url ? (
+              <img
+                src={user.picture_url}
+                alt=""
+                className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-500"
+                aria-hidden
+              >
+                {(user.display_name ?? "?").slice(0, 1).toUpperCase()}
+              </div>
+            )}
             <div className={cn("h-10 w-1.5 flex-shrink-0 rounded-full", getSkillColor(user.skill_level))} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium text-gray-900">{user.display_name}</p>
@@ -146,15 +171,19 @@ export default function SessionStatsTab({ sessionPlayers, pairings }: SessionSta
                     {Math.round(winPct * 100)}%
                   </span>
                 )}
-                <span
-                  className={cn(
-                    "text-xs",
-                    gamesSince >= 3 ? "font-semibold text-amber-600" : "text-gray-400"
-                  )}
-                >
-                  ⏱ {gamesSince}
-                </span>
-                <span className="text-xs text-gray-400">S{user.skill_level}</span>
+                {!hideCompetitiveStats && (
+                  <>
+                    <span
+                      className={cn(
+                        "text-xs",
+                        gamesSince >= 3 ? "font-semibold text-amber-600" : "text-gray-400"
+                      )}
+                    >
+                      ⏱ {gamesSince}
+                    </span>
+                    <span className="text-xs text-gray-400">S{user.skill_level}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>

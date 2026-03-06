@@ -11,6 +11,7 @@ type PlayerInfo = {
   id: string;
   display_name: string;
   skill_level: number;
+  picture_url?: string | null;
 };
 
 type SessionPlayer = {

@@ -11,6 +11,7 @@ type PlayerInfo = {
   id: string;
   display_name: string;
   skill_level: number;
+  picture_url?: string | null;
 };
 
 interface SessionResultsListProps {
@@ -69,6 +70,20 @@ export default function SessionResultsList({ pairings, getPlayer }: SessionResul
                   (p, i) =>
                     p && (
                       <div key={i} className="flex items-center gap-1.5">
+                        {p.picture_url ? (
+                          <img
+                            src={p.picture_url}
+                            alt=""
+                            className="h-6 w-6 flex-shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-500"
+                            aria-hidden
+                          >
+                            {(p.display_name ?? "?").slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
                         <div className={cn("h-3 w-1 rounded-full", getSkillColor(p.skill_level))} />
                         <span className="text-sm">{p.display_name}</span>
                       </div>
@@ -92,6 +107,20 @@ export default function SessionResultsList({ pairings, getPlayer }: SessionResul
                   (p, i) =>
                     p && (
                       <div key={i} className="flex items-center gap-1.5">
+                        {p.picture_url ? (
+                          <img
+                            src={p.picture_url}
+                            alt=""
+                            className="h-6 w-6 flex-shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-500"
+                            aria-hidden
+                          >
+                            {(p.display_name ?? "?").slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
                         <div className={cn("h-3 w-1 rounded-full", getSkillColor(p.skill_level))} />
                         <span className="text-sm">{p.display_name}</span>
                       </div>

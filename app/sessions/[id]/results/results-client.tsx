@@ -11,6 +11,7 @@ type PlayerInfo = {
   id: string;
   display_name: string;
   skill_level: number;
+  picture_url?: string | null;
 };
 
 type SessionPlayer = {
@@ -61,7 +62,11 @@ export default function ResultsClient({
       )}
 
       {activeTab === "stats" && (
-        <SessionStatsTab sessionPlayers={sessionPlayers} pairings={pairings} />
+        <SessionStatsTab
+          sessionPlayers={sessionPlayers}
+          pairings={pairings}
+          hideCompetitiveStats
+        />
       )}
     </>
   );
