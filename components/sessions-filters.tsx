@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,29 +39,39 @@ export default function SessionsFilters({
   initialLocation,
 }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
 
+  const [createdBy, setCreatedBy] = useState(initialCreatedBy);
+  const [status, setStatus] = useState(initialStatus);
   const [name, setName] = useState(initialName);
   const [location, setLocation] = useState(initialLocation);
   const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Keep local state in sync if searchParams change externally (e.g. browser back)
   useEffect(() => {
-    setName(searchParams.get("name") ?? "");
-  }, [searchParams]);
+    setCreatedBy(initialCreatedBy);
+  }, [initialCreatedBy]);
+
   useEffect(() => {
-    setLocation(searchParams.get("location") ?? "");
-  }, [searchParams]);
+    setStatus(initialStatus);
+  }, [initialStatus]);
+
+  useEffect(() => {
+    setName(initialName);
+  }, [initialName]);
+
+  useEffect(() => {
+    setLocation(initialLocation);
+  }, [initialLocation]);
 
   const buildUrl = useCallback(
     (overrides: Record<string, string>) => {
       const params = new URLSearchParams();
       const current: Record<string, string> = {
-        created_by: searchParams.get("created_by") ?? "",
-        status: searchParams.get("status") ?? "",
-        name: name,
-        location: location,
+        created_by: createdBy,
+        status: status,
+        name,
+        location,
         ...overrides,
       };
       for (const [key, val] of Object.entries(current)) {
@@ -70,17 +80,23 @@ export default function SessionsFilters({
       const qs = params.toString();
       return `/moderator/sessions${qs ? `?${qs}` : ""}`;
     },
-    [searchParams, name, location]
+    [createdBy, status, name, location]
   );
 
   const hasFilters =
-    !!searchParams.get("created_by") ||
-    !!searchParams.get("status") ||
-    !!(searchParams.get("name") ?? "").trim() ||
-    !!(searchParams.get("location") ?? "").trim();
+    !!createdBy.trim() || !!status.trim() || !!name.trim() || !!location.trim();
 
   function handleSelectChange(key: "created_by" | "status", value: string) {
-    router.push(buildUrl({ [key]: value === "all" ? "" : value }));
+    const normalized = value === "all" ? "" : value;
+    if (key === "created_by") {
+      setCreatedBy(normalized);
+    } else {
+      setStatus(normalized);
+    }
+
+    startTransition(() => {
+      router.replace(buildUrl({ [key]: normalized }));
+    });
   }
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -88,8 +104,10 @@ export default function SessionsFilters({
     setName(val);
     if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
     nameDebounceRef.current = setTimeout(() => {
-      router.push(buildUrl({ name: val }));
-    }, 300);
+      startTransition(() => {
+        router.replace(buildUrl({ name: val }));
+      });
+    }, 500);
   }
 
   function handleLocationChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -97,13 +115,17 @@ export default function SessionsFilters({
     setLocation(val);
     if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
     locationDebounceRef.current = setTimeout(() => {
-      router.push(buildUrl({ location: val }));
-    }, 300);
+      startTransition(() => {
+        router.replace(buildUrl({ location: val }));
+      });
+    }, 500);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    router.push(buildUrl({}));
+    startTransition(() => {
+      router.replace(buildUrl({}));
+    });
   }
 
   return (
@@ -122,7 +144,7 @@ export default function SessionsFilters({
           Created by
         </label>
         <Select
-          value={searchParams.get("created_by") ?? "all"}
+          value={createdBy || "all"}
           onValueChange={(val) => handleSelectChange("created_by", val)}
         >
           <SelectTrigger
@@ -153,7 +175,7 @@ export default function SessionsFilters({
           State
         </label>
         <Select
-          value={searchParams.get("status") ?? "all"}
+          value={status || "all"}
           onValueChange={(val) => handleSelectChange("status", val)}
         >
           <SelectTrigger
