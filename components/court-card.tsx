@@ -19,6 +19,8 @@ interface CourtCardProps {
   teamB?: [PlayerInfo, PlayerInfo];
   status?: "in_progress" | "available";
   isPending?: boolean;
+  /** Text shown when the court is available (no players assigned). */
+  emptyStateText?: string;
   isRenaming?: boolean;
   renameValue?: string;
   onRenameChange?: (value: string) => void;
@@ -90,6 +92,7 @@ export default function CourtCard({
   teamB,
   status = "available",
   isPending = false,
+  emptyStateText = "Tap to assign players",
   isRenaming = false,
   renameValue = "",
   onRenameChange,
@@ -106,15 +109,29 @@ export default function CourtCard({
   }, [isRenaming]);
 
   const displayName = courtLabel || `Court ${courtNumber}`;
+  const isCardInteractive = !!onClick && !isPending && !isRenaming;
 
   return (
     <div
-      onClick={!isRenaming ? onClick : undefined}
+      role={isCardInteractive ? "button" : undefined}
+      tabIndex={isCardInteractive ? 0 : undefined}
+      onKeyDown={
+        isCardInteractive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      onClick={isCardInteractive ? onClick : undefined}
       className={cn(
         "rounded-xl border bg-white p-4 shadow-sm transition-shadow",
         status === "in_progress" && "border-green-200 shadow-green-50",
         isPending && "opacity-60",
-        onClick && !isPending && !isRenaming && "cursor-pointer hover:shadow-md",
+        isCardInteractive &&
+          "cursor-pointer hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2",
         className
       )}
     >
@@ -131,10 +148,21 @@ export default function CourtCard({
               value={renameValue}
               onChange={(e) => onRenameChange?.(e.target.value)}
               placeholder={`Court ${courtNumber}`}
-              className="flex-1 rounded border px-2 py-0.5 text-sm font-bold text-gray-700 focus:border-green-400 focus:outline-none"
+              className="flex-1 rounded border px-2 py-0.5 text-sm font-bold text-gray-700 focus-visible:border-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
             />
-            <button type="submit" className="text-xs text-green-600 hover:underline">Save</button>
-            <button type="button" onClick={() => onRenameCancel?.()} className="text-xs text-gray-400 hover:underline">✕</button>
+            <button
+              type="submit"
+              className="rounded px-1 text-xs text-green-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => onRenameCancel?.()}
+              className="rounded px-1 text-xs text-gray-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
+            >
+              ✕
+            </button>
           </form>
         ) : (
           <div className="flex items-center gap-1 min-w-0">
@@ -142,7 +170,8 @@ export default function CourtCard({
             {onRenameStart && (
               <button
                 onClick={(e) => { e.stopPropagation(); onRenameStart(); }}
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-500"
+                aria-label="Rename court"
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
                 title="Rename court"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +187,8 @@ export default function CourtCard({
           {onRemove && (
             <button
               onClick={(e) => { e.stopPropagation(); onRemove(); }}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500"
+              aria-label="Remove court"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
               title="Remove court"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +222,7 @@ export default function CourtCard({
           <svg className="mb-2 h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
           </svg>
-          <span className="text-sm">Tap to assign players</span>
+          <span className="text-sm">{emptyStateText}</span>
         </div>
       ) : (
         <div className="flex items-stretch gap-3">

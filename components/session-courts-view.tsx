@@ -15,6 +15,8 @@ interface SessionCourtsViewProps {
   courtNames?: Record<string, string>;
   pairings: Pairing[];
   sessionPlayers: SessionPlayer[];
+  /** Text shown on available courts (no players assigned). */
+  emptyCourtText?: string;
   /** Called when an empty (available) court is clicked. Omit to make empty courts non-interactive. */
   onEmptyCourtClick?: (courtNumber: number) => void;
   /** Called when an in-progress court is clicked. Omit to make in-progress courts non-interactive. */
@@ -34,6 +36,7 @@ export default function SessionCourtsView({
   courtNames = {},
   pairings,
   sessionPlayers,
+  emptyCourtText,
   onEmptyCourtClick,
   onInProgressCourtClick,
   currentUserId,
@@ -99,6 +102,7 @@ export default function SessionCourtsView({
             }
             status={pairing ? "in_progress" : "available"}
             isPending={isPending}
+            emptyStateText={pairing ? undefined : emptyCourtText}
             onClick={handleClick}
             className={isMyGame ? "ring-2 ring-green-400" : undefined}
           />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "@/components/skill-bar";
 import ResultModal from "@/components/result-modal";
@@ -41,6 +41,8 @@ export default function PlayerSessionClient({
   const [claiming, setClaiming] = useState(false);
   const [addingSelf, setAddingSelf] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("game");
+  const [uiError, setUiError] = useState<string | null>(null);
+  const errorTimeoutRef = useRef<number | null>(null);
 
   // Modal states
   const [resultModal, setResultModal] = useState<{
@@ -73,11 +75,24 @@ export default function PlayerSessionClient({
 
   // Permission flags from the session
   const canAssignEmptyCourt = session.allow_player_assign_empty_court;
-  const canRecordOwnResult = session.allow_player_record_own_result || session.allow_player_record_any_result;
   const canRecordAnyResult = session.allow_player_record_any_result;
+  const canRecordOwnResult = session.allow_player_record_own_result;
+  const canRecordResult = canRecordAnyResult || canRecordOwnResult;
 
   const getPlayer = (id: string) =>
     allPlayers.find((sp) => sp.users?.id === id)?.users ?? null;
+
+  const showError = (message: string) => {
+    setUiError(message);
+    if (errorTimeoutRef.current !== null) window.clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = window.setTimeout(() => setUiError(null), 3500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current !== null) window.clearTimeout(errorTimeoutRef.current);
+    };
+  }, []);
 
   const busyPlayerIds = useMemo(() => {
     const ids = new Set<string>();
@@ -204,6 +219,41 @@ export default function PlayerSessionClient({
           prev?.courtNumber === courtNumber ? { ...prev, suggestionLoading: false } : prev
         );
       });
+  };
+
+  const handleEmptyCourtClickWithPermission = (courtNumber: number) => {
+    if (!canAssignEmptyCourt) {
+      showError("You don’t have permission to assign players to a court. Ask a moderator.");
+      return;
+    }
+    handleEmptyCourtClick(courtNumber);
+  };
+
+  const handleInProgressCourtClickWithPermission = (courtNumber: number, pairingId: string) => {
+    const p = pairings.find((x) => x.id === pairingId);
+    if (!p) return;
+
+    if (canRecordAnyResult) {
+      setResultModal({ pairingId, courtNumber });
+      return;
+    }
+
+    if (canRecordOwnResult) {
+      const isParticipant = [
+        p.team_a_player_1,
+        p.team_a_player_2,
+        p.team_b_player_1,
+        p.team_b_player_2,
+      ].includes(currentUserId);
+      if (!isParticipant) {
+        showError("You can only record results for games you’re playing in.");
+        return;
+      }
+      setResultModal({ pairingId, courtNumber });
+      return;
+    }
+
+    showError("You don’t have permission to record results. Ask a moderator.");
   };
 
   const handleConfirmAssignment = async (assignment: {
@@ -411,7 +461,7 @@ export default function PlayerSessionClient({
                     {getPlayer(myCurrentGame.team_b_player_2)?.display_name}
                   </span>
                 </div>
-                {canRecordOwnResult && (
+                {canRecordResult && (
                   <button
                     onClick={() =>
                       setResultModal({ pairingId: myCurrentGame.id, courtNumber: myCurrentGame.court_number })
@@ -431,6 +481,16 @@ export default function PlayerSessionClient({
               You can: {permLabels.join(" · ")}
             </p>
           )}
+          {uiError && (
+            <div
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {uiError}
+            </div>
+          )}
 
           {/* Full courts view */}
           <div className="rounded-xl border bg-white p-4">
@@ -443,29 +503,13 @@ export default function PlayerSessionClient({
               pairings={pairings}
               sessionPlayers={allPlayers}
               currentUserId={currentUserId}
-              onEmptyCourtClick={canAssignEmptyCourt ? handleEmptyCourtClick : undefined}
-              onInProgressCourtClick={
-                canRecordAnyResult
-                  ? (_, pairingId) => {
-                      const p = pairings.find((x) => x.id === pairingId);
-                      if (p) setResultModal({ pairingId, courtNumber: p.court_number });
-                    }
-                  : canRecordOwnResult
-                  ? (_, pairingId) => {
-                      const p = pairings.find((x) => x.id === pairingId);
-                      if (!p) return;
-                      const isParticipant = [
-                        p.team_a_player_1,
-                        p.team_a_player_2,
-                        p.team_b_player_1,
-                        p.team_b_player_2,
-                      ].includes(currentUserId);
-                      if (isParticipant) {
-                        setResultModal({ pairingId, courtNumber: p.court_number });
-                      }
-                    }
-                  : undefined
+              emptyCourtText={
+                canAssignEmptyCourt
+                  ? "Tap to assign players"
+                  : "No permission to assign players"
               }
+              onEmptyCourtClick={handleEmptyCourtClickWithPermission}
+              onInProgressCourtClick={handleInProgressCourtClickWithPermission}
             />
           </div>
 
