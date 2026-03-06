@@ -127,7 +127,7 @@ export default function PlayerStatsView({ player, stats, userNameMap }: Props) {
         <div>
           <h2 className="text-xl font-bold text-gray-900">{player.display_name}</h2>
           <p className="text-sm text-gray-500">
-            Skill level {player.skill_level} · {sessionCount} session
+            {sessionCount} session
             {sessionCount !== 1 ? "s" : ""} attended
           </p>
         </div>

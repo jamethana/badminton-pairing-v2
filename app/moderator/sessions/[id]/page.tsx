@@ -72,6 +72,7 @@ export default async function SessionDashboardPage({
           allow_player_assign_empty_court: session.allow_player_assign_empty_court,
           allow_player_record_own_result: session.allow_player_record_own_result,
           allow_player_record_any_result: session.allow_player_record_any_result,
+          show_skill_level_pills: session.show_skill_level_pills ?? true,
         }}
         initialSessionPlayers={sessionPlayers}
         initialPairings={pairings}

@@ -39,14 +39,14 @@ export default async function ProfilePage() {
             )}
             <div>
               <p className="text-lg font-semibold text-gray-900">{appUser.display_name}</p>
-              <p className="text-sm text-gray-500">
-                Skill level: {appUser.skill_level}
-                {appUser.is_moderator && (
+              {appUser.is_moderator && (
+                <p className="text-sm text-gray-500">
+                  Skill level: {appUser.skill_level}
                   <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
                     Moderator
                   </span>
-                )}
-              </p>
+                </p>
+              )}
             </div>
           </div>
 

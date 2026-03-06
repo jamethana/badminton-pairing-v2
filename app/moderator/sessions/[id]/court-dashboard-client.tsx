@@ -29,6 +29,7 @@ interface Props {
     allow_player_assign_empty_court: boolean;
     allow_player_record_own_result: boolean;
     allow_player_record_any_result: boolean;
+    show_skill_level_pills: boolean;
   };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
@@ -51,6 +52,8 @@ export default function CourtDashboardClient({
   const [renameValue, setRenameValue] = useState("");
   const [activeTab, setActiveTab] = useState<"game" | "stats" | "settings">("game");
   const [statusSaving, setStatusSaving] = useState(false);
+  const [showSkillLevelPills, setShowSkillLevelPills] = useState(session.show_skill_level_pills);
+  const [showSkillLevelPillsSaving, setShowSkillLevelPillsSaving] = useState(false);
 
   const isCompleted = sessionStatus === "completed";
 
@@ -512,7 +515,7 @@ export default function CourtDashboardClient({
                 : "text-gray-500 hover:text-gray-700"
             )}
           >
-            {tab === "game" ? "Game" : tab === "stats" ? "Stats" : "Session Settings"}
+            {tab === "game" ? "Game" : tab === "stats" ? "Stats" : "Settings"}
           </button>
         ))}
       </div>
@@ -802,7 +805,7 @@ export default function CourtDashboardClient({
                         gamesSinceLastPlayed={stats?.gamesSinceLastPlayed}
                         isActive={sp.is_active}
                         isLinked={!!sp.users!.line_user_id}
-                        showSkillLevelPill
+                        showSkillLevelPill={showSkillLevelPills}
                         className="flex-1"
                       />
                       {!isBusy && !isCompleted && (
@@ -985,6 +988,44 @@ export default function CourtDashboardClient({
               allow_player_record_any_result: session.allow_player_record_any_result,
             }}
           />
+
+          {/* Display: show skill level pills in Available Players list */}
+          <div className="rounded-xl border bg-white p-4">
+            <h3 className="mb-1 text-sm font-semibold text-gray-700">Display</h3>
+            <p className="mb-3 text-xs text-gray-400">
+              Choose what to show in the Available Players list on the Game tab.
+            </p>
+            <label
+              className={cn(
+                "flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
+                showSkillLevelPillsSaving && "opacity-60 pointer-events-none"
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={showSkillLevelPills}
+                onChange={async (e) => {
+                  const next = e.target.checked;
+                  setShowSkillLevelPills(next);
+                  setShowSkillLevelPillsSaving(true);
+                  const res = await fetch(`/api/sessions/${session.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ show_skill_level_pills: next }),
+                  });
+                  setShowSkillLevelPillsSaving(false);
+                  if (!res.ok) setShowSkillLevelPills((prev) => !prev);
+                }}
+                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Show skill level in player list
+              </span>
+            </label>
+            {showSkillLevelPillsSaving && (
+              <p className="mt-1.5 text-xs text-gray-400">Saving…</p>
+            )}
+          </div>
         </div>
       )}
 
