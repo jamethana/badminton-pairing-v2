@@ -138,6 +138,65 @@ export type Database = {
           }
         ];
       };
+      moderator_default_session_settings: {
+        Row: {
+          user_id: string;
+          name: string;
+          start_time: string;
+          end_time: string;
+          location: string | null;
+          num_courts: number;
+          max_players: number;
+          allow_player_assign_empty_court: boolean;
+          allow_player_record_own_result: boolean;
+          allow_player_record_any_result: boolean;
+          show_skill_level_pills: boolean;
+          allow_player_add_remove_courts: boolean;
+          allow_player_access_invite_qr: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          name?: string;
+          start_time?: string;
+          end_time?: string;
+          location?: string | null;
+          num_courts?: number;
+          max_players?: number;
+          allow_player_assign_empty_court?: boolean;
+          allow_player_record_own_result?: boolean;
+          allow_player_record_any_result?: boolean;
+          show_skill_level_pills?: boolean;
+          allow_player_add_remove_courts?: boolean;
+          allow_player_access_invite_qr?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          name?: string;
+          start_time?: string;
+          end_time?: string;
+          location?: string | null;
+          num_courts?: number;
+          max_players?: number;
+          allow_player_assign_empty_court?: boolean;
+          allow_player_record_own_result?: boolean;
+          allow_player_record_any_result?: boolean;
+          show_skill_level_pills?: boolean;
+          allow_player_add_remove_courts?: boolean;
+          allow_player_access_invite_qr?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "moderator_default_session_settings_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       session_players: {
         Row: {
           id: string;

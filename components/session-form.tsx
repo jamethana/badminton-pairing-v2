@@ -34,11 +34,17 @@ export interface SessionFormValues {
   allow_player_access_invite_qr: boolean;
 }
 
+export interface SessionFormSubmitOptions {
+  rememberDefaults?: boolean;
+}
+
 interface SessionFormProps {
   mode: "create" | "edit";
   initialValues: SessionFormValues;
-  onSubmit: (values: SessionFormValues) => Promise<void>;
+  onSubmit: (values: SessionFormValues, options?: SessionFormSubmitOptions) => Promise<void>;
   onCancel?: () => void;
+  /** When true (create mode only), show "Remember my current settings for next time" checkbox. */
+  showRememberDefaults?: boolean;
 }
 
 export default function SessionForm({
@@ -46,10 +52,12 @@ export default function SessionForm({
   initialValues,
   onSubmit,
   onCancel,
+  showRememberDefaults = false,
 }: SessionFormProps) {
   const [form, setForm] = useState<SessionFormValues>(initialValues);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [rememberDefaults, setRememberDefaults] = useState(false);
 
   const set = <K extends keyof SessionFormValues>(field: K, value: SessionFormValues[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -64,7 +72,7 @@ export default function SessionForm({
     setLoading(true);
     setError("");
     try {
-      await onSubmit(form);
+      await onSubmit(form, showRememberDefaults ? { rememberDefaults } : undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -368,6 +376,18 @@ export default function SessionForm({
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
           {error}
         </p>
+      )}
+
+      {showRememberDefaults && (
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={rememberDefaults}
+            onChange={(e) => setRememberDefaults(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+          />
+          <span>Remember my current settings for next time</span>
+        </label>
       )}
 
       <div className="flex gap-3 pt-2">

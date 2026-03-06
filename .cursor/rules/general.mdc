@@ -11,6 +11,7 @@ alwaysApply: true
 - Use Vercel MCP to check deployment status and logs.
 - Use GitHub MCP to create PRs and manage issues.
 - After making code changes in this repo, run `npm run build` to ensure the Next.js production build and TypeScript checks pass before considering the task complete.
+- If code changes include Supabase migraiton, ask follow-up question if want to apply migration using Supabase MCP.
 
 # Database
 - Always use Supabase MCP to verify schema before writing migrations.
