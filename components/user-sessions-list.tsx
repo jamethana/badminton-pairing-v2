@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { AvatarStack, type PlayerLite } from "@/components/avatar-stack";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-gray-100 text-gray-600",
@@ -17,6 +18,8 @@ export type UserSession = {
   location: string | null;
   status: "draft" | "active" | "completed";
   creatorDisplayName?: string;
+  playerCount?: number;
+  playerSample?: PlayerLite[];
 };
 
 interface Props {
@@ -68,6 +71,14 @@ export default function UserSessionsList({ sessions }: Props) {
                   <p className="mt-0.5 text-xs text-gray-400">
                     Created by {session.creatorDisplayName}
                   </p>
+                )}
+                {session.playerCount !== undefined && session.playerCount > 0 && (
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p className="text-xs text-gray-400">
+                      {session.playerCount} {session.playerCount === 1 ? "player" : "players"} joined
+                    </p>
+                    <AvatarStack players={session.playerSample ?? []} max={4} size={24} />
+                  </div>
                 )}
               </div>
               <span

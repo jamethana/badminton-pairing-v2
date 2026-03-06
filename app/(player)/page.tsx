@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getViewAs } from "@/lib/view-as";
 import UserSessionsList, { type UserSession } from "@/components/user-sessions-list";
+import type { PlayerLite } from "@/components/avatar-stack";
 
 export default async function Home() {
   const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
@@ -48,6 +49,37 @@ export default async function Home() {
       (creatorUsers ?? []).map((u) => [u.id, u.display_name])
     );
   }
+
+  // Fetch joined players per session for count and avatar preview (all players in those sessions)
+  const sessionIds = rawSessions.map((s) => s.id);
+  const playerCountMap = new Map<string, number>();
+  const playerSampleMap = new Map<string, PlayerLite[]>();
+
+  if (sessionIds.length > 0) {
+    const { data: playerRows } = await supabase
+      .from("session_players")
+      .select("session_id, users(id, display_name, picture_url)")
+      .in("session_id", sessionIds)
+      .eq("is_active", true);
+
+    for (const row of playerRows ?? []) {
+      const sid = row.session_id;
+      const user = row.users;
+      if (!user) continue;
+
+      playerCountMap.set(sid, (playerCountMap.get(sid) ?? 0) + 1);
+      const sample = playerSampleMap.get(sid) ?? [];
+      if (sample.length < 4) {
+        sample.push({
+          id: user.id,
+          display_name: user.display_name,
+          picture_url: user.picture_url,
+        });
+        playerSampleMap.set(sid, sample);
+      }
+    }
+  }
+
   const sessions: UserSession[] = rawSessions.map((s) => ({
     id: s.id,
     name: s.name,
@@ -55,6 +87,8 @@ export default async function Home() {
     location: s.location,
     status: s.status,
     creatorDisplayName: s.created_by ? creatorNameById.get(s.created_by) : undefined,
+    playerCount: playerCountMap.get(s.id) ?? 0,
+    playerSample: playerSampleMap.get(s.id) ?? [],
   }));
 
   const activeSessions = sessions.filter((s) => s.status === "active");

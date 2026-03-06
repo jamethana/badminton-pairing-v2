@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import SessionEditDialog from "@/components/session-edit-dialog";
 import SessionsFilters, { type SessionCreator } from "@/components/sessions-filters";
+import { AvatarStack, type PlayerLite } from "@/components/avatar-stack";
 
 const STATUS_STYLES = {
   draft: "bg-gray-100 text-gray-600",
@@ -75,6 +76,36 @@ export default async function SessionsPage({ searchParams }: PageProps) {
 
   const hasFilters = !!(createdBy || status || name || location);
 
+  // Fetch joined players per session for count and avatar preview
+  const sessionIds = (sessions ?? []).map((s) => s.id);
+  const playerCountMap = new Map<string, number>();
+  const playerSampleMap = new Map<string, PlayerLite[]>();
+
+  if (sessionIds.length > 0) {
+    const { data: playerRows } = await supabase
+      .from("session_players")
+      .select("session_id, users(id, display_name, picture_url)")
+      .in("session_id", sessionIds)
+      .eq("is_active", true);
+
+    for (const row of playerRows ?? []) {
+      const sid = row.session_id;
+      const user = row.users;
+      if (!user) continue;
+
+      playerCountMap.set(sid, (playerCountMap.get(sid) ?? 0) + 1);
+      const sample = playerSampleMap.get(sid) ?? [];
+      if (sample.length < 4) {
+        sample.push({
+          id: user.id,
+          display_name: user.display_name,
+          picture_url: user.picture_url,
+        });
+        playerSampleMap.set(sid, sample);
+      }
+    }
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -102,6 +133,8 @@ export default async function SessionsPage({ searchParams }: PageProps) {
               const creatorName = session.created_by
                 ? creatorNameById.get(session.created_by)
                 : undefined;
+              const playerCount = playerCountMap.get(session.id) ?? 0;
+              const samplePlayers = playerSampleMap.get(session.id) ?? [];
               return (
               <div
                 key={session.id}
@@ -125,6 +158,14 @@ export default async function SessionsPage({ searchParams }: PageProps) {
                     <p className="mt-0.5 text-xs text-gray-400">
                       Created by {creatorName}
                     </p>
+                  )}
+                  {playerCount > 0 && (
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <p className="text-xs text-gray-400">
+                        {playerCount} {playerCount === 1 ? "player" : "players"} joined
+                      </p>
+                      <AvatarStack players={samplePlayers} max={4} size={24} />
+                    </div>
                   )}
                 </Link>
                 <Badge className={STATUS_STYLES[session.status]}>

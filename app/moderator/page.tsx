@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/auth";
 import Link from "next/link";
 import ModeratorRecentSessionsList from "@/components/moderator-recent-sessions-list";
+import type { PlayerLite } from "@/components/avatar-stack";
 
 export default async function ModeratorDashboard() {
   const user = await getCurrentUser();
@@ -39,6 +40,36 @@ export default async function ModeratorDashboard() {
       (creatorUsers ?? []).map((u) => [u.id, u.display_name])
     );
   }
+  // Fetch joined players per session for count and avatar preview
+  const sessionIds = (sessions ?? []).map((s) => s.id);
+  const playerCountMap = new Map<string, number>();
+  const playerSampleMap = new Map<string, PlayerLite[]>();
+
+  if (sessionIds.length > 0) {
+    const { data: playerRows } = await supabase
+      .from("session_players")
+      .select("session_id, users(id, display_name, picture_url)")
+      .in("session_id", sessionIds)
+      .eq("is_active", true);
+
+    for (const row of playerRows ?? []) {
+      const sid = row.session_id;
+      const user = row.users;
+      if (!user) continue;
+
+      playerCountMap.set(sid, (playerCountMap.get(sid) ?? 0) + 1);
+      const sample = playerSampleMap.get(sid) ?? [];
+      if (sample.length < 4) {
+        sample.push({
+          id: user.id,
+          display_name: user.display_name,
+          picture_url: user.picture_url,
+        });
+        playerSampleMap.set(sid, sample);
+      }
+    }
+  }
+
   const sessionsWithCreator = (sessions ?? []).map((s) => ({
     id: s.id,
     name: s.name,
@@ -46,6 +77,8 @@ export default async function ModeratorDashboard() {
     location: s.location,
     status: s.status,
     creatorDisplayName: s.created_by ? creatorNameById.get(s.created_by) : undefined,
+    playerCount: playerCountMap.get(s.id) ?? 0,
+    playerSample: playerSampleMap.get(s.id) ?? [],
   }));
 
   return (
