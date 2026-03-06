@@ -222,6 +222,11 @@ export default function PlayerSessionClient({
         const newSlot: SessionPlayer = await res.json();
         setMySlot(newSlot);
         setAllPlayers((prev) => [...prev, newSlot]);
+        router.refresh();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        const message = typeof body?.error === "string" ? body.error : "Could not join session.";
+        showError(message);
       }
     } finally {
       setAddingSelf(false);
