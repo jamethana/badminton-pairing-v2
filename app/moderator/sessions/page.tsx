@@ -189,6 +189,8 @@ export default async function SessionsPage({ searchParams }: PageProps) {
                     show_skill_level_pills={session.show_skill_level_pills}
                     allow_player_add_remove_courts={session.allow_player_add_remove_courts}
                     allow_player_access_invite_qr={session.allow_player_access_invite_qr}
+                    pairing_rule={session.pairing_rule}
+                    max_partner_skill_level_gap={session.max_partner_skill_level_gap}
                   />
                 )}
               </div>

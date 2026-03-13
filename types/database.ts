@@ -9,6 +9,7 @@ export type Json =
 export type SessionStatus = "draft" | "active" | "completed";
 export type PairingStatus = "in_progress" | "completed" | "voided";
 export type WinnerTeam = "team_a" | "team_b";
+export type PairingRule = "least_played" | "longest_wait" | "balanced";
 
 export type Database = {
   public: {
@@ -80,6 +81,8 @@ export type Database = {
           show_skill_level_pills: boolean;
           allow_player_add_remove_courts: boolean;
           allow_player_access_invite_qr: boolean;
+          pairing_rule: PairingRule;
+          max_partner_skill_level_gap: number;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -102,6 +105,8 @@ export type Database = {
           show_skill_level_pills?: boolean;
           allow_player_add_remove_courts?: boolean;
           allow_player_access_invite_qr?: boolean;
+          pairing_rule?: PairingRule;
+          max_partner_skill_level_gap?: number;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -124,6 +129,8 @@ export type Database = {
           show_skill_level_pills?: boolean;
           allow_player_add_remove_courts?: boolean;
           allow_player_access_invite_qr?: boolean;
+          pairing_rule?: PairingRule;
+          max_partner_skill_level_gap?: number;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -153,6 +160,8 @@ export type Database = {
           show_skill_level_pills: boolean;
           allow_player_add_remove_courts: boolean;
           allow_player_access_invite_qr: boolean;
+          pairing_rule: PairingRule;
+          max_partner_skill_level_gap: number;
           updated_at: string;
         };
         Insert: {
@@ -169,6 +178,8 @@ export type Database = {
           show_skill_level_pills?: boolean;
           allow_player_add_remove_courts?: boolean;
           allow_player_access_invite_qr?: boolean;
+          pairing_rule?: PairingRule;
+          max_partner_skill_level_gap?: number;
           updated_at?: string;
         };
         Update: {
@@ -185,6 +196,8 @@ export type Database = {
           show_skill_level_pills?: boolean;
           allow_player_add_remove_courts?: boolean;
           allow_player_access_invite_qr?: boolean;
+          pairing_rule?: PairingRule;
+          max_partner_skill_level_gap?: number;
           updated_at?: string;
         };
         Relationships: [
@@ -373,6 +386,7 @@ export type Database = {
       session_status: SessionStatus;
       pairing_status: PairingStatus;
       winner_team: WinnerTeam;
+      pairing_rule: PairingRule;
     };
     CompositeTypes: {
       [_ in never]: never;

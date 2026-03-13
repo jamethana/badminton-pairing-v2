@@ -53,7 +53,7 @@ export async function POST(
     supabase.from("users").select("is_moderator").eq("id", appUserId).single(),
     supabase
       .from("sessions")
-      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result, status")
+      .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result, status, pairing_rule, max_partner_skill_level_gap")
       .eq("id", id)
       .single(),
   ]);
@@ -102,7 +102,10 @@ export async function POST(
       .map((sp) => sp.users)
       .filter((u): u is NonNullable<typeof u> => u !== null);
 
-    const suggestion = generatePairing(activePlayers, pairings ?? [], courtNumber);
+    const suggestion = generatePairing(activePlayers, pairings ?? [], courtNumber, {
+      pairingRule: session.pairing_rule ?? "least_played",
+      maxPartnerSkillLevelGap: session.max_partner_skill_level_gap ?? 2,
+    });
     if (!suggestion) {
       return NextResponse.json({ error: "Not enough available players" }, { status: 422 });
     }

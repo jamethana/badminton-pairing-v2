@@ -16,6 +16,8 @@ const PutSessionDefaultsSchema = z.object({
   show_skill_level_pills: z.boolean(),
   allow_player_add_remove_courts: z.boolean(),
   allow_player_access_invite_qr: z.boolean(),
+  pairing_rule: z.enum(["least_played", "longest_wait", "balanced"]).optional(),
+  max_partner_skill_level_gap: z.number().int().min(1).max(10).optional(),
 });
 
 export type SessionDefaultsPayload = z.infer<typeof PutSessionDefaultsSchema>;
@@ -76,6 +78,8 @@ export async function PUT(request: NextRequest) {
     show_skill_level_pills: parsed.data.show_skill_level_pills,
     allow_player_add_remove_courts: parsed.data.allow_player_add_remove_courts,
     allow_player_access_invite_qr: parsed.data.allow_player_access_invite_qr,
+    pairing_rule: parsed.data.pairing_rule ?? "least_played",
+    max_partner_skill_level_gap: parsed.data.max_partner_skill_level_gap ?? 2,
     updated_at: new Date().toISOString(),
   };
 

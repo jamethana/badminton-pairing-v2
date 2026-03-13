@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import SessionForm, { type SessionFormValues } from "@/components/session-form";
-import type { SessionStatus } from "@/types/database";
+import type { PairingRule, SessionStatus } from "@/types/database";
 
 export interface SessionEditProps {
   id: string;
@@ -30,6 +30,8 @@ export interface SessionEditProps {
   show_skill_level_pills: boolean;
   allow_player_add_remove_courts: boolean;
   allow_player_access_invite_qr: boolean;
+  pairing_rule: PairingRule;
+  max_partner_skill_level_gap: number;
 }
 
 export default function SessionEditDialog({
@@ -49,6 +51,8 @@ export default function SessionEditDialog({
   show_skill_level_pills,
   allow_player_add_remove_courts,
   allow_player_access_invite_qr,
+  pairing_rule,
+  max_partner_skill_level_gap,
 }: SessionEditProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -69,6 +73,8 @@ export default function SessionEditDialog({
     show_skill_level_pills,
     allow_player_add_remove_courts,
     allow_player_access_invite_qr,
+    pairing_rule,
+    max_partner_skill_level_gap,
   };
 
   const handleSubmit = async (values: SessionFormValues) => {

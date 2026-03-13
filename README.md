@@ -87,7 +87,24 @@ Add these in your Vercel project's **Settings → Environment Variables**:
 
 ### 4. Supabase Configuration
 
-The database schema and RLS policies are already set up. Make sure:
+#### Database Schema
+
+The schema lives in `supabase/migrations/001_baseline_schema.sql` — a single authoritative file
+that defines all tables, enums, functions, triggers, indexes, and Realtime publication.
+
+To apply it to a fresh Supabase project:
+1. Open the Supabase dashboard → **SQL Editor**
+2. Paste the contents of `supabase/migrations/001_baseline_schema.sql` and run it.
+
+Or via the Supabase MCP tool `apply_migration`, which also records the migration version.
+
+**Adding new migrations**: Create incremental files named `002_<feature>.sql`, `003_<feature>.sql`,
+etc. — never edit `001_baseline_schema.sql` after initial deployment.
+
+**Resetting (dev/staging)**: Drop all public schema objects, clear `supabase_migrations.schema_migrations`,
+then re-apply the baseline (and any subsequent numbered migrations).
+
+Make sure:
 
 - **Authentication → URL Configuration** in Supabase dashboard:
   - Site URL: `https://your-app.vercel.app`

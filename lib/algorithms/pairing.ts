@@ -1,4 +1,4 @@
-import type { Tables } from "@/types/database";
+import type { PairingRule, Tables } from "@/types/database";
 import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
 
 type UserRow = Tables<"users">;
@@ -16,18 +16,24 @@ export interface TeamAssignment {
   score: number;
 }
 
+export interface PairingOptions {
+  pairingRule?: PairingRule;
+  maxPartnerSkillLevelGap?: number;
+}
+
 /**
  * Generates a pairing suggestion for a given court.
- * Returns the 4 selected players and their team assignment.
+ * Returns the 4 selected players and their team assignment, or null if not enough players.
  */
 export function generatePairing(
   activePlayers: UserRow[],
   allPairings: Pairing[],
-  courtNumber: number
+  courtNumber: number,
+  options: PairingOptions = {}
 ): TeamAssignment | null {
-  const busyPlayerIds = getPlayersInCurrentGame(allPairings);
+  const { pairingRule = "least_played", maxPartnerSkillLevelGap = 2 } = options;
 
-  // Filter out players already in a game
+  const busyPlayerIds = getPlayersInCurrentGame(allPairings);
   const available = activePlayers.filter((p) => !busyPlayerIds.has(p.id));
 
   if (available.length < 4) return null;
@@ -35,16 +41,29 @@ export function generatePairing(
   const playerIds = available.map((p) => p.id);
   const statsMap = computePlayerStats(allPairings, playerIds);
 
-  // Sort by priority: sitting time (desc), then matches played (asc)
+  // Sort candidates according to the selected pairing rule.
   const sorted = [...available].sort((a, b) => {
     const sa = statsMap.get(a.id)!;
     const sb = statsMap.get(b.id)!;
-    // Higher sitting priority first
-    if (sb.gamesSinceLastPlayed !== sa.gamesSinceLastPlayed) {
+
+    if (pairingRule === "least_played") {
+      // Primary: fewest matches played (ascending); tiebreak: longest wait (descending)
+      if (sa.matchesPlayed !== sb.matchesPlayed) return sa.matchesPlayed - sb.matchesPlayed;
       return sb.gamesSinceLastPlayed - sa.gamesSinceLastPlayed;
     }
-    // Lower match count next
-    return sa.matchesPlayed - sb.matchesPlayed;
+
+    if (pairingRule === "longest_wait") {
+      // Primary: longest sitting time (descending); tiebreak: fewest matches (ascending)
+      if (sb.gamesSinceLastPlayed !== sa.gamesSinceLastPlayed) {
+        return sb.gamesSinceLastPlayed - sa.gamesSinceLastPlayed;
+      }
+      return sa.matchesPlayed - sb.matchesPlayed;
+    }
+
+    // "balanced": equal weight on matches played and wait time
+    const scoreA = sa.gamesSinceLastPlayed * 3 - sa.matchesPlayed * 3;
+    const scoreB = sb.gamesSinceLastPlayed * 3 - sb.matchesPlayed * 3;
+    return scoreB - scoreA;
   });
 
   // Pick top 8 candidates (or all if fewer), then find best 4-player combo
@@ -66,7 +85,6 @@ export function generatePairing(
       (id): id is string => id != null
     );
 
-    // Partners (only when both slots are non-null)
     if (teamA.length === 2 && partnerHistory.has(teamA[0]) && partnerHistory.has(teamA[1])) {
       partnerHistory.get(teamA[0])!.add(teamA[1]);
       partnerHistory.get(teamA[1])!.add(teamA[0]);
@@ -75,7 +93,6 @@ export function generatePairing(
       partnerHistory.get(teamB[0])!.add(teamB[1]);
       partnerHistory.get(teamB[1])!.add(teamB[0]);
     }
-    // Opponents
     for (const a of teamA) {
       for (const b of teamB) {
         if (opponentHistory.has(a) && opponentHistory.has(b)) {
@@ -86,12 +103,9 @@ export function generatePairing(
     }
   }
 
-  // Keep a small pool of near-best assignments so we can add a touch of
-  // randomness without sacrificing quality.
   let bestScore = -Infinity;
   const topAssignments: TeamAssignment[] = [];
 
-  // Try all combinations of 4 from top candidates
   const n = candidates.length;
   for (let i = 0; i < n - 3; i++) {
     for (let j = i + 1; j < n - 2; j++) {
@@ -99,7 +113,6 @@ export function generatePairing(
         for (let l = k + 1; l < n; l++) {
           const group = [candidates[i], candidates[j], candidates[k], candidates[l]];
 
-          // Try all 3 ways to split 4 into 2v2
           const splits: [[number, number], [number, number]][] = [
             [[0, 1], [2, 3]],
             [[0, 2], [1, 3]],
@@ -116,7 +129,9 @@ export function generatePairing(
               pA, pB, pC, pD,
               statsMap,
               partnerHistory,
-              opponentHistory
+              opponentHistory,
+              pairingRule,
+              maxPartnerSkillLevelGap
             );
 
             if (score > bestScore) {
@@ -128,7 +143,6 @@ export function generatePairing(
                 score,
               });
             } else if (score === bestScore || score > bestScore - 5) {
-              // Within a small margin of the best score: keep as an alternative.
               topAssignments.push({
                 teamA: [pA.id, pB.id],
                 teamB: [pC.id, pD.id],
@@ -141,12 +155,10 @@ export function generatePairing(
     }
   }
 
-  void courtNumber; // used by caller for logging
+  void courtNumber;
 
   if (topAssignments.length === 0) return null;
 
-  // Pick a random assignment from the near-best pool so repeated generations
-  // don't always look identical, while still staying high quality.
   const randomIndex = Math.floor(Math.random() * topAssignments.length);
   return topAssignments[randomIndex];
 }
@@ -158,11 +170,22 @@ function scoreAssignment(
   b2: UserRow,
   statsMap: Map<string, { matchesPlayed: number; gamesSinceLastPlayed: number }>,
   partnerHistory: Map<string, Set<string>>,
-  opponentHistory: Map<string, Set<string>>
+  opponentHistory: Map<string, Set<string>>,
+  pairingRule: PairingRule,
+  maxPartnerSkillLevelGap: number
 ): number {
   let score = 0;
 
-  // 1. Skill balance (higher weight) — lower diff is better
+  // Partner skill gap constraint — heavy penalty when gap exceeds the limit.
+  // maxPartnerSkillLevelGap === 10 means no restriction.
+  if (maxPartnerSkillLevelGap < 10) {
+    const gapA = Math.abs(a1.skill_level - a2.skill_level);
+    const gapB = Math.abs(b1.skill_level - b2.skill_level);
+    if (gapA > maxPartnerSkillLevelGap) score -= 500;
+    if (gapB > maxPartnerSkillLevelGap) score -= 500;
+  }
+
+  // 1. Skill balance across teams
   const teamASkill = a1.skill_level + a2.skill_level;
   const teamBSkill = b1.skill_level + b2.skill_level;
   const skillDiff = Math.abs(teamASkill - teamBSkill);
@@ -183,12 +206,31 @@ function scoreAssignment(
   }
   score += newOpponents * 2;
 
-  // 4. Sitting fairness bonus (all 4 should have some sitting time)
+  // 4. Fairness/wait bonus — weights vary by pairing rule
   const sa1 = statsMap.get(a1.id)?.gamesSinceLastPlayed ?? 0;
   const sa2 = statsMap.get(a2.id)?.gamesSinceLastPlayed ?? 0;
   const sb1 = statsMap.get(b1.id)?.gamesSinceLastPlayed ?? 0;
   const sb2 = statsMap.get(b2.id)?.gamesSinceLastPlayed ?? 0;
-  score += (sa1 + sa2 + sb1 + sb2) * 3;
+
+  const ma1 = statsMap.get(a1.id)?.matchesPlayed ?? 0;
+  const ma2 = statsMap.get(a2.id)?.matchesPlayed ?? 0;
+  const mb1 = statsMap.get(b1.id)?.matchesPlayed ?? 0;
+  const mb2 = statsMap.get(b2.id)?.matchesPlayed ?? 0;
+
+  const totalWait = sa1 + sa2 + sb1 + sb2;
+  const totalPlayed = ma1 + ma2 + mb1 + mb2;
+
+  if (pairingRule === "least_played") {
+    score += totalWait * 1;
+    score -= totalPlayed * 5;
+  } else if (pairingRule === "longest_wait") {
+    score += totalWait * 5;
+    score -= totalPlayed * 1;
+  } else {
+    // balanced
+    score += totalWait * 3;
+    score -= totalPlayed * 3;
+  }
 
   return score;
 }

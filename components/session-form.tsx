@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { SessionStatus } from "@/types/database";
+import type { PairingRule, SessionStatus } from "@/types/database";
 
 type AssignmentLevel = "moderators" | "everyone";
 type ResultLevel = "none" | "own" | "any";
@@ -32,6 +32,8 @@ export interface SessionFormValues {
   show_skill_level_pills: boolean;
   allow_player_add_remove_courts: boolean;
   allow_player_access_invite_qr: boolean;
+  pairing_rule: PairingRule;
+  max_partner_skill_level_gap: number;
 }
 
 export interface SessionFormSubmitOptions {
@@ -237,6 +239,64 @@ export default function SessionForm({
           </Select>
         </div>
       )}
+
+      {/* Pairing settings */}
+      <div className="space-y-4 rounded-lg border bg-gray-50 px-3 py-3">
+        <p className="text-sm font-semibold text-gray-800">Pairing settings</p>
+        <p className="text-xs text-gray-500">
+          Controls how the auto-pairing algorithm picks players for each court.
+        </p>
+
+        {/* Pairing rule */}
+        <div className="space-y-1.5">
+          <p className="mb-2 text-sm font-medium text-gray-700">Player selection priority</p>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[
+              { value: "least_played" as const, label: "Fewest games" },
+              { value: "longest_wait" as const, label: "Longest wait" },
+              { value: "balanced" as const, label: "Balanced" },
+            ].map(({ value, label }, idx) => (
+              <button
+                key={value}
+                type="button"
+                className={segmentButtonClass(form.pairing_rule === value, idx)}
+                onClick={() => set("pairing_rule", value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">
+            {form.pairing_rule === "least_played" && "Prioritise players who have played the fewest matches this session."}
+            {form.pairing_rule === "longest_wait" && "Prioritise players who have been sitting out the longest."}
+            {form.pairing_rule === "balanced" && "Blend both — equal weight on fewest matches and longest wait."}
+          </p>
+        </div>
+
+        {/* Max partner skill gap */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-700">Max partner skill gap</p>
+            <span className="text-sm font-semibold text-green-700">
+              {form.max_partner_skill_level_gap === 10 ? "Any" : `±${form.max_partner_skill_level_gap}`}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={10}
+            step={1}
+            value={form.max_partner_skill_level_gap}
+            onChange={(e) => set("max_partner_skill_level_gap", parseInt(e.target.value))}
+            className="w-full accent-green-600"
+          />
+          <p className="text-xs text-gray-500">
+            {form.max_partner_skill_level_gap === 10
+              ? "No restriction — any two players can be paired as partners."
+              : `Partners must be within ${form.max_partner_skill_level_gap} skill level${form.max_partner_skill_level_gap === 1 ? "" : "s"} of each other (scale 1–10).`}
+          </p>
+        </div>
+      </div>
 
       {/* Permissions */}
       <div className="space-y-4 rounded-lg border bg-gray-50 px-3 py-3">

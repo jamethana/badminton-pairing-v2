@@ -21,6 +21,8 @@ const SessionUpdateSchema = z
     allow_player_add_remove_courts: z.boolean().optional(),
     allow_player_access_invite_qr: z.boolean().optional(),
     court_names: z.record(z.string(), z.string()).optional(),
+    pairing_rule: z.enum(["least_played", "longest_wait", "balanced"]).optional(),
+    max_partner_skill_level_gap: z.number().int().min(1).max(10).optional(),
   })
   .refine(
     (data) => {

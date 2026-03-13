@@ -22,6 +22,8 @@ const BASE_DEFAULTS: Omit<SessionFormValues, "date" | "notes"> = {
   show_skill_level_pills: true,
   allow_player_add_remove_courts: false,
   allow_player_access_invite_qr: false,
+  pairing_rule: "least_played",
+  max_partner_skill_level_gap: 2,
 };
 
 function valuesToDefaultsPayload(values: SessionFormValues): SessionDefaultsPayload {
@@ -38,6 +40,8 @@ function valuesToDefaultsPayload(values: SessionFormValues): SessionDefaultsPayl
     show_skill_level_pills: values.show_skill_level_pills,
     allow_player_add_remove_courts: values.allow_player_add_remove_courts,
     allow_player_access_invite_qr: values.allow_player_access_invite_qr,
+    pairing_rule: values.pairing_rule,
+    max_partner_skill_level_gap: values.max_partner_skill_level_gap,
   };
 }
 

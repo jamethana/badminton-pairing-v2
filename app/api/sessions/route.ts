@@ -19,6 +19,8 @@ const CreateSessionSchema = z.object({
   show_skill_level_pills: z.boolean().optional(),
   allow_player_add_remove_courts: z.boolean().optional(),
   allow_player_access_invite_qr: z.boolean().optional(),
+  pairing_rule: z.enum(["least_played", "longest_wait", "balanced"]).optional(),
+  max_partner_skill_level_gap: z.number().int().min(1).max(10).optional(),
 });
 
 export async function GET() {
