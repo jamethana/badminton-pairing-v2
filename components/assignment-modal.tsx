@@ -361,9 +361,9 @@ export default function AssignmentModal({
                       : "text-red-500"
                 )}
               >
-                {skillDiff <= 1
+                {skillDiff <= 0
                   ? "Very Fair"
-                  : skillDiff <= 3
+                  : skillDiff <= 2
                     ? "Kinda Fair"
                     : "Not Fair"}
               </span>
