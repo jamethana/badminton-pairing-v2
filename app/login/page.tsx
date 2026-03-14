@@ -23,6 +23,7 @@ export default async function LoginPage({
 
   const params = await searchParams;
   const redirectTo = typeof params.next === "string" ? params.next : undefined;
+  const isSessionInvite = typeof redirectTo === "string" && redirectTo.startsWith("/sessions/");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
@@ -45,12 +46,16 @@ export default async function LoginPage({
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Badminton Pairing</h1>
           <p className="mt-2 text-sm text-gray-500">
-            Sign in with LINE to join sessions and track your games
+            {isSessionInvite
+              ? "Sign in with LINE to join this session"
+              : "Sign in with LINE to join sessions and track your games"}
           </p>
         </div>
         <LoginButton redirectTo={redirectTo} />
         <p className="mt-4 text-center text-xs text-gray-400">
-          New? A moderator will add you to the session once you sign in.
+          {isSessionInvite
+            ? "After signing in you'll be taken to the session."
+            : "New? A moderator will add you to the session once you sign in."}
         </p>
       </div>
     </div>

@@ -47,6 +47,8 @@ export default function PlayerSessionClient({
   const [activeTab, setActiveTab] = useState<ActiveTab>("game");
   const [uiError, setUiError] = useState<string | null>(null);
   const errorTimeoutRef = useRef<number | null>(null);
+  const hasAutoJoinAttemptedRef = useRef(false);
+  const [sessionFullFromApi, setSessionFullFromApi] = useState(false);
 
   const isCompleted = session.status === "completed";
   const [numCourts, setNumCourts] = useState(session.num_courts);
@@ -233,12 +235,47 @@ export default function PlayerSessionClient({
       } else {
         const body = await res.json().catch(() => ({}));
         const message = typeof body?.error === "string" ? body.error : "Could not join session.";
+        if (res.status === 409 && typeof body?.error === "string" && body.error.toLowerCase().includes("full")) {
+          setSessionFullFromApi(true);
+        }
         showError(message);
       }
     } finally {
       setAddingSelf(false);
     }
   };
+
+  // Auto-join once on mount when user has no slot and session is not full
+  useEffect(() => {
+    if (
+      mySlot ||
+      isCompleted ||
+      hasAutoJoinAttemptedRef.current ||
+      sessionFullFromApi ||
+      allPlayers.length >= session.max_players
+    ) {
+      return;
+    }
+    hasAutoJoinAttemptedRef.current = true;
+    setAddingSelf(true);
+    fetch(`/api/sessions/${session.id}/self-join`, { method: "POST" })
+      .then(async (res) => {
+        if (res.ok) {
+          const newSlot: SessionPlayer = await res.json();
+          setMySlot(newSlot);
+          setAllPlayers((prev) => [...prev, newSlot]);
+          router.refresh();
+        } else {
+          const body = await res.json().catch(() => ({}));
+          if (res.status === 409 && typeof body?.error === "string" && body.error.toLowerCase().includes("full")) {
+            setSessionFullFromApi(true);
+          }
+        }
+      })
+      .finally(() => {
+        setAddingSelf(false);
+      });
+  }, [mySlot, isCompleted, sessionFullFromApi, allPlayers.length, session.id, session.max_players, router]);
 
   // ── Active toggle ────────────────────────────────────────────────────────
   const handleToggleActive = async () => {
@@ -474,6 +511,8 @@ export default function PlayerSessionClient({
   };
 
   // ── Pre-join view ────────────────────────────────────────────────────────
+  const isSessionFull = sessionFullFromApi || allPlayers.length >= session.max_players;
+
   if (!mySlot) {
     return (
       <div className="space-y-4">
@@ -486,61 +525,70 @@ export default function PlayerSessionClient({
             Session updated by another user
           </div>
         )}
-        <div className="rounded-xl border bg-white p-4">
-          <h2 className="mb-3 font-semibold text-gray-800">Claim Your Slot</h2>
-          {unclaimedSlots.length > 0 ? (
-            <>
-              <p className="mb-3 text-sm text-gray-500">Tap your name to link your LINE account:</p>
-              <div className="space-y-2">
-                {unclaimedSlots.map((slot) => (
-                  <button
-                    key={slot.id}
-                    onClick={isCompleted ? undefined : () => handleClaim(slot.id)}
-                    disabled={claiming || isCompleted}
-                    className="flex w-full items-center gap-3 rounded-lg border px-4 py-3 hover:bg-green-50 hover:border-green-400 transition-colors disabled:opacity-60"
-                  >
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white",
-                        getSkillColor(slot.users?.skill_level ?? 5)
-                      )}
-                    >
-                      {slot.users?.display_name.charAt(0)}
-                    </div>
-                    <div className="text-left">
-                      <p className="font-medium">{slot.users?.display_name}</p>
-                      <p className="text-xs text-gray-400">Skill {slot.users?.skill_level}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-gray-400">
-              No unclaimed slots available. Ask the moderator to add you.
+        {isSessionFull ? (
+          <div className="rounded-xl border bg-white p-4">
+            <h2 className="mb-2 font-semibold text-gray-800">Session full</h2>
+            <p className="text-sm text-gray-500">
+              This session is full. You can still view the session.
             </p>
-          )}
-
-          <div className="mt-4 border-t pt-3">
-            <p className="mb-1 text-xs font-medium text-gray-500">Can&apos;t find your name?</p>
-            <p className="mb-2 text-xs text-gray-400">
-              You can add yourself to this session using your LINE account.
-            </p>
-            <button
-              type="button"
-              onClick={isCompleted ? undefined : handleAddSelf}
-              disabled={claiming || addingSelf || isCompleted}
-              className={cn(
-                "w-full rounded-lg px-4 py-2.5 text-sm font-semibold border border-dashed",
-                addingSelf
-                  ? "border-green-400 bg-green-50 text-green-700"
-                  : "border-gray-300 text-gray-700 hover:border-green-500 hover:bg-green-50"
-              )}
-            >
-              {addingSelf ? "Adding you to this session…" : "Add myself to this session"}
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-xl border bg-white p-4">
+            <h2 className="mb-3 font-semibold text-gray-800">Claim Your Slot</h2>
+            {unclaimedSlots.length > 0 ? (
+              <>
+                <p className="mb-3 text-sm text-gray-500">Tap your name to link your LINE account:</p>
+                <div className="space-y-2">
+                  {unclaimedSlots.map((slot) => (
+                    <button
+                      key={slot.id}
+                      onClick={isCompleted ? undefined : () => handleClaim(slot.id)}
+                      disabled={claiming || isCompleted}
+                      className="flex w-full items-center gap-3 rounded-lg border px-4 py-3 hover:bg-green-50 hover:border-green-400 transition-colors disabled:opacity-60"
+                    >
+                      <div
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white",
+                          getSkillColor(slot.users?.skill_level ?? 5)
+                        )}
+                      >
+                        {slot.users?.display_name.charAt(0)}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium">{slot.users?.display_name}</p>
+                        <p className="text-xs text-gray-400">Skill {slot.users?.skill_level}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">
+                No unclaimed slots available. Ask the moderator to add you.
+              </p>
+            )}
+
+            <div className="mt-4 border-t pt-3">
+              <p className="mb-1 text-xs font-medium text-gray-500">Can&apos;t find your name?</p>
+              <p className="mb-2 text-xs text-gray-400">
+                You can add yourself to this session using your LINE account.
+              </p>
+              <button
+                type="button"
+                onClick={isCompleted ? undefined : handleAddSelf}
+                disabled={claiming || addingSelf || isCompleted}
+                className={cn(
+                  "w-full rounded-lg px-4 py-2.5 text-sm font-semibold border border-dashed",
+                  addingSelf
+                    ? "border-green-400 bg-green-50 text-green-700"
+                    : "border-gray-300 text-gray-700 hover:border-green-500 hover:bg-green-50"
+                )}
+              >
+                {addingSelf ? "Adding you to this session…" : "Add myself to this session"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

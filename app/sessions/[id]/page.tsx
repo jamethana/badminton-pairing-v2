@@ -14,7 +14,7 @@ export default async function PlayerSessionPage({
 }) {
   const { id } = await params;
   const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
-  if (!user) redirect("/login");
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/sessions/${id}`)}`);
 
   const supabase = await createClient();
 

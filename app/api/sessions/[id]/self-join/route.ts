@@ -21,10 +21,10 @@ export async function POST(
     return NextResponse.json({ error: "No app user" }, { status: 403 });
   }
 
-  // Prevent changes when the session is completed
+  // Prevent changes when the session is completed; also need max_players for capacity check
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("status")
+    .select("status, max_players")
     .eq("id", id)
     .maybeSingle();
   if (sessionError || !session) {
@@ -33,6 +33,21 @@ export async function POST(
   if (session.status === "completed") {
     return NextResponse.json(
       { error: "Cannot join a completed session. Ask a moderator to reopen it." },
+      { status: 409 }
+    );
+  }
+
+  // Ensure the session is not full
+  const { count, error: countError } = await supabase
+    .from("session_players")
+    .select("id", { count: "exact", head: true })
+    .eq("session_id", id);
+  if (countError) {
+    return NextResponse.json({ error: countError.message }, { status: 500 });
+  }
+  if ((count ?? 0) >= session.max_players) {
+    return NextResponse.json(
+      { error: "This session is full." },
       { status: 409 }
     );
   }
