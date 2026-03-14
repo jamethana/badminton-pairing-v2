@@ -54,6 +54,8 @@ export default function PlayerSessionClient({
   const isCompleted = session.status === "completed";
   const [numCourts, setNumCourts] = useState(session.num_courts);
   const [sessionUpdatedToast, setSessionUpdatedToast] = useState(false);
+  const [addCourtLoading, setAddCourtLoading] = useState(false);
+  const [removeCourtLoading, setRemoveCourtLoading] = useState(false);
 
   const router = useRouter();
 
@@ -485,17 +487,19 @@ export default function PlayerSessionClient({
   );
 
   const handleAddCourt = async () => {
-    if (isCompleted || !session.allow_player_add_remove_courts) return;
+    if (isCompleted || !session.allow_player_add_remove_courts || addCourtLoading) return;
+    setAddCourtLoading(true);
     setNumCourts((n) => n + 1);
     const res = await fetch(`/api/sessions/${session.id}/courts`, { method: "POST" });
     if (!res.ok) {
       setNumCourts((n) => n - 1);
       showError("Could not add a new court. Please try again.");
     }
+    setAddCourtLoading(false);
   };
 
   const handleRemoveLastCourt = async () => {
-    if (isCompleted || !session.allow_player_add_remove_courts) return;
+    if (isCompleted || !session.allow_player_add_remove_courts || removeCourtLoading) return;
     if (numCourts <= 1) {
       showError("You cannot remove the last court.");
       return;
@@ -504,6 +508,7 @@ export default function PlayerSessionClient({
       showError("There is an active game on the last court.");
       return;
     }
+    setRemoveCourtLoading(true);
     setNumCourts((n) => n - 1);
     const res = await fetch(`/api/sessions/${session.id}/courts`, {
       method: "DELETE",
@@ -514,6 +519,7 @@ export default function PlayerSessionClient({
       setNumCourts((n) => n + 1);
       showError("Could not remove that court. Please try again.");
     }
+    setRemoveCourtLoading(false);
   };
 
   // ── Pre-join view ────────────────────────────────────────────────────────
@@ -732,22 +738,23 @@ export default function PlayerSessionClient({
                 <button
                   type="button"
                   onClick={handleAddCourt}
-                  className="rounded-full bg-green-50 px-3 py-1 font-semibold text-green-700 hover:bg-green-100"
+                  disabled={addCourtLoading}
+                  className="rounded-full bg-green-50 px-3 py-1 font-semibold text-green-700 hover:bg-green-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  + Add court
+                  {addCourtLoading ? "Adding…" : "+ Add court"}
                 </button>
                 <button
                   type="button"
                   onClick={handleRemoveLastCourt}
-                  disabled={numCourts <= 1 || lastCourtHasGame}
+                  disabled={numCourts <= 1 || lastCourtHasGame || removeCourtLoading}
                   className={cn(
                     "rounded-full px-3 py-1 font-semibold",
-                    numCourts <= 1 || lastCourtHasGame
+                    numCourts <= 1 || lastCourtHasGame || removeCourtLoading
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                       : "bg-red-50 text-red-600 hover:bg-red-100"
                   )}
                 >
-                  Remove last court
+                  {removeCourtLoading ? "Removing…" : "Remove last court"}
                 </button>
               </div>
             )}

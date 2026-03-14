@@ -59,6 +59,8 @@ export default function CourtDashboardClient({
   const [statusSaving, setStatusSaving] = useState(false);
   const [showSkillLevelPills, setShowSkillLevelPills] = useState(session.show_skill_level_pills);
   const [showSkillLevelPillsSaving, setShowSkillLevelPillsSaving] = useState(false);
+  const [addCourtLoading, setAddCourtLoading] = useState(false);
+  const [removingCourtNumber, setRemovingCourtNumber] = useState<number | null>(null);
 
   const isCompleted = sessionStatus === "completed";
 
@@ -477,14 +479,17 @@ export default function CourtDashboardClient({
   };
 
   const handleAddCourt = async () => {
-    if (isCompleted) return;
+    if (isCompleted || addCourtLoading) return;
+    setAddCourtLoading(true);
     setNumCourts((n) => n + 1);
     const res = await fetch(`/api/sessions/${session.id}/courts`, { method: "POST" });
     if (!res.ok) setNumCourts((n) => n - 1);
+    setAddCourtLoading(false);
   };
 
   const handleRemoveCourt = async (courtNumber: number) => {
-    if (isCompleted) return;
+    if (isCompleted || removingCourtNumber !== null) return;
+    setRemovingCourtNumber(courtNumber);
     setNumCourts((n) => n - 1);
     const res = await fetch(`/api/sessions/${session.id}/courts`, {
       method: "DELETE",
@@ -494,6 +499,7 @@ export default function CourtDashboardClient({
     if (!res.ok) {
       setNumCourts((n) => n + 1);
     }
+    setRemovingCourtNumber(null);
   };
 
   const handleSaveCourtName = async (courtNumber: number, name: string) => {
@@ -698,6 +704,7 @@ export default function CourtDashboardClient({
                       setRenameValue(courtLabel ?? "");
                     }}
                     onRemove={!isCompleted && canRemove ? () => handleRemoveCourt(courtNumber) : undefined}
+                    isRemoving={removingCourtNumber === courtNumber}
                     onClick={
                       isPending || renamingCourt === courtNumber || isCompleted
                         ? undefined
@@ -712,9 +719,22 @@ export default function CourtDashboardClient({
             {!isCompleted && (
               <button
                 onClick={handleAddCourt}
-                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-8 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500"
+                disabled={addCourtLoading}
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-8 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <span className="text-lg">+</span> Add Court
+                {addCourtLoading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Adding…
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">+</span> Add Court
+                  </>
+                )}
               </button>
             )}
           </div>

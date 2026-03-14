@@ -73,6 +73,10 @@ For `UPDATE` and `DELETE` events to include old row data, tables must have:
 ALTER TABLE pairings REPLICA IDENTITY FULL;
 ```
 
+## Avoid static snapshot merge for FKs
+
+When handling Realtime for a table with a FK (e.g. `session_players.user_id` → `users`), do not merge the row with a static snapshot of the related table if that related row can be created after load (e.g. name-slot users). Prefer refetching the list with a join, or resolving the relation from already-updated client state. See `.cursor/skills/supabase-realtime/SKILL.md` for details.
+
 ## Rule
 
 - One-time `useEffect` fetch for shared data → add a Realtime subscription

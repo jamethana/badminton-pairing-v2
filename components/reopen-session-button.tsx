@@ -24,13 +24,14 @@ export default function ReopenSessionButton({ sessionId }: ReopenSessionButtonPr
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(typeof data.error === "string" ? data.error : "Failed to reopen session.");
+        setLoading(false);
         return;
       }
       router.push(`/moderator/sessions/${sessionId}`);
       router.refresh();
+      // Keep button "Reopening…" until unmount on navigation.
     } catch {
       setError("Failed to reopen session.");
-    } finally {
       setLoading(false);
     }
   };

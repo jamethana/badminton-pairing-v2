@@ -77,6 +77,34 @@ const debouncedRefetch = useMemo(
 // Use debouncedRefetch instead of direct state update in the subscription handler
 ```
 
+## Avoiding static snapshot merge for FKs
+
+Realtime payloads contain only the changed row — no joined data. When a table has a FK to another table (e.g. `session_players.user_id` → `users`), avoid merging the row with a **static** snapshot of the related table if that related row can be created after page load (e.g. name-slot users).
+
+**Problem:** If you look up `userById.get(row.user_id)` from an initial `allUsers` snapshot, newly created entities are missing → `users: null` → the row is filtered out and hidden from the UI.
+
+**Preferred approaches:**
+
+1. **Refetch when the related entity is unknown:** If the FK target is not in your snapshot, refetch the list with a join instead of merging:
+
+```ts
+onSessionPlayers: (op, row) => {
+  if (op === "DELETE") {
+    setSessionPlayers((prev) => prev.filter((sp) => sp.id !== row.id));
+    return;
+  }
+  if (!userById.get(row.user_id)) {
+    void refetchSessionPlayers(); // fetches session_players with users(*)
+    return;
+  }
+  // ... merge when user is known
+}
+```
+
+2. **Always refetch:** For tables with FKs, refetching on every change (like `player-session-client`) avoids the bug entirely.
+
+3. **Resolve at render time:** Store only the row; resolve the relation from already-updated client state (e.g. `getPlayerById` from `sessionPlayers`) so new entities appear after their parent list is refetched.
+
 ## `postgres_changes` vs `broadcast`
 
 | Use `postgres_changes` | Use `broadcast` |

@@ -34,6 +34,8 @@ export default function PlayersClient({ initialPlayers }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ display_name: "", skill_level: 3 });
   const [addError, setAddError] = useState("");
+  const [addPlayerLoading, setAddPlayerLoading] = useState(false);
+  const [deletePlayerLoading, setDeletePlayerLoading] = useState(false);
 
   const startEdit = (player: AppUser) => {
     setEditingId(player.id);
@@ -63,27 +65,26 @@ export default function PlayersClient({ initialPlayers }: Props) {
     });
   };
 
-  const confirmDelete = (playerId: string) => {
+  const confirmDelete = async (playerId: string) => {
     const original = players.find((p) => p.id === playerId);
+    if (!original) return;
+    setDeletePlayerLoading(true);
+    const res = await fetch(`/api/players/${playerId}`, { method: "DELETE" });
+    setDeletePlayerLoading(false);
     setPendingDeleteId(null);
-
-    // Optimistic: remove immediately
-    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
-
-    fetch(`/api/players/${playerId}`, { method: "DELETE" }).then((res) => {
-      if (!res.ok && original) {
-        // Rollback
-        setPlayers((prev) =>
-          [...prev, original].toSorted((a, b) => a.display_name.localeCompare(b.display_name))
-        );
-      }
-    });
+    if (res.ok) {
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    } else {
+      setPlayers((prev) =>
+        [...prev, original].toSorted((a, b) => a.display_name.localeCompare(b.display_name))
+      );
+    }
   };
 
-  const addPlayer = (e: React.FormEvent) => {
+  const addPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = addForm.display_name.trim();
-    if (!name) return;
+    if (!name || addPlayerLoading) return;
     setAddError("");
 
     if (players.some((p) => p.display_name.trim().toLowerCase() === name.toLowerCase())) {
@@ -91,48 +92,24 @@ export default function PlayersClient({ initialPlayers }: Props) {
       return;
     }
 
-    const tempId = `temp-${crypto.randomUUID()}`;
-    const optimistic: AppUser = {
-      id: tempId,
-      display_name: name,
-      skill_level: addForm.skill_level,
-      calculated_skill_rating: null,
-      is_moderator: false,
-      line_user_id: null,
-      picture_url: null,
-      auth_secret: null,
-      trueskill_mu: null,
-      trueskill_sigma: null,
-      trueskill_updated_at: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // Optimistic: add to list and close form immediately
-    setPlayers((prev) =>
-      [...prev, optimistic].toSorted((a, b) => a.display_name.localeCompare(b.display_name))
-    );
-    setAddForm({ display_name: "", skill_level: 3 });
-    setShowAddForm(false);
-
-    fetch("/api/players", {
+    setAddPlayerLoading(true);
+    const res = await fetch("/api/players", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ display_name: name, skill_level: addForm.skill_level }),
-    }).then(async (res) => {
-      if (res.ok) {
-        const created = await res.json();
-        // Replace temp entry with the real record
-        setPlayers((prev) => prev.map((p) => (p.id === tempId ? created : p)));
-      } else {
-        // Rollback
-        setPlayers((prev) => prev.filter((p) => p.id !== tempId));
-        const json = await res.json().catch(() => ({}));
-        setAddError(json.error ?? "Failed to add player");
-        setAddForm({ display_name: name, skill_level: addForm.skill_level });
-        setShowAddForm(true);
-      }
     });
+    if (res.ok) {
+      const created = (await res.json()) as AppUser;
+      setPlayers((prev) =>
+        [...prev, created].toSorted((a, b) => a.display_name.localeCompare(b.display_name))
+      );
+      setAddForm({ display_name: "", skill_level: 3 });
+      setShowAddForm(false);
+    } else {
+      const json = await res.json().catch(() => ({}));
+      setAddError(json.error ?? "Failed to add player");
+    }
+    setAddPlayerLoading(false);
   };
 
   return (
@@ -174,10 +151,10 @@ export default function PlayersClient({ initialPlayers }: Props) {
               </button>
               <button
                 type="submit"
-                disabled={!addForm.display_name.trim()}
+                disabled={!addForm.display_name.trim() || addPlayerLoading}
                 className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
               >
-                Add Player
+                {addPlayerLoading ? "Adding…" : "Add Player"}
               </button>
             </div>
           </form>
@@ -370,15 +347,17 @@ export default function PlayersClient({ initialPlayers }: Props) {
           <DialogFooter>
             <button
               onClick={() => setPendingDeleteId(null)}
-              className="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+              disabled={deletePlayerLoading}
+              className="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               onClick={() => pendingDeleteId && confirmDelete(pendingDeleteId)}
-              className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              disabled={deletePlayerLoading}
+              className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
             >
-              Delete
+              {deletePlayerLoading ? "Deleting…" : "Delete"}
             </button>
           </DialogFooter>
         </DialogContent>
