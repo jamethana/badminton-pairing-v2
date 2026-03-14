@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition, useCallback } from "react";
+import { useState, useMemo, useTransition, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import CourtCard from "@/components/court-card";
 import { useSessionRealtime } from "@/hooks/use-session-realtime";
@@ -114,6 +114,17 @@ export default function CourtDashboardClient({
     if (data) setPairings(data as Pairing[]);
   }, [session.id]);
 
+  // Debounce the refetch so rapid bursts of game_results events (e.g. multiple
+  // courts finishing simultaneously) collapse into a single fetch.
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefetchPairings = useCallback(() => {
+    if (refetchTimerRef.current !== null) clearTimeout(refetchTimerRef.current);
+    refetchTimerRef.current = setTimeout(() => {
+      refetchTimerRef.current = null;
+      void refetchPairings();
+    }, 200);
+  }, [refetchPairings]);
+
   useSessionRealtime(session.id, {
     onSession: (row) => {
       setSessionStatus(row.status as SessionStatus);
@@ -156,7 +167,7 @@ export default function CourtDashboardClient({
     onGameResults: (_, row) => {
       setPairings((prev) => {
         if (!prev.some((p) => p.id === row.pairing_id)) return prev;
-        void refetchPairings();
+        debouncedRefetchPairings();
         return prev;
       });
     },
