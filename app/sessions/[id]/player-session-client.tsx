@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getSkillColor } from "@/components/skill-bar";
 import { useSessionRealtime } from "@/hooks/use-session-realtime";
 import { createClient } from "@/lib/supabase/client";
@@ -56,7 +58,7 @@ function SmallAvatar({
           className="h-full w-full object-cover"
         />
       ) : (
-        <span className="text-[10px] font-semibold text-gray-500">{initial}</span>
+        <span className="text-xs font-semibold text-gray-500">{initial}</span>
       )}
     </div>
   );
@@ -685,37 +687,62 @@ export default function PlayerSessionClient({
         {/* Tabs skeleton */}
         <div className="flex border-b bg-white rounded-t-xl overflow-hidden">
           <div className="flex-1 py-3 flex items-center justify-center">
-            <div className="h-4 w-10 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
+            <Skeleton className="h-4 w-10" />
           </div>
           <div className="flex-1 py-3 flex items-center justify-center">
-            <div className="h-4 w-20 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          <div className="flex-1 py-3 flex items-center justify-center">
+            <Skeleton className="h-4 w-16" />
           </div>
         </div>
 
         {/* My Status card skeleton */}
         <div className="rounded-xl border bg-white p-4 space-y-3">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <div className="h-5 w-24 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
-              <div className="h-3 w-32 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-3 w-32" />
             </div>
-            <div className="h-[44px] w-full rounded-full bg-gray-200 animate-pulse motion-reduce:animate-none sm:w-20" />
+            <Skeleton className="h-[44px] w-full rounded-full sm:w-28" />
+          </div>
+          {/* Green current match block placeholder */}
+          <div className="mt-1 rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+            <Skeleton className="h-4 w-48" />
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <Skeleton className="h-4 w-6 mx-auto" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+            <Skeleton className="h-[44px] w-full rounded-lg" />
           </div>
         </div>
 
         {/* Courts skeleton */}
         <div className="rounded-xl border bg-white p-4 space-y-3">
-          <div className="h-5 w-16 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
+          <Skeleton className="h-5 w-16" />
           {Array.from({ length: 2 }).map((_, i) => (
             <div
               key={i}
               className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
             >
               <div className="space-y-1">
-                <div className="h-4 w-40 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
-                <div className="h-3 w-28 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-28" />
               </div>
-              <div className="h-7 w-20 rounded-full bg-gray-200 animate-pulse motion-reduce:animate-none" />
+              <Skeleton className="h-7 w-20 rounded-full" />
             </div>
           ))}
         </div>
@@ -777,17 +804,19 @@ export default function PlayerSessionClient({
                   )}
                 </p>
               </div>
-              <button
+              <Button
+                variant="ghost"
                 onClick={isCompleted ? undefined : handleToggleActive}
+                disabled={isCompleted}
                 className={cn(
-                  "flex min-h-[44px] w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold sm:w-auto",
+                  "min-h-[44px] w-full rounded-full px-5 py-2.5 text-sm font-semibold sm:w-auto",
                   mySlot.is_active
                     ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
                     : "bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-700"
                 )}
               >
                 {mySlot.is_active ? "Active ✓" : "Inactive – Tap to join"}
-              </button>
+              </Button>
             </div>
 
             {!myCurrentGame && !isCompleted && mySlot.is_active && (
@@ -816,7 +845,7 @@ export default function PlayerSessionClient({
               const pB2 = getPlayer(myCurrentGame.team_b_player_2);
               return (
               <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
-                <p className="mb-1.5 text-xs font-semibold text-green-700">
+                <p className="mb-1.5 text-sm font-semibold text-green-700">
                   🏸 Now playing on Court {myCurrentGame.court_number}! (Team {myTeam})
                 </p>
                 <div className="flex flex-col gap-1.5 text-sm text-gray-700">
@@ -845,14 +874,15 @@ export default function PlayerSessionClient({
                   </div>
                 </div>
                 {canRecordResult && (
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() =>
                       setResultModal({ pairingId: myCurrentGame.id, courtNumber: myCurrentGame.court_number })
                     }
-                    className="mt-2 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 sm:w-auto"
+                    className="mt-2 min-h-[44px] w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 hover:text-white sm:w-auto"
                   >
                     Record Result
-                  </button>
+                  </Button>
                 )}
               </div>
               );
