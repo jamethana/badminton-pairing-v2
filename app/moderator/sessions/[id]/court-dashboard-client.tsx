@@ -13,7 +13,7 @@ import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session
 import { getDeletedUserPlaceholder } from "@/lib/utils/deleted-user";
 import { cn } from "@/lib/utils";
 import { getSkillColor } from "@/components/skill-bar";
-import type { Tables, SessionStatus } from "@/types/database";
+import type { Tables, SessionStatus, PairingRule } from "@/types/database";
 
 type Pairing = Tables<"pairings"> & {
   game_results?: Tables<"game_results"> | null;
@@ -38,6 +38,8 @@ interface Props {
     show_skill_level_pills: boolean;
     allow_player_add_remove_courts: boolean;
     allow_player_access_invite_qr: boolean;
+    pairing_rule: PairingRule;
+    max_partner_skill_level_gap: number;
   };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
@@ -62,6 +64,9 @@ export default function CourtDashboardClient({
   const [statusSaving, setStatusSaving] = useState(false);
   const [showSkillLevelPills, setShowSkillLevelPills] = useState(session.show_skill_level_pills);
   const [showSkillLevelPillsSaving, setShowSkillLevelPillsSaving] = useState(false);
+  const [pairingRule, setPairingRule] = useState<PairingRule>(session.pairing_rule ?? "least_played");
+  const [maxPartnerSkillLevelGap, setMaxPartnerSkillLevelGap] = useState(session.max_partner_skill_level_gap ?? 2);
+  const [pairingSaving, setPairingSaving] = useState(false);
   const [addCourtLoading, setAddCourtLoading] = useState(false);
   const [removingCourtNumber, setRemovingCourtNumber] = useState<number | null>(null);
 
@@ -113,7 +118,7 @@ export default function CourtDashboardClient({
     const supabase = createClient();
     const { data } = await supabase
       .from("sessions")
-      .select("status, num_courts, court_names, show_skill_level_pills")
+      .select("status, num_courts, court_names, show_skill_level_pills, pairing_rule, max_partner_skill_level_gap")
       .eq("id", session.id)
       .single();
     if (data) {
@@ -121,6 +126,8 @@ export default function CourtDashboardClient({
       setNumCourts(data.num_courts);
       setCourtNames(data.court_names ?? {});
       setShowSkillLevelPills(data.show_skill_level_pills ?? true);
+      setPairingRule((data.pairing_rule as PairingRule) ?? "least_played");
+      setMaxPartnerSkillLevelGap(data.max_partner_skill_level_gap ?? 2);
     }
   }, [session.id]);
 
@@ -1192,6 +1199,111 @@ export default function CourtDashboardClient({
               })}
             </div>
             {showSkillLevelPillsSaving && (
+              <p className="mt-1.5 text-xs text-gray-400">Saving…</p>
+            )}
+          </div>
+
+          {/* Pairing settings */}
+          <div className="rounded-xl border bg-white p-4">
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">Pairing</h3>
+            <p className="mb-4 text-xs text-gray-400">
+              Controls how the auto-pairing algorithm picks players for each court.
+            </p>
+
+            {/* Player selection priority */}
+            <div className="mb-4 space-y-1.5">
+              <p className="mb-2 text-sm font-medium text-gray-700">Player selection priority</p>
+              <div
+                className={cn(
+                  "flex rounded-lg border border-gray-200 overflow-hidden",
+                  pairingSaving && "opacity-60 pointer-events-none"
+                )}
+              >
+                {(
+                  [
+                    { value: "least_played" as const, label: "Fewest games" },
+                    { value: "longest_wait" as const, label: "Longest wait" },
+                    { value: "balanced" as const, label: "Balanced" },
+                  ] as const
+                ).map(({ value, label }, idx) => {
+                  const isSelected = pairingRule === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={pairingSaving || isSelected}
+                      onClick={async () => {
+                        if (pairingRule === value) return;
+                        const prev = pairingRule;
+                        setPairingRule(value);
+                        setPairingSaving(true);
+                        const res = await fetch(`/api/sessions/${session.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ pairing_rule: value }),
+                        });
+                        setPairingSaving(false);
+                        if (!res.ok) setPairingRule(prev);
+                      }}
+                      className={cn(
+                        "flex-1 min-w-0 px-2 py-2 text-xs font-medium text-center transition-colors disabled:cursor-not-allowed",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+                        idx > 0 && "border-l border-gray-200",
+                        isSelected
+                          ? "bg-green-600 text-white"
+                          : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-500">
+                {pairingRule === "least_played" && "Prioritise players who have played the fewest matches this session."}
+                {pairingRule === "longest_wait" && "Prioritise players who have been sitting out the longest."}
+                {pairingRule === "balanced" && "Blend both — equal weight on fewest matches and longest wait."}
+              </p>
+            </div>
+
+            {/* Max partner skill gap */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-700">Max partner skill gap</p>
+                <span className="text-sm font-semibold text-green-700">
+                  {maxPartnerSkillLevelGap === 10 ? "Any" : `±${maxPartnerSkillLevelGap}`}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={maxPartnerSkillLevelGap}
+                disabled={pairingSaving}
+                onChange={async (e) => {
+                  const next = parseInt(e.target.value);
+                  const prev = maxPartnerSkillLevelGap;
+                  setMaxPartnerSkillLevelGap(next);
+                  setPairingSaving(true);
+                  const res = await fetch(`/api/sessions/${session.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ max_partner_skill_level_gap: next }),
+                  });
+                  setPairingSaving(false);
+                  if (!res.ok) setMaxPartnerSkillLevelGap(prev);
+                }}
+                className="w-full accent-green-600 disabled:opacity-60"
+              />
+              <p className="text-xs text-gray-500">
+                {maxPartnerSkillLevelGap === 10
+                  ? "No restriction — any two players can be paired as partners."
+                  : `Partners must be within ${maxPartnerSkillLevelGap} skill level${maxPartnerSkillLevelGap === 1 ? "" : "s"} of each other (scale 1–10).`}
+              </p>
+            </div>
+
+            {pairingSaving && (
               <p className="mt-1.5 text-xs text-gray-400">Saving…</p>
             )}
           </div>
