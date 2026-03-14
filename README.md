@@ -132,11 +132,27 @@ After your first login via LINE:
 
 ### Pairing Algorithm
 
-The `lib/algorithms/pairing.ts` algorithm selects 4 players per court by scoring candidates on:
+The `lib/algorithms/pairing.ts` algorithm is a pure, deterministic function that selects 4 players per court and assigns them to two teams. It balances four concerns: (a) playing enough, (b) not waiting too long, (c) fair skill matchups, and (d) variety in partners and opponents.
 
-- **Sitting priority** (weight 3): players who sat longest get preference
-- **Match count fairness** (weight 2): players who played fewer games
-- **Skill balance**: teams are formed to minimize skill gap
-- **Partner/opponent variety**: avoids repeating past pairings
+**Scoring model:** Every candidate assignment is scored 0–1 using four independently normalised signals combined with rule-specific weights:
 
-The best 4 players are split into balanced teams, automatically suggested to the moderator who can then swap any player before confirming.
+| Signal | What it measures | Normalisation |
+|--------|------------------|---------------|
+| `wait` | Sum of `2^gamesSinceLastPlayed` for the 4 players (long waits matter more) | Divided by max wait in pool |
+| `fairness` | Inverse of total matches played (less-played = higher score) | Divided by max played in pool |
+| `balance` | How close the two team rating sums are | Normalised by realistic max team-sum gap in pool |
+| `variety` | Penalises repeated partners (×2) and opponents (×1), using counts | Capped at 8 repeat-units = 0 |
+
+**Rule weight profiles** (all sum to 1.0):
+
+| Rule | wait | fairness | balance | variety |
+|------|-----|----------|---------|---------|
+| `least_played` | 0.10 | 0.50 | 0.25 | 0.15 |
+| `longest_wait` | 0.50 | 0.15 | 0.20 | 0.15 |
+| `balanced` | 0.25 | 0.25 | 0.30 | 0.20 |
+
+**Full enumeration:** All C(n,4) combinations × 3 team splits are evaluated over the available pool (no sort-then-cut). For typical sessions (≤30 bench players), this stays under ~5ms in JS.
+
+**`maxPartnerSkillLevelGap`:** Hard filter — violations are skipped. If no valid combination exists, the constraint is relaxed (gap+1, etc.) until one is found; empty courts are worse than a slightly mismatched pairing.
+
+Run `npm run test` to execute the pairing algorithm unit tests.

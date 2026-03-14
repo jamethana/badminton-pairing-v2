@@ -21,9 +21,21 @@ export interface PairingOptions {
   maxPartnerSkillLevelGap?: number;
 }
 
+/** Rule weight profiles (wait, fairness, balance, variety) — all sum to 1.0 */
+const WEIGHTS: Record<PairingRule, [number, number, number, number]> = {
+  least_played: [0.1, 0.5, 0.25, 0.15],
+  longest_wait: [0.5, 0.15, 0.2, 0.15],
+  balanced: [0.25, 0.25, 0.3, 0.2],
+};
+
+const MAX_SKILL_GAP_CAP = 10;
+
 /**
  * Generates a pairing suggestion for a given court.
- * Returns the 4 selected players and their team assignment, or null if not enough players.
+ * Pure, deterministic function. Returns the highest-scoring assignment, or null if not enough players.
+ *
+ * Scoring: four 0–1 normalised signals (wait, fairness, balance, variety) combined with rule-specific weights.
+ * Full enumeration over all C(n,4)×3 combinations; maxPartnerSkillLevelGap is a hard filter with graceful fallback.
  */
 export function generatePairing(
   activePlayers: UserRow[],
@@ -41,41 +53,63 @@ export function generatePairing(
   const playerIds = available.map((p) => p.id);
   const statsMap = computePlayerStats(allPairings, playerIds);
 
-  // Sort candidates according to the selected pairing rule.
-  const sorted = [...available].sort((a, b) => {
-    const sa = statsMap.get(a.id)!;
-    const sb = statsMap.get(b.id)!;
+  const { partnerCount, opponentCount } = buildPartnerOpponentCounts(allPairings, activePlayers);
 
-    if (pairingRule === "least_played") {
-      // Primary: fewest matches played (ascending); tiebreak: longest wait (descending)
-      if (sa.matchesPlayed !== sb.matchesPlayed) return sa.matchesPlayed - sb.matchesPlayed;
-      return sb.gamesSinceLastPlayed - sa.gamesSinceLastPlayed;
+  const poolContext = computePoolContext(available, statsMap);
+
+  const weights = WEIGHTS[pairingRule];
+
+  let best: TeamAssignment | null = null;
+  let bestScore = -Infinity;
+
+  for (let gap = maxPartnerSkillLevelGap; gap <= MAX_SKILL_GAP_CAP; gap++) {
+    const result = findBestAssignment(
+      available,
+      statsMap,
+      partnerCount,
+      opponentCount,
+      poolContext,
+      weights,
+      gap
+    );
+    if (result) {
+      best = result;
+      bestScore = result.score;
+      break;
     }
-
-    if (pairingRule === "longest_wait") {
-      // Primary: longest sitting time (descending); tiebreak: fewest matches (ascending)
-      if (sb.gamesSinceLastPlayed !== sa.gamesSinceLastPlayed) {
-        return sb.gamesSinceLastPlayed - sa.gamesSinceLastPlayed;
-      }
-      return sa.matchesPlayed - sb.matchesPlayed;
-    }
-
-    // "balanced": equal weight on matches played and wait time
-    const scoreA = sa.gamesSinceLastPlayed * 3 - sa.matchesPlayed * 3;
-    const scoreB = sb.gamesSinceLastPlayed * 3 - sb.matchesPlayed * 3;
-    return scoreB - scoreA;
-  });
-
-  // Pick top 8 candidates (or all if fewer), then find best 4-player combo
-  const candidates = sorted.slice(0, Math.min(8, sorted.length));
-
-  // Build partner/opponent history maps
-  const partnerHistory = new Map<string, Set<string>>();
-  const opponentHistory = new Map<string, Set<string>>();
-  for (const p of activePlayers) {
-    partnerHistory.set(p.id, new Set());
-    opponentHistory.set(p.id, new Set());
   }
+
+  if (!best) {
+    best = findBestAssignment(
+      available,
+      statsMap,
+      partnerCount,
+      opponentCount,
+      poolContext,
+      weights,
+      null
+    );
+  }
+
+  void courtNumber;
+  return best;
+}
+
+function buildPartnerOpponentCounts(
+  allPairings: Pairing[],
+  activePlayers: UserRow[]
+): {
+  partnerCount: Map<string, Map<string, number>>;
+  opponentCount: Map<string, Map<string, number>>;
+} {
+  const partnerCount = new Map<string, Map<string, number>>();
+  const opponentCount = new Map<string, Map<string, number>>();
+
+  for (const p of activePlayers) {
+    partnerCount.set(p.id, new Map());
+    opponentCount.set(p.id, new Map());
+  }
+
   for (const pairing of allPairings) {
     if (pairing.status === "voided") continue;
     const teamA = [pairing.team_a_player_1, pairing.team_a_player_2].filter(
@@ -85,33 +119,82 @@ export function generatePairing(
       (id): id is string => id != null
     );
 
-    if (teamA.length === 2 && partnerHistory.has(teamA[0]) && partnerHistory.has(teamA[1])) {
-      partnerHistory.get(teamA[0])!.add(teamA[1]);
-      partnerHistory.get(teamA[1])!.add(teamA[0]);
+    if (teamA.length === 2 && partnerCount.has(teamA[0]) && partnerCount.has(teamA[1])) {
+      incCount(partnerCount, teamA[0], teamA[1]);
+      incCount(partnerCount, teamA[1], teamA[0]);
     }
-    if (teamB.length === 2 && partnerHistory.has(teamB[0]) && partnerHistory.has(teamB[1])) {
-      partnerHistory.get(teamB[0])!.add(teamB[1]);
-      partnerHistory.get(teamB[1])!.add(teamB[0]);
+    if (teamB.length === 2 && partnerCount.has(teamB[0]) && partnerCount.has(teamB[1])) {
+      incCount(partnerCount, teamB[0], teamB[1]);
+      incCount(partnerCount, teamB[1], teamB[0]);
     }
     for (const a of teamA) {
       for (const b of teamB) {
-        if (opponentHistory.has(a) && opponentHistory.has(b)) {
-          opponentHistory.get(a)!.add(b);
-          opponentHistory.get(b)!.add(a);
+        if (opponentCount.has(a) && opponentCount.has(b)) {
+          incCount(opponentCount, a, b);
+          incCount(opponentCount, b, a);
         }
       }
     }
   }
 
-  let bestScore = -Infinity;
-  const topAssignments: TeamAssignment[] = [];
+  return { partnerCount, opponentCount };
+}
 
-  const n = candidates.length;
+function incCount(map: Map<string, Map<string, number>>, a: string, b: string): void {
+  const inner = map.get(a)!;
+  inner.set(b, (inner.get(b) ?? 0) + 1);
+}
+
+interface PoolContext {
+  maxWaitRaw: number;
+  maxMatchesPlayed: number;
+  maxRatingSpread: number;
+}
+
+function computePoolContext(
+  available: UserRow[],
+  statsMap: Map<string, { matchesPlayed: number; gamesSinceLastPlayed: number }>
+): PoolContext {
+  const waitRaws = available
+    .map((p) => Math.pow(2, statsMap.get(p.id)?.gamesSinceLastPlayed ?? 0))
+    .sort((a, b) => b - a);
+  const maxWaitRaw =
+    waitRaws.length >= 4 ? waitRaws.slice(0, 4).reduce((s, v) => s + v, 0) : waitRaws.reduce((s, v) => s + v, 0) || 1;
+
+  const maxMatchesPlayed =
+    Math.max(0, ...available.map((p) => statsMap.get(p.id)?.matchesPlayed ?? 0)) || 1;
+
+  const sorted = [...available].sort((a, b) => a.skill_level - b.skill_level);
+  const maxRatingSpread =
+    sorted.length >= 4
+      ? sorted[sorted.length - 1].skill_level +
+        sorted[sorted.length - 2].skill_level -
+        sorted[0].skill_level -
+        sorted[1].skill_level
+      : 1;
+  const spread = Math.max(1, maxRatingSpread);
+
+  return { maxWaitRaw, maxMatchesPlayed, maxRatingSpread: spread };
+}
+
+function findBestAssignment(
+  available: UserRow[],
+  statsMap: Map<string, { matchesPlayed: number; gamesSinceLastPlayed: number }>,
+  partnerCount: Map<string, Map<string, number>>,
+  opponentCount: Map<string, Map<string, number>>,
+  poolContext: PoolContext,
+  weights: [number, number, number, number],
+  maxGap: number | null
+): TeamAssignment | null {
+  let best: TeamAssignment | null = null;
+  let bestScore = -Infinity;
+
+  const n = available.length;
   for (let i = 0; i < n - 3; i++) {
     for (let j = i + 1; j < n - 2; j++) {
       for (let k = j + 1; k < n - 1; k++) {
         for (let l = k + 1; l < n; l++) {
-          const group = [candidates[i], candidates[j], candidates[k], candidates[l]];
+          const group = [available[i], available[j], available[k], available[l]];
 
           const splits: [[number, number], [number, number]][] = [
             [[0, 1], [2, 3]],
@@ -125,29 +208,31 @@ export function generatePairing(
             const pC = group[b1];
             const pD = group[b2];
 
+            if (maxGap !== null) {
+              const gapA = Math.abs(pA.skill_level - pB.skill_level);
+              const gapB = Math.abs(pC.skill_level - pD.skill_level);
+              if (gapA > maxGap || gapB > maxGap) continue;
+            }
+
             const score = scoreAssignment(
-              pA, pB, pC, pD,
+              pA,
+              pB,
+              pC,
+              pD,
               statsMap,
-              partnerHistory,
-              opponentHistory,
-              pairingRule,
-              maxPartnerSkillLevelGap
+              partnerCount,
+              opponentCount,
+              poolContext,
+              weights
             );
 
             if (score > bestScore) {
               bestScore = score;
-              topAssignments.length = 0;
-              topAssignments.push({
+              best = {
                 teamA: [pA.id, pB.id],
                 teamB: [pC.id, pD.id],
                 score,
-              });
-            } else if (score === bestScore || score > bestScore - 5) {
-              topAssignments.push({
-                teamA: [pA.id, pB.id],
-                teamB: [pC.id, pD.id],
-                score,
-              });
+              };
             }
           }
         }
@@ -155,12 +240,7 @@ export function generatePairing(
     }
   }
 
-  void courtNumber;
-
-  if (topAssignments.length === 0) return null;
-
-  const randomIndex = Math.floor(Math.random() * topAssignments.length);
-  return topAssignments[randomIndex];
+  return best;
 }
 
 function scoreAssignment(
@@ -169,68 +249,50 @@ function scoreAssignment(
   b1: UserRow,
   b2: UserRow,
   statsMap: Map<string, { matchesPlayed: number; gamesSinceLastPlayed: number }>,
-  partnerHistory: Map<string, Set<string>>,
-  opponentHistory: Map<string, Set<string>>,
-  pairingRule: PairingRule,
-  maxPartnerSkillLevelGap: number
+  partnerCount: Map<string, Map<string, number>>,
+  opponentCount: Map<string, Map<string, number>>,
+  poolContext: PoolContext,
+  weights: [number, number, number, number]
 ): number {
-  let score = 0;
+  const { maxWaitRaw, maxMatchesPlayed, maxRatingSpread } = poolContext;
 
-  // Partner skill gap constraint — heavy penalty when gap exceeds the limit.
-  // maxPartnerSkillLevelGap === 10 means no restriction.
-  if (maxPartnerSkillLevelGap < 10) {
-    const gapA = Math.abs(a1.skill_level - a2.skill_level);
-    const gapB = Math.abs(b1.skill_level - b2.skill_level);
-    if (gapA > maxPartnerSkillLevelGap) score -= 500;
-    if (gapB > maxPartnerSkillLevelGap) score -= 500;
-  }
+  const gslp = (id: string) => statsMap.get(id)?.gamesSinceLastPlayed ?? 0;
+  const mp = (id: string) => statsMap.get(id)?.matchesPlayed ?? 0;
 
-  // 1. Skill balance across teams
-  const teamASkill = a1.skill_level + a2.skill_level;
-  const teamBSkill = b1.skill_level + b2.skill_level;
-  const skillDiff = Math.abs(teamASkill - teamBSkill);
-  score -= skillDiff * 10;
+  const waitRaw =
+    Math.pow(2, gslp(a1.id)) +
+    Math.pow(2, gslp(a2.id)) +
+    Math.pow(2, gslp(b1.id)) +
+    Math.pow(2, gslp(b2.id));
+  const wait = maxWaitRaw > 0 ? Math.min(1, waitRaw / maxWaitRaw) : 0;
 
-  // 2. Partner variety — prefer new partners
-  const newPartnerA = !partnerHistory.get(a1.id)?.has(a2.id) ? 1 : 0;
-  const newPartnerB = !partnerHistory.get(b1.id)?.has(b2.id) ? 1 : 0;
-  score += (newPartnerA + newPartnerB) * 5;
+  const fairnessRaw =
+    (maxMatchesPlayed - mp(a1.id)) +
+    (maxMatchesPlayed - mp(a2.id)) +
+    (maxMatchesPlayed - mp(b1.id)) +
+    (maxMatchesPlayed - mp(b2.id));
+  const fairnessDenom = 4 * maxMatchesPlayed;
+  const fairness = fairnessDenom > 0 ? Math.min(1, Math.max(0, fairnessRaw / fairnessDenom)) : 1;
 
-  // 3. Opponent variety — prefer new opponents
-  const opponentPairs = [
-    [a1.id, b1.id], [a1.id, b2.id], [a2.id, b1.id], [a2.id, b2.id],
-  ];
-  let newOpponents = 0;
-  for (const [x, y] of opponentPairs) {
-    if (!opponentHistory.get(x)?.has(y)) newOpponents++;
-  }
-  score += newOpponents * 2;
+  const teamASum = a1.skill_level + a2.skill_level;
+  const teamBSum = b1.skill_level + b2.skill_level;
+  const teamSumDiff = Math.abs(teamASum - teamBSum);
+  const balance = Math.min(1, Math.max(0, 1 - teamSumDiff / maxRatingSpread));
 
-  // 4. Fairness/wait bonus — weights vary by pairing rule
-  const sa1 = statsMap.get(a1.id)?.gamesSinceLastPlayed ?? 0;
-  const sa2 = statsMap.get(a2.id)?.gamesSinceLastPlayed ?? 0;
-  const sb1 = statsMap.get(b1.id)?.gamesSinceLastPlayed ?? 0;
-  const sb2 = statsMap.get(b2.id)?.gamesSinceLastPlayed ?? 0;
+  const getPartnerCount = (x: string, y: string) => partnerCount.get(x)?.get(y) ?? 0;
+  const getOpponentCount = (x: string, y: string) => opponentCount.get(x)?.get(y) ?? 0;
 
-  const ma1 = statsMap.get(a1.id)?.matchesPlayed ?? 0;
-  const ma2 = statsMap.get(a2.id)?.matchesPlayed ?? 0;
-  const mb1 = statsMap.get(b1.id)?.matchesPlayed ?? 0;
-  const mb2 = statsMap.get(b2.id)?.matchesPlayed ?? 0;
+  const partnerRepeat =
+    getPartnerCount(a1.id, a2.id) + getPartnerCount(b1.id, b2.id);
+  const opponentRepeat =
+    getOpponentCount(a1.id, b1.id) +
+    getOpponentCount(a1.id, b2.id) +
+    getOpponentCount(a2.id, b1.id) +
+    getOpponentCount(a2.id, b2.id);
 
-  const totalWait = sa1 + sa2 + sb1 + sb2;
-  const totalPlayed = ma1 + ma2 + mb1 + mb2;
+  const repeatUnits = 2 * partnerRepeat + opponentRepeat;
+  const variety = repeatUnits >= 8 ? 0 : 1 - repeatUnits / 8;
 
-  if (pairingRule === "least_played") {
-    score += totalWait * 1;
-    score -= totalPlayed * 5;
-  } else if (pairingRule === "longest_wait") {
-    score += totalWait * 5;
-    score -= totalPlayed * 1;
-  } else {
-    // balanced
-    score += totalWait * 3;
-    score -= totalPlayed * 3;
-  }
-
-  return score;
+  const [wWait, wFair, wBal, wVar] = weights;
+  return wWait * wait + wFair * fairness + wBal * balance + wVar * variety;
 }

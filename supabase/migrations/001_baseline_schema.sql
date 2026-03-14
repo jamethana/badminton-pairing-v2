@@ -10,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA extensions;
 -- ── Enums ─────────────────────────────────────────────────────────
 CREATE TYPE public.session_status AS ENUM ('draft', 'active', 'completed');
 CREATE TYPE public.pairing_status AS ENUM ('in_progress', 'completed', 'voided');
+CREATE TYPE public.pairing_rule   AS ENUM ('least_played', 'longest_wait', 'balanced');
 CREATE TYPE public.winner_team    AS ENUM ('team_a', 'team_b');
 
 -- ── Functions ─────────────────────────────────────────────────────
@@ -78,6 +79,9 @@ CREATE TABLE public.sessions (
   allow_player_record_any_result  BOOLEAN               NOT NULL DEFAULT false,
   allow_player_add_remove_courts  BOOLEAN               NOT NULL DEFAULT false,
   allow_player_access_invite_qr   BOOLEAN               NOT NULL DEFAULT true,
+  pairing_rule                    public.pairing_rule    NOT NULL DEFAULT 'least_played',
+  max_partner_skill_level_gap    INTEGER               NOT NULL DEFAULT 2
+    CHECK (max_partner_skill_level_gap >= 1 AND max_partner_skill_level_gap <= 10),
   created_by                      UUID                  REFERENCES public.users(id) ON DELETE SET NULL,
   created_at                      TIMESTAMPTZ           NOT NULL DEFAULT now(),
   updated_at                      TIMESTAMPTZ           NOT NULL DEFAULT now()
@@ -130,6 +134,9 @@ CREATE TABLE public.moderator_default_session_settings (
   show_skill_level_pills          BOOLEAN     NOT NULL DEFAULT true,
   allow_player_add_remove_courts  BOOLEAN     NOT NULL DEFAULT false,
   allow_player_access_invite_qr   BOOLEAN     NOT NULL DEFAULT true,
+  pairing_rule                    public.pairing_rule NOT NULL DEFAULT 'least_played',
+  max_partner_skill_level_gap    INTEGER     NOT NULL DEFAULT 2
+    CHECK (max_partner_skill_level_gap >= 1 AND max_partner_skill_level_gap <= 10),
   updated_at                      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
