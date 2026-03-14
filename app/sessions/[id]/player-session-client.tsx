@@ -448,6 +448,10 @@ export default function PlayerSessionClient({
   const myStats = mySlot ? statsMap.get(currentUserId) : null;
   const inProgressPairings = useMemo(() => pairings.filter((p) => p.status === "in_progress"), [pairings]);
   const completedPairings = useMemo(() => pairings.filter((p) => p.status === "completed"), [pairings]);
+  const completedPairingsNewestFirst = useMemo(
+    () => [...completedPairings].sort((a, b) => b.sequence_number - a.sequence_number),
+    [completedPairings]
+  );
 
   const myCurrentGame = useMemo(
     () =>
@@ -974,7 +978,7 @@ export default function PlayerSessionClient({
 
       {activeTab === "history" && (
         <SessionResultsList
-          pairings={completedPairings}
+          pairings={completedPairingsNewestFirst}
           getPlayer={getPlayer}
         />
       )}

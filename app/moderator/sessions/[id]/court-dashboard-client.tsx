@@ -676,6 +676,10 @@ export default function CourtDashboardClient({
     : null;
 
   const completedPairings = pairings.filter((p) => p.status === "completed");
+  const completedPairingsNewestFirst = useMemo(
+    () => [...completedPairings].sort((a, b) => b.sequence_number - a.sequence_number),
+    [completedPairings]
+  );
   const avgAvailSkill =
     availablePlayers.length > 0
       ? (availablePlayers.reduce((s, p) => s + p.skill_level, 0) / availablePlayers.length).toFixed(1)
@@ -1169,7 +1173,7 @@ export default function CourtDashboardClient({
 
       {activeTab === "history" && (
         <SessionResultsList
-          pairings={completedPairings}
+          pairings={completedPairingsNewestFirst}
           getPlayer={getPlayerById}
         />
       )}

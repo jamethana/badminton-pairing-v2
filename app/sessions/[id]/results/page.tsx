@@ -24,7 +24,7 @@ export default async function PlayerSessionResultsPage({
       .select(`*, game_results(*)`)
       .eq("session_id", id)
       .eq("status", "completed")
-      .order("sequence_number", { ascending: true }),
+      .order("sequence_number", { ascending: false }),
     supabase
       .from("session_players")
       .select(`id, is_active, users(*)`)
