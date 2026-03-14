@@ -40,9 +40,6 @@ export interface CareerStats {
   avgGamesPerSession: number;
   topPartners: PartnerStat[];
   topRivals: RivalStat[];
-  uniquePartners: number;
-  uniqueOpponents: number;
-  uniquePlayersMet: number;
   sessionBreakdown: SessionStat[];
   /** Most recent N games in descending order */
   recentGames: PairingFull[];
@@ -179,10 +176,6 @@ export function computeCareerStats(
       wins: rs.wins,
     }));
 
-  const uniquePartners = partnerMap.size;
-  const uniqueOpponents = rivalMap.size;
-  const uniquePlayersMet = new Set([...partnerMap.keys(), ...rivalMap.keys()]).size;
-
   return {
     played,
     wins,
@@ -194,9 +187,6 @@ export function computeCareerStats(
     avgGamesPerSession,
     topPartners,
     topRivals,
-    uniquePartners,
-    uniqueOpponents,
-    uniquePlayersMet,
     sessionBreakdown,
     recentGames: pairings.slice(0, 10),
   };

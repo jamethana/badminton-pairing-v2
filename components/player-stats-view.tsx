@@ -156,9 +156,6 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
     avgGamesPerSession,
     topPartners,
     topRivals,
-    uniquePartners,
-    uniqueOpponents,
-    uniquePlayersMet,
     sessionBreakdown,
     recentGames,
   } = stats;
@@ -221,29 +218,6 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
         <StatCard label="Sessions" value={sessionCount} />
         <StatCard label="Avg Games / Session" value={avgGamesPerSession} />
         <StatCard label="Total Wins" value={wins} />
-      </div>
-
-      {/* Social stats strip */}
-      <div
-        className="flex flex-wrap items-center gap-x-1 gap-y-0.5 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm"
-        aria-label={`Social: ${uniquePartners} partners, ${uniqueOpponents} opponents, ${uniquePlayersMet} players met`}
-      >
-        <span className="font-semibold text-gray-600">Social</span>
-        <span className="text-gray-300">·</span>
-        <span className="text-gray-800">
-          <span className="font-semibold text-gray-900">{uniquePartners}</span>{" "}
-          partner{uniquePartners !== 1 ? "s" : ""}
-        </span>
-        <span className="text-gray-300">·</span>
-        <span className="text-gray-800">
-          <span className="font-semibold text-gray-900">{uniqueOpponents}</span>{" "}
-          opponent{uniqueOpponents !== 1 ? "s" : ""}
-        </span>
-        <span className="text-gray-300">·</span>
-        <span className="text-gray-800">
-          <span className="font-semibold text-gray-900">{uniquePlayersMet}</span>{" "}
-          met
-        </span>
       </div>
 
       {/* Top Partners + Top Rivals side by side */}
