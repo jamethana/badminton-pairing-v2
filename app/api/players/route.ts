@@ -36,7 +36,7 @@ export async function GET() {
 
 const CreatePlayerSchema = z.object({
   display_name: z.string().trim().min(1).max(80),
-  skill_level: z.number().int().min(1).max(10).default(5),
+  skill_level: z.number().int().min(1).max(10).default(3),
 });
 
 export async function POST(request: NextRequest) {
