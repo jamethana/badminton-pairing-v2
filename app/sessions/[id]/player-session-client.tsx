@@ -121,7 +121,8 @@ export default function PlayerSessionClient({
       setSessionUpdatedToast(true);
       setTimeout(() => setSessionUpdatedToast(false), 3000);
     },
-    onSubscribed: () => {
+    onSubscribed: (isResubscribe) => {
+      if (!isResubscribe) return;
       void refetchSessionPlayers();
       void refetchPairings();
     },

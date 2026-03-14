@@ -26,85 +26,74 @@ export default async function SessionsPage({ searchParams }: PageProps) {
 
   const supabase = await createClient();
 
-  // Fetch distinct creators: get all non-null created_by IDs present in sessions,
-  // then resolve their display names for the filter dropdown.
-  const { data: sessionCreatorRows } = await supabase
+  let query = supabase.from("sessions").select("*").order("date", { ascending: false });
+  if (createdBy) query = query.eq("created_by", createdBy);
+  if (status && (status === "draft" || status === "active" || status === "completed")) {
+    query = query.eq("status", status);
+  }
+  if (name) query = query.ilike("name", `%${name}%`);
+  if (location) query = query.ilike("location", `%${location}%`);
+
+  const creatorIdsPromise = supabase
     .from("sessions")
     .select("created_by")
     .not("created_by", "is", null);
 
+  const [sessionsRes, creatorIdsRes] = await Promise.all([query, creatorIdsPromise]);
+
+  const sessions = sessionsRes.data ?? [];
   const uniqueCreatorIds = [
     ...new Set(
-      (sessionCreatorRows ?? [])
+      (creatorIdsRes.data ?? [])
         .map((r) => r.created_by)
         .filter((id): id is string => id !== null)
     ),
   ];
+  const sessionIds = sessions.map((s) => s.id);
 
-  let creators: SessionCreator[] = [];
-  if (uniqueCreatorIds.length > 0) {
-    const { data: creatorUsers } = await supabase
-      .from("users")
-      .select("id, display_name")
-      .in("id", uniqueCreatorIds)
-      .order("display_name");
-    creators = (creatorUsers ?? []).map((u) => ({
-      id: u.id,
-      display_name: u.display_name,
-    }));
-  }
+  const [creatorUsersRes, playerRowsRes] = await Promise.all([
+    uniqueCreatorIds.length > 0
+      ? supabase
+          .from("users")
+          .select("id, display_name")
+          .in("id", uniqueCreatorIds)
+          .order("display_name")
+      : Promise.resolve({ data: [] as { id: string; display_name: string }[] }),
+    sessionIds.length > 0
+      ? supabase
+          .from("session_players")
+          .select("session_id, users(id, display_name, picture_url)")
+          .in("session_id", sessionIds)
+          .eq("is_active", true)
+      : Promise.resolve({ data: [] }),
+  ]);
 
+  const creators: SessionCreator[] = (creatorUsersRes.data ?? []).map((u) => ({
+    id: u.id,
+    display_name: u.display_name,
+  }));
   const creatorNameById = new Map(creators.map((c) => [c.id, c.display_name]));
 
-  // Build filtered sessions query
-  let query = supabase.from("sessions").select("*").order("date", { ascending: false });
-
-  if (createdBy) {
-    query = query.eq("created_by", createdBy);
-  }
-  if (status && (status === "draft" || status === "active" || status === "completed")) {
-    query = query.eq("status", status);
-  }
-  if (name) {
-    query = query.ilike("name", `%${name}%`);
-  }
-  if (location) {
-    query = query.ilike("location", `%${location}%`);
-  }
-
-  const { data: sessions } = await query;
-
-  const hasFilters = !!(createdBy || status || name || location);
-
-  // Fetch joined players per session for count and avatar preview
-  const sessionIds = (sessions ?? []).map((s) => s.id);
   const playerCountMap = new Map<string, number>();
   const playerSampleMap = new Map<string, PlayerLite[]>();
+  for (const row of playerRowsRes.data ?? []) {
+    const sid = row.session_id;
+    const usr = row.users;
+    if (!usr) continue;
 
-  if (sessionIds.length > 0) {
-    const { data: playerRows } = await supabase
-      .from("session_players")
-      .select("session_id, users(id, display_name, picture_url)")
-      .in("session_id", sessionIds)
-      .eq("is_active", true);
-
-    for (const row of playerRows ?? []) {
-      const sid = row.session_id;
-      const user = row.users;
-      if (!user) continue;
-
-      playerCountMap.set(sid, (playerCountMap.get(sid) ?? 0) + 1);
-      const sample = playerSampleMap.get(sid) ?? [];
-      if (sample.length < 4) {
-        sample.push({
-          id: user.id,
-          display_name: user.display_name,
-          picture_url: user.picture_url,
-        });
-        playerSampleMap.set(sid, sample);
-      }
+    playerCountMap.set(sid, (playerCountMap.get(sid) ?? 0) + 1);
+    const sample = playerSampleMap.get(sid) ?? [];
+    if (sample.length < 4) {
+      sample.push({
+        id: usr.id,
+        display_name: usr.display_name,
+        picture_url: usr.picture_url,
+      });
+      playerSampleMap.set(sid, sample);
     }
   }
+
+  const hasFilters = !!(createdBy || status || name || location);
 
   return (
     <div>

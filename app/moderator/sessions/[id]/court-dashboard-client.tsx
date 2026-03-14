@@ -18,11 +18,14 @@ import type { Tables, SessionStatus } from "@/types/database";
 type Pairing = Tables<"pairings"> & {
   game_results?: Tables<"game_results"> | null;
 };
+type UserForPicker = Pick<
+  Tables<"users">,
+  "id" | "display_name" | "picture_url" | "skill_level" | "line_user_id"
+>;
 type SessionPlayer = Tables<"session_players"> & {
-  users: Tables<"users"> | null;
+  users: UserForPicker | null;
 };
 
-// quality-5: Narrowed prop type — only pass the fields this component actually uses
 interface Props {
   session: {
     id: string;
@@ -38,7 +41,7 @@ interface Props {
   };
   initialSessionPlayers: SessionPlayer[];
   initialPairings: Pairing[];
-  allUsers: Tables<"users">[];
+  allUsers: UserForPicker[];
 }
 
 export default function CourtDashboardClient({
@@ -206,7 +209,8 @@ export default function CourtDashboardClient({
       setSessionUpdatedToast(true);
       setTimeout(() => setSessionUpdatedToast(false), 3000);
     },
-    onSubscribed: () => {
+    onSubscribed: (isResubscribe) => {
+      if (!isResubscribe) return;
       void refetchSession();
       void refetchSessionPlayers();
       void refetchPairings();

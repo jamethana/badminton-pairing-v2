@@ -55,8 +55,11 @@ export interface UseSessionRealtimeCallbacks {
   onPairings?: (op: "INSERT" | "UPDATE" | "DELETE", payload: PairingRow) => void;
   onGameResults?: (op: "INSERT" | "UPDATE" | "DELETE", payload: GameResultRow) => void;
   onRemoteUpdate?: () => void;
-  /** Called when the channel becomes SUBSCRIBED (initial or after reconnect) and when the tab becomes visible again. Use to refetch full state. */
-  onSubscribed?: () => void;
+  /**
+   * Called when the channel becomes SUBSCRIBED (initial or after reconnect) and when the tab becomes visible again.
+   * @param isResubscribe - false on first subscribe (RSC already sent data; skip refetch). true on reconnect or visibility change (refetch to sync).
+   */
+  onSubscribed?: (isResubscribe: boolean) => void;
 }
 
 /**
@@ -76,6 +79,7 @@ export function useSessionRealtime(
     const supabase = createClient();
     const channelName = `session:${sessionId}`;
     let channel: RealtimeChannel | null = null;
+    let hasSubscribedRef = false;
 
     const notifyRemote = () => {
       callbacksRef.current.onRemoteUpdate?.();
@@ -150,12 +154,14 @@ export function useSessionRealtime(
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          callbacksRef.current.onSubscribed?.();
+          const isResubscribe = hasSubscribedRef;
+          hasSubscribedRef = true;
+          callbacksRef.current.onSubscribed?.(isResubscribe);
         }
       });
 
     const triggerOnSubscribed = () => {
-      callbacksRef.current.onSubscribed?.();
+      callbacksRef.current.onSubscribed?.(true);
     };
 
     let visibilityTimeoutId: ReturnType<typeof setTimeout> | null = null;

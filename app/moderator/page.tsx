@@ -22,7 +22,6 @@ export default async function ModeratorDashboard() {
   const activeSessions = sessions?.filter((s) => s.status === "active") ?? [];
   const upcomingSessions = sessions?.filter((s) => s.status === "draft") ?? [];
 
-  // Enrich sessions with creator display names
   const uniqueCreatorIds = [
     ...new Set(
       (sessions ?? [])
@@ -30,43 +29,41 @@ export default async function ModeratorDashboard() {
         .filter((id): id is string => id !== null)
     ),
   ];
-  let creatorNameById = new Map<string, string>();
-  if (uniqueCreatorIds.length > 0) {
-    const { data: creatorUsers } = await supabase
-      .from("users")
-      .select("id, display_name")
-      .in("id", uniqueCreatorIds);
-    creatorNameById = new Map(
-      (creatorUsers ?? []).map((u) => [u.id, u.display_name])
-    );
-  }
-  // Fetch joined players per session for count and avatar preview
   const sessionIds = (sessions ?? []).map((s) => s.id);
+
+  const [creatorUsersRes, playerRowsRes] = await Promise.all([
+    uniqueCreatorIds.length > 0
+      ? supabase.from("users").select("id, display_name").in("id", uniqueCreatorIds)
+      : Promise.resolve({ data: [] as { id: string; display_name: string }[] }),
+    sessionIds.length > 0
+      ? supabase
+          .from("session_players")
+          .select("session_id, users(id, display_name, picture_url)")
+          .in("session_id", sessionIds)
+          .eq("is_active", true)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const creatorNameById = new Map(
+    (creatorUsersRes.data ?? []).map((u) => [u.id, u.display_name])
+  );
+
   const playerCountMap = new Map<string, number>();
   const playerSampleMap = new Map<string, PlayerLite[]>();
+  for (const row of playerRowsRes.data ?? []) {
+    const sid = row.session_id;
+    const usr = row.users;
+    if (!usr) continue;
 
-  if (sessionIds.length > 0) {
-    const { data: playerRows } = await supabase
-      .from("session_players")
-      .select("session_id, users(id, display_name, picture_url)")
-      .in("session_id", sessionIds)
-      .eq("is_active", true);
-
-    for (const row of playerRows ?? []) {
-      const sid = row.session_id;
-      const user = row.users;
-      if (!user) continue;
-
-      playerCountMap.set(sid, (playerCountMap.get(sid) ?? 0) + 1);
-      const sample = playerSampleMap.get(sid) ?? [];
-      if (sample.length < 4) {
-        sample.push({
-          id: user.id,
-          display_name: user.display_name,
-          picture_url: user.picture_url,
-        });
-        playerSampleMap.set(sid, sample);
-      }
+    playerCountMap.set(sid, (playerCountMap.get(sid) ?? 0) + 1);
+    const sample = playerSampleMap.get(sid) ?? [];
+    if (sample.length < 4) {
+      sample.push({
+        id: usr.id,
+        display_name: usr.display_name,
+        picture_url: usr.picture_url,
+      });
+      playerSampleMap.set(sid, sample);
     }
   }
 

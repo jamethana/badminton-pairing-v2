@@ -23,7 +23,10 @@ export default async function SessionDashboardPage({
       .select(`*, game_results(*)`)
       .eq("session_id", id)
       .order("sequence_number", { ascending: true }),
-    supabase.from("users").select("*").order("display_name"),
+    supabase
+      .from("users")
+      .select("id, display_name, picture_url, skill_level, line_user_id")
+      .order("display_name"),
   ]);
 
   if (!sessionRes.data) notFound();
