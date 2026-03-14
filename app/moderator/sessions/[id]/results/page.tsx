@@ -14,7 +14,7 @@ export default async function SessionResultsPage({
   const supabase = await createClient();
 
   const [sessionRes, pairingsRes, playersRes] = await Promise.all([
-    supabase.from("sessions").select("*").eq("id", id).single(),
+    supabase.from("sessions").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("pairings")
       .select(`*, game_results(*)`)

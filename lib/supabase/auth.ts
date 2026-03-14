@@ -35,7 +35,7 @@ export const getCurrentUser = cache(async (): Promise<{
     .from("users")
     .select("*")
     .eq("id", appUserId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error("getCurrentUser DB error:", error);

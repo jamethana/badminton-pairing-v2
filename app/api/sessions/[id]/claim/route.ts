@@ -24,7 +24,7 @@ export async function POST(
     .from("sessions")
     .select("status")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }
@@ -45,7 +45,7 @@ export async function POST(
     .select(`*, users(line_user_id)`)
     .eq("id", parsed.data.session_player_id)
     .eq("session_id", id)
-    .single();
+    .maybeSingle();
 
   if (!slot) return NextResponse.json({ error: "Slot not found" }, { status: 404 });
 

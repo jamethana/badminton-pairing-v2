@@ -30,7 +30,7 @@ async function requireModerator() {
   if (!user) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), appUserId: null as string | null };
   const appUserId = getAppUserId(user);
   if (!appUserId) return { error: NextResponse.json({ error: "No app user" }, { status: 403 }), appUserId: null as string | null };
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
+  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle();
   if (!appUser?.is_moderator) return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), appUserId: null as string | null };
   return { error: null, appUserId };
 }

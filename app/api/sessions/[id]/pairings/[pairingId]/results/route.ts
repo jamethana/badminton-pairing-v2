@@ -24,13 +24,13 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   // Fetch pairing + session + user role in parallel
   const [{ data: pairing }, { data: appUser }, { data: session }] = await Promise.all([
-    supabase.from("pairings").select("*").eq("id", pairingId).eq("session_id", id).single(),
-    supabase.from("users").select("is_moderator").eq("id", appUserId).single(),
+    supabase.from("pairings").select("*").eq("id", pairingId).eq("session_id", id).maybeSingle(),
+    supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle(),
     supabase
       .from("sessions")
       .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result, status")
       .eq("id", id)
-      .single(),
+      .maybeSingle(),
   ]);
 
   if (!pairing) return NextResponse.json({ error: "Pairing not found" }, { status: 404 });

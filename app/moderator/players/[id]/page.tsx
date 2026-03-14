@@ -18,7 +18,7 @@ export default async function ModeratorPlayerStatsPage({
   const supabase = createAdminClient();
 
   const [playerRes, pairingsRes] = await Promise.all([
-    supabase.from("users").select("*").eq("id", playerId).single(),
+    supabase.from("users").select("*").eq("id", playerId).maybeSingle(),
     supabase
       .from("pairings")
       .select(`*, game_results(*), sessions(id, name, date)`)

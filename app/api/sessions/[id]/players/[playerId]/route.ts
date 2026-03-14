@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from("sessions")
     .select("status")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }
@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const body = await request.json();
 
   // Players can only toggle their own is_active; moderators can toggle anyone
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
+  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle();
   const isModerator = appUser?.is_moderator ?? false;
 
   // Get the session_player record
@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .select("user_id")
     .eq("id", playerId)
     .eq("session_id", id)
-    .single();
+    .maybeSingle();
 
   if (!sp) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -73,7 +73,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   const appUserId = user.user_metadata?.app_user_id as string | undefined;
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
+  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Prevent changes when the session is completed
@@ -81,7 +81,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     .from("sessions")
     .select("status")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }

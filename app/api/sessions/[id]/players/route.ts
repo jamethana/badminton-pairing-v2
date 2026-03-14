@@ -45,7 +45,7 @@ export async function POST(
   const appUserId = getAppUserId(user);
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
+  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Prevent changes when the session is completed
@@ -53,7 +53,7 @@ export async function POST(
     .from("sessions")
     .select("status")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }

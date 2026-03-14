@@ -50,12 +50,12 @@ export async function POST(
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
   const [{ data: appUser }, { data: session }] = await Promise.all([
-    supabase.from("users").select("is_moderator").eq("id", appUserId).single(),
+    supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle(),
     supabase
       .from("sessions")
       .select("allow_player_assign_empty_court, allow_player_record_own_result, allow_player_record_any_result, status, pairing_rule, max_partner_skill_level_gap")
       .eq("id", id)
-      .single(),
+      .maybeSingle(),
   ]);
 
   const isModerator = appUser?.is_moderator ?? false;

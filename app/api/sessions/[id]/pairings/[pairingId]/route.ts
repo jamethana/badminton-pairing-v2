@@ -12,7 +12,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const appUserId = user.user_metadata?.app_user_id as string | undefined;
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
+  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Prevent changes when the session is completed
@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from("sessions")
     .select("status")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }
@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .eq("id", pairingId)
     .eq("session_id", id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

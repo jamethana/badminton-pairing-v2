@@ -13,7 +13,7 @@ export default async function SessionDashboardPage({
   const supabase = await createClient();
 
   const [sessionRes, playersRes, pairingsRes, allUsersRes] = await Promise.all([
-    supabase.from("sessions").select("*").eq("id", id).single(),
+    supabase.from("sessions").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("session_players")
       .select(`*, users(*)`)

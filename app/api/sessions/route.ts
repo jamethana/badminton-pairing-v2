@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   const appUserId = getAppUserId(user);
   if (!appUserId) return NextResponse.json({ error: "No app user" }, { status: 403 });
 
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
+  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle();
   if (!appUser?.is_moderator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // quality-2: Guard against malformed JSON bodies

@@ -11,7 +11,7 @@ async function getAuthContext(supabase: Awaited<ReturnType<typeof createClient>>
     .from("users")
     .select("is_moderator")
     .eq("id", appUserId)
-    .single();
+    .maybeSingle();
   return {
     appUserId,
     isModerator: appUser?.is_moderator ?? false,
@@ -31,7 +31,7 @@ export async function POST(
     .from("sessions")
     .select("num_courts, status, allow_player_add_remove_courts")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }
@@ -60,9 +60,10 @@ export async function POST(
     .update({ num_courts: session.num_courts + 1, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select("num_courts")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Session not found" }, { status: 404 });
   return NextResponse.json(data);
 }
 
@@ -94,7 +95,7 @@ export async function DELETE(
     .from("sessions")
     .select("num_courts, court_names, status, allow_player_add_remove_courts")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }
@@ -128,8 +129,9 @@ export async function DELETE(
     .update({ num_courts: session.num_courts - 1, court_names: updatedNames, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select("num_courts, court_names")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Session not found" }, { status: 404 });
   return NextResponse.json(data);
 }

@@ -26,7 +26,7 @@ export async function POST(
     .from("sessions")
     .select("status")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (sessionError || !session) {
     return NextResponse.json({ error: sessionError?.message ?? "Session not found" }, { status: 404 });
   }

@@ -15,7 +15,7 @@ async function requireModerator(): Promise<ModeratorResult> {
   // quality-1: Use typed helper instead of unsafe cast
   const appUserId = getAppUserId(user);
   if (!appUserId) return { ok: false, response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
-  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).single();
+  const { data: appUser } = await supabase.from("users").select("is_moderator").eq("id", appUserId).maybeSingle();
   if (!appUser?.is_moderator) return { ok: false, response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   return { ok: true, supabase };
 }
