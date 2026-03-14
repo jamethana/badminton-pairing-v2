@@ -116,6 +116,10 @@ export default function PlayerSessionClient({
       setSessionUpdatedToast(true);
       setTimeout(() => setSessionUpdatedToast(false), 3000);
     },
+    onSubscribed: () => {
+      void refetchSessionPlayers();
+      void refetchPairings();
+    },
   });
 
   // Modal states

@@ -55,6 +55,8 @@ export interface UseSessionRealtimeCallbacks {
   onPairings?: (op: "INSERT" | "UPDATE" | "DELETE", payload: PairingRow) => void;
   onGameResults?: (op: "INSERT" | "UPDATE" | "DELETE", payload: GameResultRow) => void;
   onRemoteUpdate?: () => void;
+  /** Called when the channel becomes SUBSCRIBED (initial or after reconnect) and when the tab becomes visible again. Use to refetch full state. */
+  onSubscribed?: () => void;
 }
 
 /**
@@ -146,9 +148,30 @@ export function useSessionRealtime(
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          callbacksRef.current.onSubscribed?.();
+        }
+      });
+
+    const triggerOnSubscribed = () => {
+      callbacksRef.current.onSubscribed?.();
+    };
+
+    let visibilityTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      if (visibilityTimeoutId !== null) clearTimeout(visibilityTimeoutId);
+      visibilityTimeoutId = setTimeout(() => {
+        visibilityTimeoutId = null;
+        triggerOnSubscribed();
+      }, 250);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (visibilityTimeoutId !== null) clearTimeout(visibilityTimeoutId);
       if (channel) {
         supabase.removeChannel(channel);
       }

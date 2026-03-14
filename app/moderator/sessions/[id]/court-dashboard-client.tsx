@@ -104,6 +104,30 @@ export default function CourtDashboardClient({
   // Realtime: merge remote changes so multiple moderators stay in sync
   const userById = useMemo(() => new Map(allUsers.map((u) => [u.id, u])), [allUsers]);
 
+  const refetchSession = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("sessions")
+      .select("status, num_courts, court_names, show_skill_level_pills")
+      .eq("id", session.id)
+      .single();
+    if (data) {
+      setSessionStatus(data.status as SessionStatus);
+      setNumCourts(data.num_courts);
+      setCourtNames(data.court_names ?? {});
+      setShowSkillLevelPills(data.show_skill_level_pills ?? true);
+    }
+  }, [session.id]);
+
+  const refetchSessionPlayers = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("session_players")
+      .select("*, users(*)")
+      .eq("session_id", session.id);
+    if (data) setSessionPlayers(data as SessionPlayer[]);
+  }, [session.id]);
+
   const refetchPairings = useCallback(async () => {
     const supabase = createClient();
     const { data } = await supabase
@@ -174,6 +198,11 @@ export default function CourtDashboardClient({
     onRemoteUpdate: () => {
       setSessionUpdatedToast(true);
       setTimeout(() => setSessionUpdatedToast(false), 3000);
+    },
+    onSubscribed: () => {
+      void refetchSession();
+      void refetchSessionPlayers();
+      void refetchPairings();
     },
   });
 
