@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSkillColor, getSkillTextColor } from "@/components/skill-bar";
 import {
@@ -12,6 +13,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Tables } from "@/types/database";
 
 type AppUser = Tables<"users">;
@@ -118,15 +125,18 @@ export default function PlayersClient({ initialPlayers }: Props) {
       {showAddForm ? (
         <div className="rounded-xl border border-green-200 bg-green-50 p-4">
           <h2 className="mb-3 text-sm font-semibold text-green-800">Add New Player</h2>
-          <form onSubmit={addPlayer} className="flex flex-wrap items-end gap-3">
-            <div className="flex-1" style={{ minWidth: "160px" }}>
+          <form
+            onSubmit={addPlayer}
+            className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+          >
+            <div className="min-w-0 flex-1 sm:min-w-[10rem]">
               <label className="mb-1 block text-xs font-medium text-gray-600">Name</label>
               <input
                 type="text"
                 placeholder="Player name"
                 value={addForm.display_name}
                 onChange={(e) => setAddForm((f) => ({ ...f, display_name: e.target.value }))}
-                className="w-full rounded border px-3 py-2 text-sm focus:border-green-400 focus:outline-none"
+                className="min-w-0 w-full rounded border px-3 py-2 text-sm focus:border-green-400 focus:outline-none"
                 autoFocus
               />
             </div>
@@ -141,18 +151,18 @@ export default function PlayersClient({ initialPlayers }: Props) {
                 className="w-20 rounded border px-3 py-2 text-center text-sm focus:border-green-400 focus:outline-none"
               />
             </div>
-            <div className="flex flex-shrink-0 items-center gap-2">
+            <div className="flex min-h-[44px] flex-shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={() => { setShowAddForm(false); setAddError(""); }}
-                className="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                className="min-h-[44px] rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!addForm.display_name.trim() || addPlayerLoading}
-                className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                className="min-h-[44px] rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
               >
                 {addPlayerLoading ? "Adding…" : "Add Player"}
               </button>
@@ -174,8 +184,142 @@ export default function PlayersClient({ initialPlayers }: Props) {
         </div>
       )}
 
-      {/* Players table */}
-      <div className="overflow-x-auto rounded-xl border bg-white">
+      {/* Players: card list on mobile */}
+      <div className="space-y-3 md:hidden">
+        {players.length === 0 ? (
+          <div className="rounded-xl border bg-white px-4 py-8 text-center text-sm text-gray-400">
+            No players yet. Add one above or they&apos;ll appear here once they sign in via LINE.
+          </div>
+        ) : (
+          players.map((player) => (
+            <div
+              key={player.id}
+              className="rounded-xl border bg-white p-4 shadow-sm"
+            >
+              {editingId === player.id ? (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={editForm.display_name}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({ ...prev, display_name: e.target.value }))
+                    }
+                    className="w-full min-w-0 rounded border px-3 py-2 text-sm focus:border-green-400 focus:outline-none"
+                  />
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={editForm.skill_level}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, skill_level: parseInt(e.target.value) }))
+                      }
+                      className="w-16 rounded border px-2 py-1.5 text-center text-sm focus:border-green-400 focus:outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => saveEdit(player.id)}
+                        className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {player.picture_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={player.picture_url}
+                          alt={player.display_name}
+                          className="h-9 w-9 shrink-0 rounded-full"
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white",
+                            getSkillColor(player.skill_level)
+                          )}
+                        >
+                          {player.display_name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-medium">{player.display_name}</span>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-xs font-bold bg-gray-100",
+                              getSkillTextColor(player.skill_level)
+                            )}
+                          >
+                            {player.skill_level}
+                          </span>
+                          {player.line_user_id ? (
+                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
+                              Linked
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
+                              Not linked
+                            </span>
+                          )}
+                          {player.is_moderator && (
+                            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
+                              Mod
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {player.id.startsWith("temp-") ? (
+                    <span className="text-xs text-gray-400">Saving…</span>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                        aria-label="Actions"
+                      >
+                        <MoreVertical className="h-5 w-5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/moderator/players/${player.id}`}>Stats</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => startEdit(player)}>
+                          Edit
+                        </DropdownMenuItem>
+                        {!player.line_user_id && (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setPendingDeleteId(player.id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Players table (desktop) */}
+      <div className="hidden overflow-x-auto rounded-xl border bg-white md:block">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>
@@ -296,28 +440,30 @@ export default function PlayersClient({ initialPlayers }: Props) {
                   ) : player.id.startsWith("temp-") ? (
                     <span className="text-xs text-gray-400">Saving…</span>
                   ) : (
-                    <div className="flex justify-end gap-3">
-                      <Link
-                        href={`/moderator/players/${player.id}`}
-                        className="text-xs text-green-600 hover:underline"
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="flex h-8 w-8 items-center justify-center rounded text-gray-500 hover:bg-gray-100"
+                        aria-label="Actions"
                       >
-                        Stats
-                      </Link>
-                      <button
-                        onClick={() => startEdit(player)}
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </button>
-                      {!player.line_user_id && !player.id.startsWith("temp-") && (
-                        <button
-                          onClick={() => setPendingDeleteId(player.id)}
-                          className="text-xs text-red-500 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
+                        <MoreVertical className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/moderator/players/${player.id}`}>Stats</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => startEdit(player)}>
+                          Edit
+                        </DropdownMenuItem>
+                        {!player.line_user_id && (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setPendingDeleteId(player.id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </td>
               </tr>
