@@ -681,6 +681,25 @@ export default function PlayerSessionClient({
               </button>
             </div>
 
+            {!myCurrentGame && !isCompleted && mySlot.is_active && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="mt-3 rounded-lg bg-gray-50 border border-gray-200 p-3"
+              >
+                <p className="text-sm font-medium text-gray-700">Waiting to be assigned</p>
+                <p className="text-sm text-gray-500">
+                  You&apos;re in the queue. The moderator will assign you to a court soon.
+                </p>
+              </div>
+            )}
+
+            {!myCurrentGame && !isCompleted && !mySlot.is_active && (
+              <p className="mt-2 text-xs text-gray-400">
+                Tap the button when you&apos;re ready to be assigned.
+              </p>
+            )}
+
             {myCurrentGame && (
               <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
                 <p className="mb-1.5 text-xs font-semibold text-green-700">
