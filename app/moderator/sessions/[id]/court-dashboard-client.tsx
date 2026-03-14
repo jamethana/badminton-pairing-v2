@@ -8,6 +8,15 @@ import { createClient } from "@/lib/supabase/client";
 import PlayerBadge from "@/components/player-badge";
 import AssignmentModal from "@/components/assignment-modal";
 import ResultModal from "@/components/result-modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import PlayerPermissionsPanel from "@/components/player-permissions-panel";
 import SessionResultsList from "@/components/session-results-list";
 import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
@@ -101,6 +110,14 @@ export default function CourtDashboardClient({
     pairingId: string;
     courtNumber: number;
   } | null>(null);
+
+  // Quick result confirmation (tap A/B on card → confirm dialog)
+  const [pendingQuickResult, setPendingQuickResult] = useState<{
+    pairingId: string;
+    courtNumber: number;
+    winner: "team_a" | "team_b";
+  } | null>(null);
+  const [quickResultLoading, setQuickResultLoading] = useState<"record" | "void" | null>(null);
 
   const [isAddingPlayer, startAddingPlayer] = useTransition();
 
@@ -408,23 +425,22 @@ export default function CourtDashboardClient({
     }
   };
 
-  const handleRecordResult = async (result: {
-    team_a_score: number;
-    team_b_score: number;
-    winner_team: "team_a" | "team_b";
-  }) => {
+  const handleRecordResultForPairing = async (
+    pairingId: string,
+    result: {
+      team_a_score: number;
+      team_b_score: number;
+      winner_team: "team_a" | "team_b";
+    }
+  ) => {
     if (isCompleted) return;
-    if (!resultModal) return;
-    const { pairingId } = resultModal;
 
-    // opt-3: Update state immediately, persist in background
     const now = new Date().toISOString();
     setPairings((prev) =>
       prev.map((p) =>
         p.id === pairingId ? { ...p, status: "completed", completed_at: now } : p
       )
     );
-    setResultModal(null);
 
     const res = await fetch(`/api/sessions/${session.id}/pairings/${pairingId}/results`, {
       method: "POST",
@@ -433,28 +449,25 @@ export default function CourtDashboardClient({
     });
 
     if (!res.ok) {
-      // Rollback on failure
       setPairings((prev) =>
         prev.map((p) =>
           p.id === pairingId ? { ...p, status: "in_progress", completed_at: null } : p
         )
       );
+      return false;
     }
+    return true;
   };
 
-  const handleVoidGame = async () => {
+  const handleVoidForPairing = async (pairingId: string) => {
     if (isCompleted) return;
-    if (!resultModal) return;
-    const { pairingId } = resultModal;
 
-    // opt-3: Update state immediately, persist in background
     const now = new Date().toISOString();
     setPairings((prev) =>
       prev.map((p) =>
         p.id === pairingId ? { ...p, status: "voided", completed_at: now } : p
       )
     );
-    setResultModal(null);
 
     const res = await fetch(`/api/sessions/${session.id}/pairings/${pairingId}`, {
       method: "PATCH",
@@ -463,13 +476,32 @@ export default function CourtDashboardClient({
     });
 
     if (!res.ok) {
-      // Rollback on failure
       setPairings((prev) =>
         prev.map((p) =>
           p.id === pairingId ? { ...p, status: "in_progress", completed_at: null } : p
         )
       );
+      return false;
     }
+    return true;
+  };
+
+  const handleRecordResult = async (result: {
+    team_a_score: number;
+    team_b_score: number;
+    winner_team: "team_a" | "team_b";
+  }) => {
+    if (!resultModal) return;
+    const { pairingId } = resultModal;
+    setResultModal(null);
+    await handleRecordResultForPairing(pairingId, result);
+  };
+
+  const handleVoidGame = async () => {
+    if (!resultModal) return;
+    const { pairingId } = resultModal;
+    setResultModal(null);
+    await handleVoidForPairing(pairingId);
   };
 
   const handleToggleActive = async (spId: string, currentActive: boolean) => {
@@ -724,6 +756,26 @@ export default function CourtDashboardClient({
                       isPending || renamingCourt === courtNumber || isCompleted
                         ? undefined
                         : () => handleCourtClick(courtNumber)
+                    }
+                    onQuickResultA={
+                      pairing && !isPending && !isCompleted
+                        ? () =>
+                            setPendingQuickResult({
+                              pairingId: pairing.id,
+                              courtNumber,
+                              winner: "team_a",
+                            })
+                        : undefined
+                    }
+                    onQuickResultB={
+                      pairing && !isPending && !isCompleted
+                        ? () =>
+                            setPendingQuickResult({
+                              pairingId: pairing.id,
+                              courtNumber,
+                              winner: "team_b",
+                            })
+                        : undefined
                     }
                   />
                 </div>
@@ -1374,6 +1426,66 @@ export default function CourtDashboardClient({
           onVoid={handleVoidGame}
         />
       )}
+
+      {/* Quick result confirmation — tap A/B on card, then confirm or void */}
+      <Dialog
+        open={!!pendingQuickResult}
+        onOpenChange={(open) => !open && setPendingQuickResult(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Record Team {pendingQuickResult?.winner === "team_a" ? "A" : "B"} wins?
+            </DialogTitle>
+            <DialogDescription>
+              This will record the result and free the court.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <div className="flex w-full gap-2">
+              <Button
+                variant="outline"
+                className="min-h-[44px] flex-1"
+                disabled={!!quickResultLoading}
+                onClick={() => setPendingQuickResult(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="min-h-[44px] flex-1"
+                disabled={!!quickResultLoading}
+                onClick={async () => {
+                  if (!pendingQuickResult) return;
+                  setQuickResultLoading("record");
+                  const ok = await handleRecordResultForPairing(pendingQuickResult.pairingId, {
+                    team_a_score: 0,
+                    team_b_score: 0,
+                    winner_team: pendingQuickResult.winner,
+                  });
+                  setQuickResultLoading(null);
+                  if (ok) setPendingQuickResult(null);
+                }}
+              >
+                {quickResultLoading === "record" ? "Recording…" : "Confirm"}
+              </Button>
+            </div>
+            <Button
+              variant="destructive"
+              className="min-h-[44px] w-full"
+              disabled={!!quickResultLoading}
+              onClick={async () => {
+                if (!pendingQuickResult) return;
+                setQuickResultLoading("void");
+                const ok = await handleVoidForPairing(pendingQuickResult.pairingId);
+                setQuickResultLoading(null);
+                if (ok) setPendingQuickResult(null);
+              }}
+            >
+              {quickResultLoading === "void" ? "Voiding…" : "Void game"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

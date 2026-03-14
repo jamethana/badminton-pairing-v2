@@ -31,6 +31,9 @@ interface CourtCardProps {
   /** When true, remove button is disabled and shows "Removing…" (e.g. while DELETE is in flight). */
   isRemoving?: boolean;
   onClick?: () => void;
+  /** When provided with onQuickResultB, shows "A wins" / "B wins" buttons for quick result recording. */
+  onQuickResultA?: () => void;
+  onQuickResultB?: () => void;
   className?: string;
 }
 
@@ -104,6 +107,8 @@ export default function CourtCard({
   onRemove,
   isRemoving = false,
   onClick,
+  onQuickResultA,
+  onQuickResultB,
   className,
 }: CourtCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -236,12 +241,34 @@ export default function CourtCard({
           <span className="text-sm">{emptyStateText}</span>
         </div>
       ) : (
-        <div className="flex items-stretch gap-3">
-          <TeamSlot players={teamA} label="Team A" />
-          <div className="flex items-center">
-            <span className="text-xs font-bold text-gray-400">VS</span>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-stretch gap-3">
+            <TeamSlot players={teamA} label="Team A" />
+            <div className="flex items-center">
+              <span className="text-xs font-bold text-gray-400">VS</span>
+            </div>
+            <TeamSlot players={teamB} label="Team B" />
           </div>
-          <TeamSlot players={teamB} label="Team B" />
+          {onQuickResultA && onQuickResultB && (
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={onQuickResultA}
+                className="min-h-[44px] flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:border-green-300 hover:text-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                aria-label="Record Team A wins"
+              >
+                A wins
+              </button>
+              <button
+                type="button"
+                onClick={onQuickResultB}
+                className="min-h-[44px] flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:border-green-300 hover:text-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                aria-label="Record Team B wins"
+              >
+                B wins
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

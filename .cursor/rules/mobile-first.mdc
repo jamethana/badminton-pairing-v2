@@ -1,0 +1,39 @@
+---
+description: This web app is designed mobile-first; layout and styles should prioritize small screens, then scale up.
+alwaysApply: true
+---
+
+# Mobile-First Design
+
+This app is **mobile-first**. All layout, typography, and UI decisions should assume the default viewport is a phone; larger breakpoints add or adjust, not the other way around.
+
+## Principles
+
+- **Base styles = mobile**: Default (unprefixed) Tailwind classes define the small-screen experience.
+- **Progressive enhancement**: Use `sm:`, `md:`, `lg:` to add or change styles for larger viewports only when needed.
+- **Touch-friendly**: Prefer tap targets ≥ 44px, spacing that works with thumbs, and avoid hover-only interactions for critical actions.
+- **Content priority**: On small screens, show the most important content first; hide or collapse secondary UI behind patterns like tabs, sheets, or “more” actions.
+
+## Tailwind Usage
+
+```tsx
+// ❌ BAD — desktop-first (overriding at mobile)
+<div className="grid grid-cols-4 gap-4 md:grid-cols-1 md:gap-2">
+
+// ✅ GOOD — mobile-first (base = mobile, then add columns on larger)
+<div className="grid grid-cols-1 gap-2 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+```
+
+```tsx
+// ❌ BAD — large text by default, shrunk on mobile
+<p className="text-lg md:text-sm">
+
+// ✅ GOOD — readable on mobile, optionally larger on desktop
+<p className="text-sm sm:text-base">
+```
+
+## Checklist for UI Work
+
+- [ ] Default (unprefixed) styles are correct for a narrow viewport (~375px).
+- [ ] Breakpoint prefixes only add or refine; they don’t “fix” a desktop-first base.
+- [ ] Critical actions are tappable and not hidden behind hover-only behavior on mobile.
