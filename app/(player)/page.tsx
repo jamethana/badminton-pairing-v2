@@ -40,7 +40,7 @@ export default async function Home() {
   ];
   const sessionIds = rawSessions.map((s) => s.id);
 
-  const [creatorUsersRes, playerRowsRes] = await Promise.all([
+  const [creatorUsersRes, playerRowsRes, totalPlayerRowsRes] = await Promise.all([
     uniqueCreatorIds.length > 0
       ? supabase.from("users").select("id, display_name").in("id", uniqueCreatorIds)
       : Promise.resolve({ data: [] as { id: string; display_name: string }[] }),
@@ -51,6 +51,9 @@ export default async function Home() {
           .in("session_id", sessionIds)
           .eq("is_active", true)
       : Promise.resolve({ data: [] }),
+    sessionIds.length > 0
+      ? supabase.from("session_players").select("session_id").in("session_id", sessionIds)
+      : Promise.resolve({ data: [] as { session_id: string }[] }),
   ]);
 
   const creatorNameById = new Map(
@@ -59,6 +62,10 @@ export default async function Home() {
 
   const playerCountMap = new Map<string, number>();
   const playerSampleMap = new Map<string, PlayerLite[]>();
+  const totalPlayerCountMap = new Map<string, number>();
+  for (const row of totalPlayerRowsRes.data ?? []) {
+    totalPlayerCountMap.set(row.session_id, (totalPlayerCountMap.get(row.session_id) ?? 0) + 1);
+  }
   for (const row of playerRowsRes.data ?? []) {
     const sid = row.session_id;
     const usr = row.users;
@@ -85,6 +92,8 @@ export default async function Home() {
     creatorDisplayName: s.created_by ? creatorNameById.get(s.created_by) : undefined,
     playerCount: playerCountMap.get(s.id) ?? 0,
     playerSample: playerSampleMap.get(s.id) ?? [],
+    maxPlayers: s.max_players,
+    totalPlayerCount: totalPlayerCountMap.get(s.id) ?? 0,
   }));
 
   const activeSessions = sessions.filter((s) => s.status === "active");

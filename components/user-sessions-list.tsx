@@ -20,6 +20,9 @@ export type UserSession = {
   creatorDisplayName?: string;
   playerCount?: number;
   playerSample?: PlayerLite[];
+  maxPlayers?: number;
+  /** Total players in session (for capacity badge); uses totalPlayerCount when set, else playerCount */
+  totalPlayerCount?: number;
 };
 
 interface Props {
@@ -70,6 +73,14 @@ export default function UserSessionsList({ sessions }: Props) {
                 {session.creatorDisplayName && (
                   <p className="mt-0.5 text-xs text-gray-400">
                     Created by {session.creatorDisplayName}
+                  </p>
+                )}
+                {session.maxPlayers != null && (
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {(session.totalPlayerCount ?? session.playerCount ?? 0)}/{session.maxPlayers} ·{" "}
+                    {(session.totalPlayerCount ?? session.playerCount ?? 0) >= session.maxPlayers
+                      ? "Full"
+                      : "Open"}
                   </p>
                 )}
                 {session.playerCount !== undefined && session.playerCount > 0 && (
