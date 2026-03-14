@@ -46,6 +46,7 @@ interface AssignmentModalProps {
     teamB: [string, string];
   };
   suggestionLoading?: boolean;
+  suggestionError?: string | null;
   onClose: () => void;
   onConfirm: (assignment: {
     teamA: [string, string];
@@ -60,6 +61,7 @@ export default function AssignmentModal({
   availablePlayers,
   suggestion,
   suggestionLoading,
+  suggestionError,
   onClose,
   onConfirm,
 }: AssignmentModalProps) {
@@ -259,6 +261,15 @@ export default function AssignmentModal({
               </svg>
             </button>
           </div>
+
+          {suggestionError && (
+            <div
+              role="alert"
+              className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            >
+              {suggestionError}
+            </div>
+          )}
 
           {/* Teams — 2-column grid */}
           <div className="mb-3 grid grid-cols-2 gap-3">

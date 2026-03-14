@@ -171,6 +171,7 @@ export default function PlayerSessionClient({
     courtNumber: number;
     suggestion?: { teamA: [string, string]; teamB: [string, string] };
     suggestionLoading?: boolean;
+    suggestionError?: string | null;
   } | null>(null);
 
   // Derive unclaimed slots for the claim block
@@ -384,7 +385,7 @@ export default function PlayerSessionClient({
 
   // ── Assign court ─────────────────────────────────────────────────────────
   const handleEmptyCourtClick = (courtNumber: number) => {
-    setAssignModal({ courtNumber, suggestionLoading: true });
+    setAssignModal({ courtNumber, suggestionLoading: true, suggestionError: null });
     fetch(`/api/sessions/${session.id}/pairings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -407,24 +408,26 @@ export default function PlayerSessionClient({
         setAssignModal((prev) => {
           if (prev?.courtNumber !== courtNumber) return prev;
           const suggestion = res.ok ? data?.suggestion : undefined;
-          if (!res.ok) {
-            const msg =
-              data?.error === "Not enough available players"
+          const suggestionError = !res.ok
+            ? (data?.error === "Not enough available players"
                 ? "Not enough available players right now. Someone may have been assigned—try again."
-                : (typeof data?.error === "string" ? data.error : null) ?? "Could not generate match. Try again.";
-            showError(msg);
-          }
-          return { ...prev, suggestion, suggestionLoading: false };
+                : (typeof data?.error === "string" ? data.error : null) ?? "Could not generate match. Try again.")
+            : null;
+          return { ...prev, suggestion, suggestionLoading: false, suggestionError };
         });
       })
       .catch((err) => {
         console.warn("[assign] generate request error", { courtNumber, err });
         setAssignModal((prev) =>
           prev?.courtNumber === courtNumber
-            ? { ...prev, suggestion: undefined, suggestionLoading: false }
+            ? {
+                ...prev,
+                suggestion: undefined,
+                suggestionLoading: false,
+                suggestionError: "Could not load match suggestion. Check connection and try again.",
+              }
             : prev
         );
-        showError("Could not load match suggestion. Check connection and try again.");
       });
   };
 
@@ -1078,6 +1081,7 @@ export default function PlayerSessionClient({
           availablePlayers={availablePlayers}
           suggestion={assignModal.suggestion}
           suggestionLoading={assignModal.suggestionLoading}
+          suggestionError={assignModal.suggestionError}
           onClose={() => setAssignModal(null)}
           onConfirm={handleConfirmAssignment}
         />
