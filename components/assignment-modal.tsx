@@ -349,24 +349,31 @@ export default function AssignmentModal({
 
           {/* Skill balance */}
           {teamASkill > 0 && teamBSkill > 0 && (
-            <div className="mb-3 flex items-center justify-center gap-2 text-xs">
-              <span className="text-gray-500">Balance:</span>
-              <span
-                className={cn(
-                  "font-semibold",
-                  skillDiff <= 1
-                    ? "text-green-600"
-                    : skillDiff <= 3
-                      ? "text-amber-600"
-                      : "text-red-500"
-                )}
-              >
-                {skillDiff <= 0
-                  ? "Very Fair"
-                  : skillDiff <= 2
-                    ? "Kinda Fair"
-                    : "Not Fair"}
-              </span>
+            <div className="mb-3 flex flex-col items-center gap-0.5">
+              <div className="flex items-center justify-center gap-2 text-xs">
+                <span className="text-gray-500">Balance:</span>
+                <span
+                  className={cn(
+                    "font-semibold",
+                    skillDiff <= 1
+                      ? "text-green-600"
+                      : skillDiff <= 3
+                        ? "text-amber-600"
+                        : "text-red-500"
+                  )}
+                >
+                  {skillDiff <= 0
+                    ? "Very Fair"
+                    : skillDiff <= 2
+                      ? "Kinda Fair"
+                      : "Not Fair"}
+                </span>
+              </div>
+              {skillDiff > 2 && (
+                <p className="text-[11px] text-gray-500 text-center">
+                  Partner gap rule can block fairer splits.
+                </p>
+              )}
             </div>
           )}
 

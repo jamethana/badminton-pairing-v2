@@ -294,7 +294,7 @@ export default function SessionForm({
           <p className="text-xs text-gray-500">
             {form.max_partner_skill_level_gap === 10
               ? "No restriction — any two players can be paired as partners."
-              : `Partners must be within ${form.max_partner_skill_level_gap} skill level${form.max_partner_skill_level_gap === 1 ? "" : "s"} of each other (scale 1–10).`}
+              : `Partners must be within ${form.max_partner_skill_level_gap} skill level${form.max_partner_skill_level_gap === 1 ? "" : "s"} of each other (scale 1–10). A smaller gap can lead to less balanced matches when the pool has mixed levels.`}
           </p>
         </div>
       </div>
