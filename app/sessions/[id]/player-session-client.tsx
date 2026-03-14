@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import ResultModal from "@/components/result-modal";
 import AssignmentModal from "@/components/assignment-modal";
 import SessionCourtsView from "@/components/session-courts-view";
+import SessionResultsList from "@/components/session-results-list";
 import PlayerBadge from "@/components/player-badge";
 import { computePlayerStats } from "@/lib/utils/session-stats";
 import { getDeletedUserPlaceholder } from "@/lib/utils/deleted-user";
@@ -30,7 +31,7 @@ interface Props {
   mySlot: SessionPlayer | null;
 }
 
-type ActiveTab = "game" | "players";
+type ActiveTab = "game" | "players" | "history";
 
 export default function PlayerSessionClient({
   session,
@@ -638,7 +639,7 @@ export default function PlayerSessionClient({
       )}
       {/* Tabs */}
       <div className="flex border-b bg-white rounded-t-xl overflow-hidden">
-        {(["game", "players"] as ActiveTab[]).map((tab) => (
+        {(["game", "players", "history"] as ActiveTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -649,7 +650,7 @@ export default function PlayerSessionClient({
                 : "text-gray-500 hover:text-gray-700"
             )}
           >
-            {tab === "game" ? "Game" : `Players (${allPlayers.length})`}
+            {tab === "game" ? "Game" : tab === "players" ? `Players (${allPlayers.length})` : `History (${completedPairings.length})`}
           </button>
         ))}
       </div>
@@ -935,6 +936,13 @@ export default function PlayerSessionClient({
               })}
           </div>
         </div>
+      )}
+
+      {activeTab === "history" && (
+        <SessionResultsList
+          pairings={completedPairings}
+          getPlayer={getPlayer}
+        />
       )}
 
       {/* Assignment modal */}

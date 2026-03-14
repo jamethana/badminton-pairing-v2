@@ -9,6 +9,7 @@ import PlayerBadge from "@/components/player-badge";
 import AssignmentModal from "@/components/assignment-modal";
 import ResultModal from "@/components/result-modal";
 import PlayerPermissionsPanel from "@/components/player-permissions-panel";
+import SessionResultsList from "@/components/session-results-list";
 import { computePlayerStats, getPlayersInCurrentGame } from "@/lib/utils/session-stats";
 import { getDeletedUserPlaceholder } from "@/lib/utils/deleted-user";
 import { cn } from "@/lib/utils";
@@ -60,7 +61,7 @@ export default function CourtDashboardClient({
   const [courtNames, setCourtNames] = useState<Record<string, string>>(session.court_names ?? {});
   const [renamingCourt, setRenamingCourt] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [activeTab, setActiveTab] = useState<"game" | "stats" | "settings">("game");
+  const [activeTab, setActiveTab] = useState<"game" | "players" | "history" | "settings">("game");
   const [statusSaving, setStatusSaving] = useState(false);
   const [showSkillLevelPills, setShowSkillLevelPills] = useState(session.show_skill_level_pills);
   const [showSkillLevelPillsSaving, setShowSkillLevelPillsSaving] = useState(false);
@@ -658,7 +659,7 @@ export default function CourtDashboardClient({
       )}
       {/* Tabs */}
       <div className="mb-4 flex border-b">
-        {(["game", "stats", "settings"] as const).map((tab) => (
+        {(["game", "players", "history", "settings"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -669,7 +670,7 @@ export default function CourtDashboardClient({
                 : "text-gray-500 hover:text-gray-700"
             )}
           >
-            {tab === "game" ? "Game" : tab === "stats" ? "Stats" : "Settings"}
+            {tab === "game" ? "Game" : tab === "players" ? "Players" : tab === "history" ? `History (${completedPairings.length})` : "Settings"}
           </button>
         ))}
       </div>
@@ -999,7 +1000,7 @@ export default function CourtDashboardClient({
         </>
       )}
 
-      {activeTab === "stats" && (
+      {activeTab === "players" && (
         <div className="rounded-xl border bg-white">
           {/* Sort pills */}
           <div className="flex flex-wrap items-center gap-1.5 border-b px-4 py-2.5">
@@ -1099,6 +1100,13 @@ export default function CourtDashboardClient({
             ))}
           </div>
         </div>
+      )}
+
+      {activeTab === "history" && (
+        <SessionResultsList
+          pairings={completedPairings}
+          getPlayer={getPlayerById}
+        />
       )}
 
       {activeTab === "settings" && (
