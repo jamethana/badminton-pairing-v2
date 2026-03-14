@@ -2,10 +2,21 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import LoginButton from "./login-button";
 
+const ERROR_MESSAGES: Record<string, string> = {
+  user_upsert_failed: "We couldn’t create or update your account. Please try again.",
+  auth_failed: "Sign-in failed. Please try again.",
+  sign_in_failed: "Sign-in failed. Please try again.",
+  create_user_failed: "Account setup failed. Please try again.",
+  token_exchange_failed: "LINE sign-in failed. Please try again.",
+  profile_fetch_failed: "Could not load your LINE profile. Please try again.",
+  invalid_state: "Invalid sign-in request. Please try again.",
+  no_code: "Sign-in was cancelled or failed. Please try again.",
+};
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -23,11 +34,17 @@ export default async function LoginPage({
 
   const params = await searchParams;
   const redirectTo = typeof params.next === "string" ? params.next : undefined;
+  const errorMessage = typeof params.error === "string" ? ERROR_MESSAGES[params.error] ?? "Sign-in failed. Please try again." : null;
   const isSessionInvite = typeof redirectTo === "string" && redirectTo.startsWith("/sessions/");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
+        {errorMessage && (
+          <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-700" role="alert">
+            {errorMessage}
+          </p>
+        )}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <svg

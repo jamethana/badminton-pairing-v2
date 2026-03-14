@@ -106,13 +106,15 @@ export async function GET(request: NextRequest) {
     const adminSupabase = createAdminClient();
 
     // Upsert the app-level user record — auth_secret is intentionally excluded
-    // so it is never overwritten once set.
+    // so it is never overwritten once set. display_name has fallback (LINE can omit it).
+    const displayName =
+      (typeof profile.displayName === "string" && profile.displayName.trim()) || "LINE User";
     const { data: appUser, error: upsertError } = await adminSupabase
       .from("users")
       .upsert(
         {
           line_user_id: profile.userId,
-          display_name: profile.displayName,
+          display_name: displayName,
           picture_url: profile.pictureUrl || null,
           updated_at: new Date().toISOString(),
         },
@@ -122,7 +124,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (upsertError || !appUser) {
-      console.error("User upsert failed:", upsertError);
+      console.error("User upsert failed:", upsertError?.code, upsertError?.message, upsertError?.details);
       return NextResponse.redirect(new URL("/login?error=user_upsert_failed", request.url));
     }
 
