@@ -320,8 +320,21 @@ export default function PlayerSessionClient({
     if (!resultModal) return;
     const { pairingId } = resultModal;
     const now = new Date().toISOString();
+    const optimisticResult: Tables<"game_results"> = {
+      id: `temp-result-${pairingId}`,
+      pairing_id: pairingId,
+      team_a_score: result.team_a_score,
+      team_b_score: result.team_b_score,
+      winner_team: result.winner_team,
+      recorded_by: null,
+      recorded_at: now,
+    };
     setPairings((prev) =>
-      prev.map((p) => (p.id === pairingId ? { ...p, status: "completed", completed_at: now } : p))
+      prev.map((p) =>
+        p.id === pairingId
+          ? { ...p, status: "completed", completed_at: now, game_results: optimisticResult }
+          : p
+      )
     );
     setResultModal(null);
     const res = await fetch(`/api/sessions/${session.id}/pairings/${pairingId}/results`, {
@@ -332,7 +345,9 @@ export default function PlayerSessionClient({
     if (!res.ok) {
       setPairings((prev) =>
         prev.map((p) =>
-          p.id === pairingId ? { ...p, status: "in_progress", completed_at: null } : p
+          p.id === pairingId
+            ? { ...p, status: "in_progress", completed_at: null, game_results: null }
+            : p
         )
       );
     }
