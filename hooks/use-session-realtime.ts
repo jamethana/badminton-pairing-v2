@@ -56,6 +56,11 @@ export interface UseSessionRealtimeCallbacks {
   onGameResults?: (op: "INSERT" | "UPDATE" | "DELETE", payload: GameResultRow) => void;
   onRemoteUpdate?: () => void;
   /**
+   * Called when the tab becomes visible and we are about to reconnect the Realtime channel.
+   * Use this to show a loading indicator while the reconnect + refetch is in progress.
+   */
+  onReconnectingStart?: () => void;
+  /**
    * Called when the channel becomes SUBSCRIBED (initial or after reconnect) and when the tab becomes visible again.
    * @param isResubscribe - false on first subscribe (RSC already sent data; skip refetch). true on reconnect or visibility change (refetch to sync).
    */
@@ -85,92 +90,100 @@ export function useSessionRealtime(
       callbacksRef.current.onRemoteUpdate?.();
     };
 
-    channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "sessions",
-          filter: `id=eq.${sessionId}`,
-        },
-        (payload) => {
-          if (payload.eventType === "UPDATE" && payload.new) {
-            callbacksRef.current.onSession?.(payload.new as SessionRow);
-            notifyRemote();
+    function subscribeChannel() {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+      channel = supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "sessions",
+            filter: `id=eq.${sessionId}`,
+          },
+          (payload) => {
+            if (payload.eventType === "UPDATE" && payload.new) {
+              callbacksRef.current.onSession?.(payload.new as SessionRow);
+              notifyRemote();
+            }
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "session_players",
-          filter: `session_id=eq.${sessionId}`,
-        },
-        (payload) => {
-          const op = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
-          const row = (op === "DELETE" ? payload.old : payload.new) as SessionPlayerRow;
-          if (row) {
-            callbacksRef.current.onSessionPlayers?.(op, row);
-            notifyRemote();
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "session_players",
+            filter: `session_id=eq.${sessionId}`,
+          },
+          (payload) => {
+            const op = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
+            const row = (op === "DELETE" ? payload.old : payload.new) as SessionPlayerRow;
+            if (row) {
+              callbacksRef.current.onSessionPlayers?.(op, row);
+              notifyRemote();
+            }
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "pairings",
-          filter: `session_id=eq.${sessionId}`,
-        },
-        (payload) => {
-          const op = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
-          const row = (op === "DELETE" ? payload.old : payload.new) as PairingRow;
-          if (row && !row.id.startsWith("temp-")) {
-            callbacksRef.current.onPairings?.(op, row);
-            notifyRemote();
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "pairings",
+            filter: `session_id=eq.${sessionId}`,
+          },
+          (payload) => {
+            const op = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
+            const row = (op === "DELETE" ? payload.old : payload.new) as PairingRow;
+            if (row && !row.id.startsWith("temp-")) {
+              callbacksRef.current.onPairings?.(op, row);
+              notifyRemote();
+            }
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "game_results",
-        },
-        (payload) => {
-          const op = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
-          const row = (op === "DELETE" ? payload.old : payload.new) as GameResultRow;
-          if (row) {
-            callbacksRef.current.onGameResults?.(op, row);
-            notifyRemote();
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "game_results",
+          },
+          (payload) => {
+            const op = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
+            const row = (op === "DELETE" ? payload.old : payload.new) as GameResultRow;
+            if (row) {
+              callbacksRef.current.onGameResults?.(op, row);
+              notifyRemote();
+            }
           }
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          const isResubscribe = hasSubscribedRef;
-          hasSubscribedRef = true;
-          callbacksRef.current.onSubscribed?.(isResubscribe);
-        }
-      });
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            const isResubscribe = hasSubscribedRef;
+            hasSubscribedRef = true;
+            callbacksRef.current.onSubscribed?.(isResubscribe);
+          }
+        });
+    }
 
-    const triggerOnSubscribed = () => {
-      callbacksRef.current.onSubscribed?.(true);
-    };
+    subscribeChannel();
 
     let visibilityTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
       if (visibilityTimeoutId !== null) clearTimeout(visibilityTimeoutId);
+      // Reconnect Realtime channel when tab becomes visible. Mobile browsers often
+      // throttle or drop WebSockets in background; a new subscription ensures we
+      // get a live connection and onSubscribed(true) triggers a refetch.
       visibilityTimeoutId = setTimeout(() => {
         visibilityTimeoutId = null;
-        triggerOnSubscribed();
+        callbacksRef.current.onReconnectingStart?.();
+        subscribeChannel();
       }, 250);
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);

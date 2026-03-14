@@ -55,6 +55,7 @@ export default function PlayerSessionClient({
   const isCompleted = session.status === "completed";
   const [numCourts, setNumCourts] = useState(session.num_courts);
   const [sessionUpdatedToast, setSessionUpdatedToast] = useState(false);
+  const [isReconnectingFromVisibility, setIsReconnectingFromVisibility] = useState(false);
   const [addCourtLoading, setAddCourtLoading] = useState(false);
   const [removeCourtLoading, setRemoveCourtLoading] = useState(false);
 
@@ -122,10 +123,13 @@ export default function PlayerSessionClient({
       setSessionUpdatedToast(true);
       setTimeout(() => setSessionUpdatedToast(false), 3000);
     },
-    onSubscribed: (isResubscribe) => {
+    onReconnectingStart: () => {
+      setIsReconnectingFromVisibility(true);
+    },
+    onSubscribed: async (isResubscribe) => {
       if (!isResubscribe) return;
-      void refetchSessionPlayers();
-      void refetchPairings();
+      await Promise.all([refetchSessionPlayers(), refetchPairings()]);
+      setIsReconnectingFromVisibility(false);
     },
   });
 
@@ -532,6 +536,16 @@ export default function PlayerSessionClient({
     if (isSessionFull) {
       return (
         <div className="space-y-4">
+          {isReconnectingFromVisibility && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-700"
+            >
+              <span className="h-3 w-3 rounded-full bg-gray-400 animate-pulse" />
+              Syncing…
+            </div>
+          )}
           {sessionUpdatedToast && (
             <div
               role="status"
@@ -555,6 +569,16 @@ export default function PlayerSessionClient({
     if (autoJoinFailed) {
       return (
         <div className="space-y-4">
+          {isReconnectingFromVisibility && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-700"
+            >
+              <span className="h-3 w-3 rounded-full bg-gray-400 animate-pulse" />
+              Syncing…
+            </div>
+          )}
           {sessionUpdatedToast && (
             <div
               role="status"
@@ -628,6 +652,16 @@ export default function PlayerSessionClient({
   // ── Post-join view ───────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
+      {isReconnectingFromVisibility && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-700"
+        >
+          <span className="h-3 w-3 rounded-full bg-gray-400 animate-pulse" />
+          Syncing…
+        </div>
+      )}
       {sessionUpdatedToast && (
         <div
           role="status"

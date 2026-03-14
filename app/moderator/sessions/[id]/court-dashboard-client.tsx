@@ -129,6 +129,7 @@ export default function CourtDashboardClient({
   const [newPlayerError, setNewPlayerError] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [sessionUpdatedToast, setSessionUpdatedToast] = useState(false);
+  const [isReconnectingFromVisibility, setIsReconnectingFromVisibility] = useState(false);
 
   // Realtime: merge remote changes so multiple moderators stay in sync
   const userById = useMemo(() => new Map(allUsers.map((u) => [u.id, u])), [allUsers]);
@@ -237,11 +238,13 @@ export default function CourtDashboardClient({
       setSessionUpdatedToast(true);
       setTimeout(() => setSessionUpdatedToast(false), 3000);
     },
-    onSubscribed: (isResubscribe) => {
+    onReconnectingStart: () => {
+      setIsReconnectingFromVisibility(true);
+    },
+    onSubscribed: async (isResubscribe) => {
       if (!isResubscribe) return;
-      void refetchSession();
-      void refetchSessionPlayers();
-      void refetchPairings();
+      await Promise.all([refetchSession(), refetchSessionPlayers(), refetchPairings()]);
+      setIsReconnectingFromVisibility(false);
     },
   });
 
@@ -680,6 +683,16 @@ export default function CourtDashboardClient({
 
   return (
     <>
+      {isReconnectingFromVisibility && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-700"
+        >
+          <span className="h-3 w-3 rounded-full bg-gray-400 animate-pulse" />
+          Syncing…
+        </div>
+      )}
       {sessionUpdatedToast && (
         <div
           role="status"
