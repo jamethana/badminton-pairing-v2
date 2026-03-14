@@ -156,6 +156,9 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
     avgGamesPerSession,
     topPartners,
     topRivals,
+    uniquePartners,
+    uniqueOpponents,
+    uniquePlayersMet,
     sessionBreakdown,
     recentGames,
   } = stats;
@@ -218,6 +221,12 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
         <StatCard label="Sessions" value={sessionCount} />
         <StatCard label="Avg Games / Session" value={avgGamesPerSession} />
         <StatCard label="Total Wins" value={wins} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatCard label="Unique Partners" value={uniquePartners} />
+        <StatCard label="Unique Opponents" value={uniqueOpponents} />
+        <StatCard label="Players Met" value={uniquePlayersMet} />
       </div>
 
       {/* Top Partners + Top Rivals side by side */}
