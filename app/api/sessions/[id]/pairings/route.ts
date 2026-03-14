@@ -102,12 +102,31 @@ export async function POST(
       .map((sp) => sp.users)
       .filter((u): u is NonNullable<typeof u> => u !== null);
 
+    const busyPlayerIds = new Set(
+      (pairings ?? [])
+        .filter((p) => p.status === "in_progress")
+        .flatMap((p) =>
+          [p.team_a_player_1, p.team_a_player_2, p.team_b_player_1, p.team_b_player_2].filter(
+            (id): id is string => id != null
+          )
+        )
+    );
+    const availableCount = activePlayers.filter((p) => !busyPlayerIds.has(p.id)).length;
     const suggestion = generatePairing(activePlayers, pairings ?? [], courtNumber, {
       pairingRule: session.pairing_rule ?? "least_played",
       maxPartnerSkillLevelGap: session.max_partner_skill_level_gap ?? 2,
     });
     if (!suggestion) {
-      return NextResponse.json({ error: "Not enough available players" }, { status: 422 });
+      console.warn("[pairings] generate 422", {
+        courtNumber,
+        activePlayers: activePlayers.length,
+        busyCount: busyPlayerIds.size,
+        availableCount,
+      });
+      return NextResponse.json(
+        { error: "Not enough available players", availableCount, busyCount: busyPlayerIds.size },
+        { status: 422 }
+      );
     }
 
     return NextResponse.json({ suggestion });

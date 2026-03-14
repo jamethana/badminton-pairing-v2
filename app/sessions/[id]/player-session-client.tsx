@@ -390,18 +390,41 @@ export default function PlayerSessionClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generate: true, court_number: courtNumber }),
     })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          console.warn("[assign] generate failed", {
+            status: res.status,
+            courtNumber,
+            error: data?.error,
+            availableCount: data?.availableCount,
+            busyCount: data?.busyCount,
+          });
+        }
+        return { res, data };
+      })
+      .then(({ res, data }) => {
+        setAssignModal((prev) => {
+          if (prev?.courtNumber !== courtNumber) return prev;
+          const suggestion = res.ok ? data?.suggestion : undefined;
+          if (!res.ok) {
+            const msg =
+              data?.error === "Not enough available players"
+                ? "Not enough available players right now. Someone may have been assigned—try again."
+                : (typeof data?.error === "string" ? data.error : null) ?? "Could not generate match. Try again.";
+            showError(msg);
+          }
+          return { ...prev, suggestion, suggestionLoading: false };
+        });
+      })
+      .catch((err) => {
+        console.warn("[assign] generate request error", { courtNumber, err });
         setAssignModal((prev) =>
           prev?.courtNumber === courtNumber
-            ? { ...prev, suggestion: data?.suggestion, suggestionLoading: false }
+            ? { ...prev, suggestion: undefined, suggestionLoading: false }
             : prev
         );
-      })
-      .catch(() => {
-        setAssignModal((prev) =>
-          prev?.courtNumber === courtNumber ? { ...prev, suggestionLoading: false } : prev
-        );
+        showError("Could not load match suggestion. Check connection and try again.");
       });
   };
 
