@@ -33,6 +33,35 @@ interface Props {
 
 type ActiveTab = "game" | "players" | "history";
 
+function SmallAvatar({
+  pictureUrl,
+  displayName,
+  size = 24,
+}: {
+  pictureUrl: string | null | undefined;
+  displayName: string;
+  size?: number;
+}) {
+  const initial = displayName.trim().charAt(0).toUpperCase();
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200"
+    >
+      {pictureUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={pictureUrl}
+          alt={displayName}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="text-[10px] font-semibold text-gray-500">{initial}</span>
+      )}
+    </div>
+  );
+}
+
 export default function PlayerSessionClient({
   session,
   sessionPlayers,
@@ -754,20 +783,35 @@ export default function PlayerSessionClient({
               </p>
             )}
 
-            {myCurrentGame && (
+            {myCurrentGame && (() => {
+              const pA1 = getPlayer(myCurrentGame.team_a_player_1);
+              const pA2 = getPlayer(myCurrentGame.team_a_player_2);
+              const pB1 = getPlayer(myCurrentGame.team_b_player_1);
+              const pB2 = getPlayer(myCurrentGame.team_b_player_2);
+              return (
               <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
                 <p className="mb-1.5 text-xs font-semibold text-green-700">
                   🏸 Now playing on Court {myCurrentGame.court_number}! (Team {myTeam})
                 </p>
-                <div className="text-sm text-gray-700">
-                  <span className="font-medium">
-                    {getPlayer(myCurrentGame.team_a_player_1)?.display_name} &amp;{" "}
-                    {getPlayer(myCurrentGame.team_a_player_2)?.display_name}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-700">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <SmallAvatar pictureUrl={pA1.picture_url} displayName={pA1.display_name} />
+                    {pA1.display_name}
+                  </span>
+                  <span className="text-gray-500">&</span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <SmallAvatar pictureUrl={pA2.picture_url} displayName={pA2.display_name} />
+                    {pA2.display_name}
                   </span>
                   <span className="mx-2 text-gray-400">vs</span>
-                  <span className="font-medium">
-                    {getPlayer(myCurrentGame.team_b_player_1)?.display_name} &amp;{" "}
-                    {getPlayer(myCurrentGame.team_b_player_2)?.display_name}
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <SmallAvatar pictureUrl={pB1.picture_url} displayName={pB1.display_name} />
+                    {pB1.display_name}
+                  </span>
+                  <span className="text-gray-500">&</span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <SmallAvatar pictureUrl={pB2.picture_url} displayName={pB2.display_name} />
+                    {pB2.display_name}
                   </span>
                 </div>
                 {canRecordResult && (
@@ -781,7 +825,8 @@ export default function PlayerSessionClient({
                   </button>
                 )}
               </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Permission banner */}
