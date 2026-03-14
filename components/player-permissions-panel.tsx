@@ -496,7 +496,7 @@ export default function PlayerPermissionsPanel({
             id={inviteHeadingId}
             className="mb-2 text-sm font-medium text-gray-700"
           >
-            Who can access the invite link & QR code?
+            Who can generate the invite link & QR code?
           </p>
           <div
             ref={inviteRadioGroupRef}

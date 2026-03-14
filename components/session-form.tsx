@@ -377,7 +377,7 @@ export default function SessionForm({
         {/* Invite / QR access */}
         <div className="space-y-1.5">
           <p className="mb-2 text-sm font-medium text-gray-700">
-            Who can access the invite link & QR code?
+            Who can generate the invite link & QR code?
           </p>
           <div className="flex rounded-lg border border-gray-200 overflow-hidden">
             {[

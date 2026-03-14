@@ -66,6 +66,7 @@ export default function CourtDashboardClient({
   const [showSkillLevelPillsSaving, setShowSkillLevelPillsSaving] = useState(false);
   const [pairingRule, setPairingRule] = useState<PairingRule>(session.pairing_rule ?? "least_played");
   const [maxPartnerSkillLevelGap, setMaxPartnerSkillLevelGap] = useState(session.max_partner_skill_level_gap ?? 2);
+  const lastSavedSkillGapRef = useRef(session.max_partner_skill_level_gap ?? 2);
   const [pairingSaving, setPairingSaving] = useState(false);
   const [addCourtLoading, setAddCourtLoading] = useState(false);
   const [removingCourtNumber, setRemovingCourtNumber] = useState<number | null>(null);
@@ -127,7 +128,9 @@ export default function CourtDashboardClient({
       setCourtNames(data.court_names ?? {});
       setShowSkillLevelPills(data.show_skill_level_pills ?? true);
       setPairingRule((data.pairing_rule as PairingRule) ?? "least_played");
-      setMaxPartnerSkillLevelGap(data.max_partner_skill_level_gap ?? 2);
+      const gap = data.max_partner_skill_level_gap ?? 2;
+      setMaxPartnerSkillLevelGap(gap);
+      lastSavedSkillGapRef.current = gap;
     }
   }, [session.id]);
 
@@ -1266,7 +1269,7 @@ export default function CourtDashboardClient({
               </p>
             </div>
 
-            {/* Max partner skill gap */}
+            {/* Max partner skill gap — save on release to avoid disrupting drag */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-gray-700">Max partner skill gap</p>
@@ -1281,18 +1284,40 @@ export default function CourtDashboardClient({
                 step={1}
                 value={maxPartnerSkillLevelGap}
                 disabled={pairingSaving}
-                onChange={async (e) => {
-                  const next = parseInt(e.target.value);
-                  const prev = maxPartnerSkillLevelGap;
-                  setMaxPartnerSkillLevelGap(next);
+                onChange={(e) => setMaxPartnerSkillLevelGap(parseInt(e.target.value))}
+                onPointerUp={async (e) => {
+                  const value = parseInt((e.currentTarget as HTMLInputElement).value);
+                  const prev = lastSavedSkillGapRef.current;
+                  if (value === prev) return;
+                  lastSavedSkillGapRef.current = value;
                   setPairingSaving(true);
                   const res = await fetch(`/api/sessions/${session.id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ max_partner_skill_level_gap: next }),
+                    body: JSON.stringify({ max_partner_skill_level_gap: value }),
                   });
                   setPairingSaving(false);
-                  if (!res.ok) setMaxPartnerSkillLevelGap(prev);
+                  if (!res.ok) {
+                    lastSavedSkillGapRef.current = prev;
+                    setMaxPartnerSkillLevelGap(prev);
+                  }
+                }}
+                onBlur={async (e) => {
+                  const value = parseInt((e.currentTarget as HTMLInputElement).value);
+                  const prev = lastSavedSkillGapRef.current;
+                  if (value === prev) return;
+                  lastSavedSkillGapRef.current = value;
+                  setPairingSaving(true);
+                  const res = await fetch(`/api/sessions/${session.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ max_partner_skill_level_gap: value }),
+                  });
+                  setPairingSaving(false);
+                  if (!res.ok) {
+                    lastSavedSkillGapRef.current = prev;
+                    setMaxPartnerSkillLevelGap(prev);
+                  }
                 }}
                 className="w-full accent-green-600 disabled:opacity-60"
               />
