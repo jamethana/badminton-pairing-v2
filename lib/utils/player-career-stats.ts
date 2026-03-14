@@ -12,6 +12,13 @@ export interface PartnerStat {
   wins: number;
 }
 
+export interface RivalStat {
+  rivalId: string;
+  rivalName: string;
+  games: number;
+  wins: number;
+}
+
 export interface SessionStat {
   sessionId: string;
   sessionName: string;
@@ -32,6 +39,7 @@ export interface CareerStats {
   sessionCount: number;
   avgGamesPerSession: number;
   topPartners: PartnerStat[];
+  topRivals: RivalStat[];
   sessionBreakdown: SessionStat[];
   /** Most recent N games in descending order */
   recentGames: PairingFull[];
@@ -55,6 +63,13 @@ function getPartner(p: PairingFull, userId: string): string | null {
     return p.team_a_player_1 === userId ? p.team_a_player_2 : p.team_a_player_1;
   }
   return p.team_b_player_1 === userId ? p.team_b_player_2 : p.team_b_player_1;
+}
+
+function getOpponents(p: PairingFull, userId: string): string[] {
+  const opp = onTeamA(p, userId)
+    ? [p.team_b_player_1, p.team_b_player_2]
+    : [p.team_a_player_1, p.team_a_player_2];
+  return opp.filter((id): id is string => id != null);
 }
 
 export function computeCareerStats(
@@ -132,12 +147,33 @@ export function computeCareerStats(
   }
   const topPartners = [...partnerMap.entries()]
     .sort((a, b) => b[1].games - a[1].games)
-    .slice(0, 5)
+    .slice(0, 1)
     .map(([pid, ps]) => ({
       partnerId: pid,
       partnerName: userNameMap.get(pid) ?? "Unknown",
       games: ps.games,
       wins: ps.wins,
+    }));
+
+  // Rivals
+  const rivalMap = new Map<string, { games: number; wins: number }>();
+  for (const p of pairings) {
+    const opponents = getOpponents(p, userId);
+    for (const rid of opponents) {
+      if (!rivalMap.has(rid)) rivalMap.set(rid, { games: 0, wins: 0 });
+      const rs = rivalMap.get(rid)!;
+      rs.games++;
+      if (isWinner(p, userId)) rs.wins++;
+    }
+  }
+  const topRivals = [...rivalMap.entries()]
+    .sort((a, b) => b[1].games - a[1].games)
+    .slice(0, 1)
+    .map(([rid, rs]) => ({
+      rivalId: rid,
+      rivalName: userNameMap.get(rid) ?? "Unknown",
+      games: rs.games,
+      wins: rs.wins,
     }));
 
   return {
@@ -150,6 +186,7 @@ export function computeCareerStats(
     sessionCount,
     avgGamesPerSession,
     topPartners,
+    topRivals,
     sessionBreakdown,
     recentGames: pairings.slice(0, 10),
   };

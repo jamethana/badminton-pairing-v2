@@ -1,4 +1,4 @@
-import type { CareerStats, PairingFull } from "@/lib/utils/player-career-stats";
+import type { CareerStats, PairingFull, RivalStat } from "@/lib/utils/player-career-stats";
 import type { Tables } from "@/types/database";
 import { getSkillColor } from "@/components/skill-bar";
 import { DELETED_USER_DISPLAY_NAME } from "@/lib/utils/deleted-user";
@@ -155,6 +155,7 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
     sessionCount,
     avgGamesPerSession,
     topPartners,
+    topRivals,
     sessionBreakdown,
     recentGames,
   } = stats;
@@ -219,45 +220,90 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
         <StatCard label="Total Wins" value={wins} />
       </div>
 
-      {/* Top Partners */}
-      {topPartners.length > 0 && (
-        <div className="rounded-xl border bg-white">
-          <h3 className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
-            Top Partners
-          </h3>
-          <div className="divide-y">
-            {topPartners.map((p) => {
-              const pWinRate = p.games > 0 ? Math.round((p.wins / p.games) * 100) : 0;
-              return (
-                <div key={p.partnerId} className="flex items-center gap-3 px-4 py-2.5">
-                  <PlayerAvatar
-                    pictureUrl={userPictureMap.get(p.partnerId) ?? null}
-                    displayName={p.partnerName}
-                    size={36}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-800">{p.partnerName}</p>
-                    <p className="text-xs text-gray-400">
-                      {p.games} game{p.games !== 1 ? "s" : ""} together
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={cn(
-                        "text-sm font-bold",
-                        pWinRate >= 50 ? "text-green-600" : "text-red-500"
-                      )}
-                    >
-                      {pWinRate}%
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {p.wins}W–{p.games - p.wins}L
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Top Partners + Top Rivals side by side */}
+      {(topPartners.length > 0 || topRivals.length > 0) && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {topPartners.length > 0 && (
+            <div className="rounded-xl border bg-white">
+              <h3 className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
+                Top Partner
+              </h3>
+              <div className="divide-y">
+                {topPartners.map((p) => {
+                  const pWinRate = p.games > 0 ? Math.round((p.wins / p.games) * 100) : 0;
+                  return (
+                    <div key={p.partnerId} className="flex items-center gap-3 px-4 py-2.5">
+                      <PlayerAvatar
+                        pictureUrl={userPictureMap.get(p.partnerId) ?? null}
+                        displayName={p.partnerName}
+                        size={36}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-gray-800">{p.partnerName}</p>
+                        <p className="text-xs text-gray-400">
+                          {p.games} game{p.games !== 1 ? "s" : ""} together
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={cn(
+                            "text-sm font-bold",
+                            pWinRate >= 50 ? "text-green-600" : "text-red-500"
+                          )}
+                        >
+                          {pWinRate}%
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {p.wins}W–{p.games - p.wins}L
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {topRivals.length > 0 && (
+            <div className="rounded-xl border bg-white">
+              <h3 className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
+                Top Rival
+              </h3>
+              <div className="divide-y">
+                {topRivals.map((r: RivalStat) => {
+                  const rWinRate = r.games > 0 ? Math.round((r.wins / r.games) * 100) : 0;
+                  return (
+                    <div key={r.rivalId} className="flex items-center gap-3 px-4 py-2.5">
+                      <PlayerAvatar
+                        pictureUrl={userPictureMap.get(r.rivalId) ?? null}
+                        displayName={r.rivalName}
+                        size={36}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-gray-800">{r.rivalName}</p>
+                        <p className="text-xs text-gray-400">
+                          {r.games} game{r.games !== 1 ? "s" : ""} against
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={cn(
+                            "text-sm font-bold",
+                            rWinRate >= 50 ? "text-green-600" : "text-red-500"
+                          )}
+                        >
+                          {rWinRate}%
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {r.wins}W–{r.games - r.wins}L
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
