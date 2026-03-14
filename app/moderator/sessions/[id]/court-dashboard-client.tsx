@@ -161,6 +161,11 @@ export default function CourtDashboardClient({
         setSessionPlayers((prev) => prev.filter((sp) => sp.id !== row.id));
         return;
       }
+      // New users (e.g. "name slot") are not in initial allUsers — refetch so we get full users()
+      if (!userById.get(row.user_id)) {
+        void refetchSessionPlayers();
+        return;
+      }
       const user = userById.get(row.user_id) ?? null;
       const sp: SessionPlayer = { ...row, users: user };
       setSessionPlayers((prev) => {
