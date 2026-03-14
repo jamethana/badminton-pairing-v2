@@ -75,9 +75,10 @@ export default function SessionForm({
     setError("");
     try {
       await onSubmit(form, showRememberDefaults ? { rememberDefaults } : undefined);
+      // In create mode we navigate away; keep button "Creating…" until unmount.
+      if (mode === "edit") setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
       setLoading(false);
     }
   };
