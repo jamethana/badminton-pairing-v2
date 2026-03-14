@@ -9,6 +9,36 @@ interface Props {
   player: Pick<Tables<"users">, "id" | "display_name" | "skill_level" | "picture_url">;
   stats: CareerStats;
   userNameMap: Map<string, string>;
+  userPictureMap: Map<string, string | null>;
+}
+
+function PlayerAvatar({
+  pictureUrl,
+  displayName,
+  size = 32,
+}: {
+  pictureUrl: string | null | undefined;
+  displayName: string;
+  size?: number;
+}) {
+  const initial = displayName.trim().charAt(0).toUpperCase();
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200"
+    >
+      {pictureUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={pictureUrl}
+          alt={displayName}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="text-xs font-semibold text-gray-500">{initial}</span>
+      )}
+    </div>
+  );
 }
 
 function StatCard({
@@ -37,10 +67,12 @@ function RecentGameRow({
   pairing,
   userId,
   userNameMap,
+  userPictureMap,
 }: {
   pairing: PairingFull;
   userId: string;
   userNameMap: Map<string, string>;
+  userPictureMap: Map<string, string | null>;
 }) {
   const onA =
     pairing.team_a_player_1 === userId || pairing.team_a_player_2 === userId;
@@ -59,6 +91,8 @@ function RecentGameRow({
   const getName = (id: string | null) =>
     id != null ? (userNameMap.get(id) ?? DELETED_USER_DISPLAY_NAME) : DELETED_USER_DISPLAY_NAME;
   const partner = myTeam.find((id) => id !== userId) ?? null;
+  const partnerName = getName(partner);
+  const oppNames = oppTeam.map(getName);
 
   return (
     <div
@@ -70,20 +104,39 @@ function RecentGameRow({
     >
       <span
         className={cn(
-          "w-7 text-center text-sm font-bold",
+          "w-7 shrink-0 text-center text-sm font-bold",
           won === true ? "text-green-600" : "text-red-500"
         )}
       >
         {won === null ? "–" : won ? "W" : "L"}
       </span>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {partner != null && (
+          <PlayerAvatar
+            pictureUrl={userPictureMap.get(partner) ?? null}
+            displayName={partnerName}
+            size={28}
+          />
+        )}
+        {oppTeam.map((id) =>
+          id != null ? (
+            <PlayerAvatar
+              key={id}
+              pictureUrl={userPictureMap.get(id) ?? null}
+              displayName={getName(id)}
+              size={28}
+            />
+          ) : null
+        )}
+      </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-gray-800">
-          w/ {getName(partner)} vs {oppTeam.map(getName).join(" & ")}
+          w/ {partnerName} vs {oppNames.join(" & ")}
         </p>
         <p className="text-xs text-gray-400">
           {pairing.sessions?.name}
           {pairing.completed_at && (
-            <> · {format(new Date(pairing.completed_at), "d MMM")}</>
+            <> · {format(new Date(pairing.completed_at), "d MMM, h:mm a")}</>
           )}
         </p>
       </div>
@@ -91,7 +144,7 @@ function RecentGameRow({
   );
 }
 
-export default function PlayerStatsView({ player, stats, userNameMap }: Props) {
+export default function PlayerStatsView({ player, stats, userNameMap, userPictureMap }: Props) {
   const {
     played,
     wins,
@@ -176,7 +229,12 @@ export default function PlayerStatsView({ player, stats, userNameMap }: Props) {
             {topPartners.map((p) => {
               const pWinRate = p.games > 0 ? Math.round((p.wins / p.games) * 100) : 0;
               return (
-                <div key={p.partnerId} className="flex items-center px-4 py-2.5">
+                <div key={p.partnerId} className="flex items-center gap-3 px-4 py-2.5">
+                  <PlayerAvatar
+                    pictureUrl={userPictureMap.get(p.partnerId) ?? null}
+                    displayName={p.partnerName}
+                    size={36}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-800">{p.partnerName}</p>
                     <p className="text-xs text-gray-400">
@@ -248,6 +306,7 @@ export default function PlayerStatsView({ player, stats, userNameMap }: Props) {
                 pairing={p}
                 userId={player.id}
                 userNameMap={userNameMap}
+                userPictureMap={userPictureMap}
               />
             ))}
           </div>

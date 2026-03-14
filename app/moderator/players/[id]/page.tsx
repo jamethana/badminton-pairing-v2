@@ -44,13 +44,17 @@ export default async function ModeratorPlayerStatsPage({
   allPlayerIds.delete(playerId);
 
   const { data: otherUsers } = allPlayerIds.size > 0
-    ? await supabase.from("users").select("id, display_name").in("id", [...allPlayerIds])
+    ? await supabase.from("users").select("id, display_name, picture_url").in("id", [...allPlayerIds])
     : { data: [] };
 
   const userNameMap = new Map<string, string>(
     (otherUsers ?? []).map((u) => [u.id, u.display_name])
   );
   userNameMap.set(playerId, player.display_name);
+
+  const userPictureMap = new Map<string, string | null>();
+  (otherUsers ?? []).forEach((u) => userPictureMap.set(u.id, u.picture_url ?? null));
+  userPictureMap.set(playerId, player.picture_url ?? null);
 
   const stats = computeCareerStats(safePairings, playerId, userNameMap);
 
@@ -70,7 +74,12 @@ export default async function ModeratorPlayerStatsPage({
           <p className="text-sm text-gray-500">Career statistics</p>
         </div>
       </div>
-      <PlayerStatsView player={player} stats={stats} userNameMap={userNameMap} />
+      <PlayerStatsView
+        player={player}
+        stats={stats}
+        userNameMap={userNameMap}
+        userPictureMap={userPictureMap}
+      />
     </div>
   );
 }

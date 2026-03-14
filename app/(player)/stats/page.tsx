@@ -34,13 +34,17 @@ export default async function MyStatsPage() {
 
   const { data: otherUsers } = await supabase
     .from("users")
-    .select("id, display_name")
+    .select("id, display_name, picture_url")
     .in("id", [...allPlayerIds]);
 
   const userNameMap = new Map<string, string>(
     (otherUsers ?? []).map((u) => [u.id, u.display_name])
   );
   userNameMap.set(appUser.id, appUser.display_name);
+
+  const userPictureMap = new Map<string, string | null>();
+  (otherUsers ?? []).forEach((u) => userPictureMap.set(u.id, u.picture_url ?? null));
+  userPictureMap.set(appUser.id, appUser.picture_url ?? null);
 
   const stats = computeCareerStats(safePairings, appUser.id, userNameMap);
 
@@ -50,7 +54,12 @@ export default async function MyStatsPage() {
         <h1 className="text-2xl font-bold text-gray-900">My Stats</h1>
         <p className="text-sm text-gray-500">Your all-time career statistics</p>
       </div>
-      <PlayerStatsView player={appUser} stats={stats} userNameMap={userNameMap} />
+      <PlayerStatsView
+        player={appUser}
+        stats={stats}
+        userNameMap={userNameMap}
+        userPictureMap={userPictureMap}
+      />
     </>
   );
 }
