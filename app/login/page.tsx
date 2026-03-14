@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import LoginButton from "./login-button";
 
@@ -18,10 +18,10 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Use getCurrentUser (auth + app user) so "already logged in" matches the rest of the app.
+  // Otherwise a partial session (auth user but no app_user_id/users row) causes a redirect loop:
+  // session page redirects to login → login sees auth user and redirects to session → repeat.
+  const user = await getCurrentUser();
 
   if (user) {
     const params = await searchParams;
