@@ -668,12 +668,12 @@ export default function PlayerSessionClient({
 
         {/* My Status card skeleton */}
         <div className="rounded-xl border bg-white p-4 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3">
             <div className="space-y-1">
               <div className="h-5 w-24 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
               <div className="h-3 w-32 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
             </div>
-            <div className="h-8 w-20 rounded-full bg-gray-200 animate-pulse motion-reduce:animate-none" />
+            <div className="h-[44px] w-full rounded-full bg-gray-200 animate-pulse motion-reduce:animate-none sm:w-20" />
           </div>
         </div>
 
@@ -741,7 +741,7 @@ export default function PlayerSessionClient({
         <>
           {/* My status */}
           <div className="rounded-xl border bg-white p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="font-semibold text-gray-800">My Status</h2>
                 <p className="text-sm text-gray-500">
@@ -754,7 +754,7 @@ export default function PlayerSessionClient({
               <button
                 onClick={isCompleted ? undefined : handleToggleActive}
                 className={cn(
-                  "rounded-full px-5 py-2.5 text-sm font-semibold",
+                  "flex min-h-[44px] w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold sm:w-auto",
                   mySlot.is_active
                     ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
                     : "bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-700"
@@ -793,33 +793,37 @@ export default function PlayerSessionClient({
                 <p className="mb-1.5 text-xs font-semibold text-green-700">
                   🏸 Now playing on Court {myCurrentGame.court_number}! (Team {myTeam})
                 </p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-700">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <SmallAvatar pictureUrl={pA1.picture_url} displayName={pA1.display_name} />
-                    {pA1.display_name}
-                  </span>
-                  <span className="text-gray-500">&</span>
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <SmallAvatar pictureUrl={pA2.picture_url} displayName={pA2.display_name} />
-                    {pA2.display_name}
-                  </span>
-                  <span className="mx-2 text-gray-400">vs</span>
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <SmallAvatar pictureUrl={pB1.picture_url} displayName={pB1.display_name} />
-                    {pB1.display_name}
-                  </span>
-                  <span className="text-gray-500">&</span>
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <SmallAvatar pictureUrl={pB2.picture_url} displayName={pB2.display_name} />
-                    {pB2.display_name}
-                  </span>
+                <div className="flex flex-col gap-1.5 text-sm text-gray-700">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <SmallAvatar pictureUrl={pA1.picture_url} displayName={pA1.display_name} />
+                      {pA1.display_name}
+                    </span>
+                    <span className="text-gray-500">&</span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <SmallAvatar pictureUrl={pA2.picture_url} displayName={pA2.display_name} />
+                      {pA2.display_name}
+                    </span>
+                  </div>
+                  <p className="text-center text-sm text-gray-400">vs</p>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <SmallAvatar pictureUrl={pB1.picture_url} displayName={pB1.display_name} />
+                      {pB1.display_name}
+                    </span>
+                    <span className="text-gray-500">&</span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <SmallAvatar pictureUrl={pB2.picture_url} displayName={pB2.display_name} />
+                      {pB2.display_name}
+                    </span>
+                  </div>
                 </div>
                 {canRecordResult && (
                   <button
                     onClick={() =>
                       setResultModal({ pairingId: myCurrentGame.id, courtNumber: myCurrentGame.court_number })
                     }
-                    className="mt-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                    className="mt-2 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 sm:w-auto"
                   >
                     Record Result
                   </button>
