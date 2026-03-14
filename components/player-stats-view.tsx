@@ -3,6 +3,7 @@ import type { Tables } from "@/types/database";
 import { getSkillColor } from "@/components/skill-bar";
 import { DELETED_USER_DISPLAY_NAME } from "@/lib/utils/deleted-user";
 import { format } from "date-fns";
+import { Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -59,6 +60,66 @@ function StatCard({
       </p>
       <p className="text-xs font-medium text-gray-500">{label}</p>
       {sub && <p className="mt-0.5 text-xs text-gray-400">{sub}</p>}
+    </div>
+  );
+}
+
+function GamesPlayedCard({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="rounded-xl border border-l-4 border-blue-400 bg-blue-50/30 p-4">
+      <div className="flex items-center gap-3">
+        <Gamepad2 className="h-6 w-6 shrink-0 text-blue-600" aria-hidden />
+        <div>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className="text-xs font-medium text-gray-500">{label}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WinRateCard({
+  value,
+  sub,
+  percent,
+}: {
+  value: string;
+  sub: string;
+  percent: number | null;
+}) {
+  const isWin = percent !== null && percent >= 50;
+  const isLoss = percent !== null && percent < 50;
+  return (
+    <div
+      className={cn(
+        "rounded-xl border bg-white p-4 text-center",
+        isWin && "border-green-200 bg-green-50",
+        isLoss && "border-red-100 bg-red-50"
+      )}
+    >
+      <p
+        className={cn(
+          "text-2xl font-bold",
+          isWin && "text-green-700",
+          isLoss && "text-red-600",
+          percent === null && "text-gray-900"
+        )}
+      >
+        {value}
+      </p>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+        <div
+          className={cn(
+            "h-full rounded-full",
+            isWin && "bg-green-500",
+            isLoss && "bg-red-500",
+            percent === null && "bg-gray-300"
+          )}
+          style={{ width: `${percent ?? 0}%` }}
+        />
+      </div>
+      <p className="text-xs font-medium text-gray-500">Win Rate</p>
+      <p className="text-xs text-gray-400">{sub}</p>
     </div>
   );
 }
@@ -192,12 +253,11 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
 
       {/* Summary stats grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Games Played" value={played} />
-        <StatCard
-          label="Win Rate"
+        <GamesPlayedCard value={played} label="Games Played" />
+        <WinRateCard
           value={winRate !== null ? `${winRate}%` : "–"}
           sub={`${wins}W – ${losses}L`}
-          highlight={winRate !== null && winRate >= 50}
+          percent={winRate}
         />
         <StatCard
           label="Current Streak"

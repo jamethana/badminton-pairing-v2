@@ -14,12 +14,29 @@ export default function StatsLoading() {
 
       {/* Stats grid skeleton */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border bg-white p-4 text-center space-y-2">
-            <div className="h-7 w-12 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
-            <div className="h-3 w-20 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
+        {/* Games Played — icon + value/label */}
+        <div className="rounded-xl border border-l-4 border-blue-200 bg-white p-4 flex items-center gap-3">
+          <div className="h-6 w-6 rounded bg-gray-200 animate-pulse motion-reduce:animate-none shrink-0" />
+          <div className="space-y-1">
+            <div className="h-7 w-12 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
+            <div className="h-3 w-16 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
           </div>
-        ))}
+        </div>
+        {/* Win Rate — value + bar + label */}
+        <div className="rounded-xl border bg-white p-4 text-center space-y-2">
+          <div className="h-7 w-12 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
+          <div className="h-2 w-full rounded-full bg-gray-200 animate-pulse motion-reduce:animate-none" />
+          <div className="h-3 w-20 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
+        </div>
+        {/* Current Streak, Best Win Streak */}
+        <div className="rounded-xl border bg-white p-4 text-center space-y-2">
+          <div className="h-7 w-12 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
+          <div className="h-3 w-20 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
+        </div>
+        <div className="rounded-xl border bg-white p-4 text-center space-y-2">
+          <div className="h-7 w-12 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
+          <div className="h-3 w-20 rounded bg-gray-200 animate-pulse motion-reduce:animate-none mx-auto" />
+        </div>
       </div>
 
       {/* Recent games skeleton */}
