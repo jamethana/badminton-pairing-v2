@@ -5,6 +5,7 @@ import { DELETED_USER_DISPLAY_NAME } from "@/lib/utils/deleted-user";
 import { format } from "date-fns";
 import { Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface Props {
   player: Pick<Tables<"users">, "id" | "display_name" | "skill_level" | "picture_url">;
@@ -402,9 +403,15 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
       {/* Recent games */}
       {recentGames.length > 0 && (
         <div className="rounded-xl border bg-white">
-          <h3 className="border-b px-4 py-3 text-sm font-semibold text-gray-700">
-            Recent Games
-          </h3>
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-700">Recent Games</h3>
+            <Link
+              href="/stats/history"
+              className="text-xs font-medium text-green-700 hover:underline"
+            >
+              View all
+            </Link>
+          </div>
           <div className="space-y-2 p-3">
             {recentGames.map((p) => (
               <RecentGameRow
@@ -415,6 +422,14 @@ export default function PlayerStatsView({ player, stats, userNameMap, userPictur
                 userPictureMap={userPictureMap}
               />
             ))}
+          </div>
+          <div className="border-t px-4 py-3">
+            <Link
+              href="/stats/history"
+              className="flex h-11 w-full items-center justify-center rounded-lg bg-gray-50 text-sm font-medium text-green-700 hover:bg-gray-100"
+            >
+              View full match history
+            </Link>
           </div>
         </div>
       )}
