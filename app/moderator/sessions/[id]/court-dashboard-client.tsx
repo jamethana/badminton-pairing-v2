@@ -1489,11 +1489,16 @@ export default function CourtDashboardClient({
               </DialogHeader>
               {editPlayer && editUser && (
                 <div className="space-y-5 py-1">
-                  {/* Active toggle — full-width button */}
+                  {/* Active toggle — full-width button (green to match app accent) */}
                   <Button
                     type="button"
-                    variant={editPlayer.is_active ? "default" : "outline"}
-                    className="w-full min-h-[44px]"
+                    variant="outline"
+                    className={cn(
+                      "w-full min-h-[44px]",
+                      editPlayer.is_active
+                        ? "border-green-600 bg-green-600 text-white hover:bg-green-700 hover:text-white"
+                        : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
+                    )}
                     onClick={() => handleToggleActive(editPlayer.id, editPlayer.is_active)}
                   >
                     {editPlayer.is_active ? "Active" : "Inactive"}
