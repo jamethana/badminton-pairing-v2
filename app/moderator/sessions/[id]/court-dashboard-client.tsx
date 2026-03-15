@@ -714,11 +714,6 @@ export default function CourtDashboardClient({
     () => [...completedPairings].sort((a, b) => b.sequence_number - a.sequence_number),
     [completedPairings]
   );
-  const avgAvailSkill =
-    availablePlayers.length > 0
-      ? (availablePlayers.reduce((s, p) => s + p.skill_level, 0) / availablePlayers.length).toFixed(1)
-      : "–";
-
   return (
     <>
       {isReconnectingFromVisibility && (
@@ -857,28 +852,23 @@ export default function CourtDashboardClient({
             )}
           </div>
 
-          {/* Available players */}
+        </>
+      )}
+
+      {activeTab === "players" && (
+        <div className="space-y-4">
+          {/* Add Player */}
           <div className="rounded-xl border bg-white p-4">
             <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-800">
-                  Available Players ({availablePlayers.length})
-                </h3>
-                {availablePlayers.length > 0 && (
-                  <p className="text-xs text-gray-400">Avg skill: {avgAvailSkill}</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <span className="text-xs text-gray-400">{completedPairings.length} games played</span>
-                {!isCompleted && (
-                  <button
-                    onClick={() => setAddingPlayer(!addingPlayer)}
-                    className="rounded-lg bg-green-50 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
-                  >
-                    + Add Player
-                  </button>
-                )}
-              </div>
+              <h3 className="font-semibold text-gray-800">Players</h3>
+              {!isCompleted && (
+                <button
+                  onClick={() => setAddingPlayer(!addingPlayer)}
+                  className="rounded-lg bg-green-50 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+                >
+                  + Add Player
+                </button>
+              )}
             </div>
 
             {addingPlayer && (
@@ -1024,87 +1014,10 @@ export default function CourtDashboardClient({
                 </div>
               </div>
             )}
-
-            {/* All players list */}
-            <div className="space-y-1.5">
-              {sessionPlayers
-                .filter((sp) => sp.users)
-                // quality-4: .toSorted() is non-mutating
-                .toSorted((a, b) => {
-                  const busyA = busyIds.has(a.users!.id);
-                  const busyB = busyIds.has(b.users!.id);
-                  if (busyA !== busyB) return busyA ? 1 : -1;
-                  const sa = statsMap.get(a.users!.id);
-                  const sb = statsMap.get(b.users!.id);
-                  return (sb?.gamesSinceLastPlayed ?? 0) - (sa?.gamesSinceLastPlayed ?? 0);
-                })
-                .map((sp) => {
-                  const stats = statsMap.get(sp.users!.id);
-                  const isBusy = busyIds.has(sp.users!.id);
-                  const handleRowClick = () => {
-                    if (isBusy) return;
-                    handleToggleActive(sp.id, sp.is_active);
-                  };
-
-                  return (
-                    <div
-                      key={sp.id}
-                      onClick={isCompleted ? undefined : handleRowClick}
-                      className={cn(
-                        "flex items-center gap-2 rounded-xl border px-2 py-1.5 transition-colors",
-                        isBusy
-                          ? "cursor-default bg-blue-50 border-blue-200"
-                          : "cursor-pointer",
-                        !isBusy &&
-                          (sp.is_active
-                            ? "bg-green-50 border-green-200"
-                            : "bg-white border-gray-100")
-                      )}
-                    >
-                      <PlayerBadge
-                        name={sp.users!.display_name}
-                        skillLevel={sp.users!.skill_level}
-                        pictureUrl={sp.users!.picture_url}
-                        matchesPlayed={stats?.matchesPlayed}
-                        gamesSinceLastPlayed={stats?.gamesSinceLastPlayed}
-                        isActive={sp.is_active}
-                        isLinked={!!sp.users!.line_user_id}
-                        showSkillLevelPill={showSkillLevelPills}
-                        className="flex-1"
-                      />
-                      {!isBusy && !isCompleted && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!window.confirm(`Remove ${sp.users!.display_name} from this session?`)) return;
-                            handleRemovePlayer(sp.id);
-                          }}
-                          aria-label={`Remove ${sp.users!.display_name} from session`}
-                          className="flex h-8 flex-shrink-0 items-center rounded-lg px-2.5 text-xs font-medium text-gray-400 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1"
-                          title="Remove from session"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              {sessionPlayers.length === 0 && (
-                <p className="py-3 text-center text-sm text-gray-400">
-                  No players yet. Click &quot;+ Add Player&quot; to get started.
-                </p>
-              )}
           </div>
-        </div>
 
-        </>
-      )}
-
-      {activeTab === "players" && (
-        <div className="rounded-xl border bg-white">
+          {/* Player list with stats */}
+          <div className="rounded-xl border bg-white">
           {/* Sort pills */}
           <div className="flex flex-wrap items-center gap-1.5 border-b px-4 py-2.5">
             <span className="mr-1 text-xs text-gray-400">Sort:</span>
@@ -1140,6 +1053,11 @@ export default function CourtDashboardClient({
 
           {/* Player rows */}
           <div className="divide-y">
+            {sessionPlayers.length === 0 && (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">
+                No players yet. Click &quot;+ Add Player&quot; to get started.
+              </p>
+            )}
             {sortedStats.map(({ sp, user, matchesPlayed, wins, losses, winPct, gamesSince }) => (
               <button
                 key={sp.id}
@@ -1212,6 +1130,7 @@ export default function CourtDashboardClient({
               </button>
             ))}
           </div>
+          </div>
         </div>
       )}
 
@@ -1279,7 +1198,7 @@ export default function CourtDashboardClient({
           <div className="rounded-xl border bg-white p-4">
             <h3 className="mb-2 text-sm font-semibold text-gray-700">Display</h3>
             <p className="mb-2 text-xs text-gray-400">
-              Show skill level in the Available Players list on the Game tab.
+              Show skill level in the player list on the Players tab.
             </p>
             <div
               className={cn(
