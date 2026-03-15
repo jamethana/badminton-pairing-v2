@@ -133,6 +133,7 @@ export default function CourtDashboardClient({
 
   // Edit player dialog state (Players tab)
   const [editPlayerSpId, setEditPlayerSpId] = useState<string | null>(null);
+  const [pendingRemovePlayer, setPendingRemovePlayer] = useState<{ spId: string; displayName: string } | null>(null);
 
   // Realtime: merge remote changes so multiple moderators stay in sync
   const userById = useMemo(() => new Map(allUsers.map((u) => [u.id, u])), [allUsers]);
@@ -858,13 +859,13 @@ export default function CourtDashboardClient({
       {activeTab === "players" && (
         <div className="space-y-4">
           {/* Add Player */}
-          <div className="rounded-xl border bg-white p-4">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">Players</h3>
+              <h3 className="font-semibold text-green-800">Players</h3>
               {!isCompleted && (
                 <button
                   onClick={() => setAddingPlayer(!addingPlayer)}
-                  className="rounded-lg bg-green-50 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+                  className="min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
                   + Add Player
                 </button>
@@ -872,7 +873,7 @@ export default function CourtDashboardClient({
             </div>
 
             {addingPlayer && (
-              <div className="mb-3 rounded-lg border bg-gray-50 p-3">
+              <div className="mb-3 rounded-lg border border-green-200 bg-white p-3">
                 {/* Search existing players */}
                 <div className="mb-2">
                   <input
@@ -971,14 +972,14 @@ export default function CourtDashboardClient({
                       <button
                         type="submit"
                         disabled={isAddingPlayer}
-                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                        className="min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
                       >
                         {isAddingPlayer ? "Adding…" : "Add"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowNewForm(false)}
-                        className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                        className="min-h-[44px] rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
                       >
                         Back
                       </button>
@@ -995,7 +996,7 @@ export default function CourtDashboardClient({
                       setShowNewForm(false);
                       setSelectedUserIds([]);
                     }}
-                    className="text-xs text-gray-500 hover:underline"
+                    className="min-h-[44px] px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
                   >
                     Cancel
                   </button>
@@ -1003,7 +1004,7 @@ export default function CourtDashboardClient({
                     type="button"
                     onClick={handleAddSelectedExisting}
                     disabled={isAddingPlayer || selectedUserIds.length === 0}
-                    className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                    className="min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
                   >
                     {isAddingPlayer
                       ? "Adding…"
@@ -1055,7 +1056,7 @@ export default function CourtDashboardClient({
           <div className="divide-y">
             {sessionPlayers.length === 0 && (
               <p className="px-4 py-8 text-center text-sm text-gray-400">
-                No players yet. Click &quot;+ Add Player&quot; to get started.
+                No players yet. Add one above or they&apos;ll appear here once they sign in via LINE.
               </p>
             )}
             {sortedStats.map(({ sp, user, matchesPlayed, wins, losses, winPct, gamesSince }) => (
@@ -1536,8 +1537,7 @@ export default function CourtDashboardClient({
                   className="w-full min-h-[44px]"
                   onClick={() => {
                     if (!editPlayer || !editUser) return;
-                    if (!window.confirm(`Remove ${editUser.display_name} from this session?`)) return;
-                    handleRemovePlayer(editPlayer.id);
+                    setPendingRemovePlayer({ spId: editPlayer.id, displayName: editUser.display_name });
                     setEditPlayerSpId(null);
                   }}
                 >
@@ -1548,6 +1548,41 @@ export default function CourtDashboardClient({
           </Dialog>
         );
       })()}
+
+      {/* Remove from session confirmation Dialog */}
+      <Dialog
+        open={!!pendingRemovePlayer}
+        onOpenChange={(open) => { if (!open) setPendingRemovePlayer(null); }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remove from session?</DialogTitle>
+            <DialogDescription>
+              Remove {pendingRemovePlayer?.displayName} from this session? They can be added again from the Players tab.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              variant="outline"
+              className="w-full min-h-[44px]"
+              onClick={() => setPendingRemovePlayer(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full min-h-[44px]"
+              onClick={() => {
+                if (!pendingRemovePlayer) return;
+                handleRemovePlayer(pendingRemovePlayer.spId);
+                setPendingRemovePlayer(null);
+              }}
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
