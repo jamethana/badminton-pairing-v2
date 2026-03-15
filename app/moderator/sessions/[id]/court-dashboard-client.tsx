@@ -1570,16 +1570,15 @@ export default function CourtDashboardClient({
               </DialogHeader>
               {editPlayer && editUser && (
                 <div className="space-y-5 py-1">
-                  {/* Active toggle */}
-                  <label className="flex cursor-pointer items-center justify-between gap-4">
-                    <span className="text-sm font-medium text-gray-700">Active</span>
-                    <input
-                      type="checkbox"
-                      checked={editPlayer.is_active}
-                      onChange={() => handleToggleActive(editPlayer.id, editPlayer.is_active)}
-                      className="h-5 w-5 cursor-pointer rounded border-gray-300 accent-green-600"
-                    />
-                  </label>
+                  {/* Active toggle — full-width button */}
+                  <Button
+                    type="button"
+                    variant={editPlayer.is_active ? "default" : "outline"}
+                    className="w-full min-h-[44px]"
+                    onClick={() => handleToggleActive(editPlayer.id, editPlayer.is_active)}
+                  >
+                    {editPlayer.is_active ? "Active" : "Inactive"}
+                  </Button>
 
                   {/* Skill level */}
                   <div className="flex items-center justify-between gap-4">
