@@ -66,18 +66,9 @@ function MatchCard({
 
   const partner = myTeam.find((id) => id !== userId) ?? null;
   const partnerName = getName(partner);
-  const oppNames = oppTeam.map(getName);
 
-  const myScore = result
-    ? onA
-      ? result.team_a_score
-      : result.team_b_score
-    : null;
-  const oppScore = result
-    ? onA
-      ? result.team_b_score
-      : result.team_a_score
-    : null;
+  const myPlayerIds = [userId, partner].filter((id): id is string => id != null);
+  const oppPlayerIds = oppTeam.filter((id): id is string => id != null);
 
   return (
     <div
@@ -122,20 +113,6 @@ function MatchCard({
                 : "Unknown date"}
           </p>
         </div>
-
-        {/* Score */}
-        {myScore !== null && oppScore !== null && (
-          <span
-            className={cn(
-              "shrink-0 rounded-md px-2 py-0.5 text-sm font-bold tabular-nums",
-              won === true && "bg-green-100 text-green-700",
-              won === false && "bg-red-100 text-red-600",
-              won === null && "bg-gray-100 text-gray-600"
-            )}
-          >
-            {myScore}–{oppScore}
-          </span>
-        )}
       </div>
 
       {/* Divider */}
@@ -148,10 +125,10 @@ function MatchCard({
         )}
       />
 
-      {/* Body — court + teams (always visible) */}
+      {/* Body — court + teams */}
       <div
         className={cn(
-          "space-y-1.5 px-3 pb-3 pt-2",
+          "space-y-2 px-3 pb-3 pt-2",
           won === true && "bg-green-50/60",
           won === false && "bg-red-50/60",
           won === null && "bg-gray-50"
@@ -162,41 +139,37 @@ function MatchCard({
           {pairing.sessions?.name && <> · {pairing.sessions.name}</>}
         </p>
 
-        <div className="space-y-1.5">
-          {/* You & partner */}
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="w-16 shrink-0 text-xs font-medium text-gray-500">You &amp; partner</span>
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              <PlayerAvatar
-                pictureUrl={userPictureMap[userId] ?? null}
-                displayName={userNameMap[userId] ?? "You"}
-              />
-              {partner && (
+        {/* Teams: left column vs right column */}
+        <div className="flex items-center gap-1">
+          {/* Your team */}
+          <div className="min-w-0 flex-1 space-y-1.5">
+            {myPlayerIds.map((id) => (
+              <div key={id} className="flex min-w-0 items-center gap-1.5">
                 <PlayerAvatar
-                  pictureUrl={getPicture(partner)}
-                  displayName={partnerName}
+                  pictureUrl={userPictureMap[id] ?? null}
+                  displayName={userNameMap[id] ?? "You"}
                 />
-              )}
-              <span className="truncate text-xs text-gray-700">
-                {userNameMap[userId] ?? "You"}
-                {partner && ` & ${partnerName}`}
-              </span>
-            </div>
+                <span className="truncate text-xs text-gray-700">
+                  {userNameMap[id] ?? "You"}
+                </span>
+              </div>
+            ))}
           </div>
 
+          {/* vs */}
+          <span className="shrink-0 px-2 text-xs font-medium text-gray-400">vs</span>
+
           {/* Opponents */}
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="w-16 shrink-0 text-xs font-medium text-gray-500">Opponents</span>
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              {oppTeam.filter((id): id is string => id != null).map((id) => (
+          <div className="min-w-0 flex-1 space-y-1.5">
+            {oppPlayerIds.map((id) => (
+              <div key={id} className="flex min-w-0 items-center gap-1.5">
                 <PlayerAvatar
-                  key={id}
                   pictureUrl={getPicture(id)}
                   displayName={getName(id)}
                 />
-              ))}
-              <span className="truncate text-xs text-gray-700">{oppNames.join(" & ")}</span>
-            </div>
+                <span className="truncate text-xs text-gray-700">{getName(id)}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
