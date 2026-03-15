@@ -105,7 +105,7 @@ export default async function Home() {
           Hey, {user.appUser.display_name}! 👋
         </h1>
         <p className="text-sm text-gray-500">
-          DM Jame for bugs, feedback, or feature requests!
+          DM Jame for bugs, feedback, feature requests, or anything else! Ho asss frontend delivery excellences always breaking on me from simple changes, but I'll try my best to fix them. Please don't hesitate to report anything that seems broken or unexpected or if you have a suggestion for the name of the app.
         </p>
       </div>
 

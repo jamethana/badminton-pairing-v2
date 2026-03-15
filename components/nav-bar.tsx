@@ -45,7 +45,7 @@ export default function NavBar({ isModerator, displayName, pictureUrl, viewAs }:
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
           <Link href={effectiveView === "moderator" ? "/moderator" : "/"} className="flex items-center gap-2">
-            <span className="text-lg font-bold text-green-700">🏸 Badminton</span>
+            <span className="text-lg font-bold text-green-700">Japkoo</span>
           </Link>
           <div className="hidden items-center gap-4 sm:flex">
             {links.map((link) => (
