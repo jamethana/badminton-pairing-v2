@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { DELETED_USER_DISPLAY_NAME } from "@/lib/utils/deleted-user";
@@ -38,20 +36,16 @@ function PlayerAvatar({
   );
 }
 
-function MatchRow({
+function MatchCard({
   pairing,
   userId,
   userNameMap,
   userPictureMap,
-  expanded,
-  onToggle,
 }: {
   pairing: PairingFull;
   userId: string;
   userNameMap: Record<string, string>;
   userPictureMap: Record<string, string | null>;
-  expanded: boolean;
-  onToggle: () => void;
 }) {
   const onA = pairing.team_a_player_1 === userId || pairing.team_a_player_2 === userId;
   const result = pairing.game_results;
@@ -88,22 +82,20 @@ function MatchRow({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border transition-shadow",
+        "overflow-hidden rounded-xl border",
         won === true && "border-green-200",
         won === false && "border-red-100",
         won === null && "border-gray-200"
       )}
     >
-      {/* Main row — tappable */}
-      <button
-        onClick={onToggle}
+      {/* Header row */}
+      <div
         className={cn(
-          "flex w-full items-center gap-3 px-3 py-3 text-left",
+          "flex items-center gap-3 px-3 py-3",
           won === true && "bg-green-50",
           won === false && "bg-red-50",
           won === null && "bg-white"
         )}
-        aria-expanded={expanded}
       >
         {/* W/L badge */}
         <span
@@ -117,14 +109,12 @@ function MatchRow({
           {won === null ? "–" : won ? "W" : "L"}
         </span>
 
-        {/* Main content */}
+        {/* Session + date */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-sm font-semibold text-gray-900">
-              {pairing.sessions?.name ?? "Unknown session"}
-            </p>
-          </div>
-          <p className="truncate text-xs text-gray-400">
+          <p className="truncate text-sm font-semibold text-gray-900">
+            {pairing.sessions?.name ?? "Unknown session"}
+          </p>
+          <p className="truncate text-xs text-gray-500">
             {pairing.completed_at
               ? format(new Date(pairing.completed_at), "d MMM yyyy · h:mm a")
               : pairing.sessions?.date
@@ -133,91 +123,83 @@ function MatchRow({
           </p>
         </div>
 
-        {/* Score + expand chevron */}
-        <div className="flex shrink-0 items-center gap-2">
-          {myScore !== null && oppScore !== null && (
-            <span
-              className={cn(
-                "rounded-md px-2 py-0.5 text-sm font-bold tabular-nums",
-                won === true && "bg-green-100 text-green-700",
-                won === false && "bg-red-100 text-red-600",
-                won === null && "bg-gray-100 text-gray-600"
+        {/* Score */}
+        {myScore !== null && oppScore !== null && (
+          <span
+            className={cn(
+              "shrink-0 rounded-md px-2 py-0.5 text-sm font-bold tabular-nums",
+              won === true && "bg-green-100 text-green-700",
+              won === false && "bg-red-100 text-red-600",
+              won === null && "bg-gray-100 text-gray-600"
+            )}
+          >
+            {myScore}–{oppScore}
+          </span>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div
+        className={cn(
+          "border-t",
+          won === true && "border-green-100",
+          won === false && "border-red-100",
+          won === null && "border-gray-100"
+        )}
+      />
+
+      {/* Body — court + teams (always visible) */}
+      <div
+        className={cn(
+          "space-y-1.5 px-3 pb-3 pt-2",
+          won === true && "bg-green-50/60",
+          won === false && "bg-red-50/60",
+          won === null && "bg-gray-50"
+        )}
+      >
+        <p className="text-xs text-gray-500">
+          Court {pairing.court_number}
+          {pairing.sessions?.name && <> · {pairing.sessions.name}</>}
+        </p>
+
+        <div className="space-y-1.5">
+          {/* You & partner */}
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="w-16 shrink-0 text-xs font-medium text-gray-500">You &amp; partner</span>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <PlayerAvatar
+                pictureUrl={userPictureMap[userId] ?? null}
+                displayName={userNameMap[userId] ?? "You"}
+              />
+              {partner && (
+                <PlayerAvatar
+                  pictureUrl={getPicture(partner)}
+                  displayName={partnerName}
+                />
               )}
-            >
-              {myScore}–{oppScore}
-            </span>
-          )}
-          {expanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-400" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-gray-400" />
-          )}
-        </div>
-      </button>
+              <span className="truncate text-xs text-gray-700">
+                {userNameMap[userId] ?? "You"}
+                {partner && ` & ${partnerName}`}
+              </span>
+            </div>
+          </div>
 
-      {/* Expanded detail */}
-      {expanded && (
-        <div
-          className={cn(
-            "border-t px-3 py-3",
-            won === true && "border-green-100 bg-green-50/60",
-            won === false && "border-red-100 bg-red-50/60",
-            won === null && "border-gray-100 bg-gray-50"
-          )}
-        >
-          <div className="space-y-2">
-            {/* Court */}
-            <p className="text-xs text-gray-400">
-              Court {pairing.court_number}
-              {pairing.sessions?.name && (
-                <> · {pairing.sessions.name}</>
-              )}
-            </p>
-
-            {/* Teams */}
-            <div className="space-y-1.5">
-              {/* My team */}
-              <div className="flex items-center gap-2">
-                <span className="w-16 shrink-0 text-xs font-medium text-gray-500">You &amp; partner</span>
-                <div className="flex items-center gap-1.5">
-                  <PlayerAvatar
-                    pictureUrl={userPictureMap[userId] ?? null}
-                    displayName={userNameMap[userId] ?? "You"}
-                  />
-                  {partner && (
-                    <>
-                      <span className="text-xs text-gray-300">&amp;</span>
-                      <PlayerAvatar
-                        pictureUrl={getPicture(partner)}
-                        displayName={partnerName}
-                      />
-                    </>
-                  )}
-                  <span className="ml-0.5 text-xs text-gray-600">
-                    {userNameMap[userId] ?? "You"}
-                    {partner && ` & ${partnerName}`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Opponents */}
-              <div className="flex items-center gap-2">
-                <span className="w-16 shrink-0 text-xs font-medium text-gray-500">Opponents</span>
-                <div className="flex items-center gap-1.5">
-                  {oppTeam.filter((id): id is string => id != null).map((id) => (
-                    <PlayerAvatar
-                      key={id}
-                      pictureUrl={getPicture(id)}
-                      displayName={getName(id)}
-                    />
-                  ))}
-                  <span className="ml-0.5 text-xs text-gray-600">{oppNames.join(" & ")}</span>
-                </div>
-              </div>
+          {/* Opponents */}
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="w-16 shrink-0 text-xs font-medium text-gray-500">Opponents</span>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              {oppTeam.filter((id): id is string => id != null).map((id) => (
+                <PlayerAvatar
+                  key={id}
+                  pictureUrl={getPicture(id)}
+                  displayName={getName(id)}
+                />
+              ))}
+              <span className="truncate text-xs text-gray-700">{oppNames.join(" & ")}</span>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -231,8 +213,6 @@ export default function MatchHistoryList({
   currentPage,
   pageSize,
 }: MatchHistoryListProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
   const totalPages = Math.ceil(totalCount / pageSize);
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
@@ -259,7 +239,7 @@ export default function MatchHistoryList({
         {totalPages > 1 && ` · Page ${currentPage} of ${totalPages}`}
       </p>
 
-      {/* Match rows */}
+      {/* Match cards */}
       <div className="space-y-2">
         {pairings.length === 0 ? (
           <div className="rounded-xl border bg-white px-4 py-10 text-center text-sm text-gray-400">
@@ -270,16 +250,12 @@ export default function MatchHistoryList({
           </div>
         ) : (
           pairings.map((pairing) => (
-            <MatchRow
+            <MatchCard
               key={pairing.id}
               pairing={pairing}
               userId={userId}
               userNameMap={userNameMap}
               userPictureMap={userPictureMap}
-              expanded={expandedId === pairing.id}
-              onToggle={() =>
-                setExpandedId((prev) => (prev === pairing.id ? null : pairing.id))
-              }
             />
           ))
         )}
