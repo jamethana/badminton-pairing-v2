@@ -131,6 +131,9 @@ export default function CourtDashboardClient({
   const [sessionUpdatedToast, setSessionUpdatedToast] = useState(false);
   const [isReconnectingFromVisibility, setIsReconnectingFromVisibility] = useState(false);
 
+  // Edit player dialog state (Players tab)
+  const [editPlayerSpId, setEditPlayerSpId] = useState<string | null>(null);
+
   // Realtime: merge remote changes so multiple moderators stay in sync
   const userById = useMemo(() => new Map(allUsers.map((u) => [u.id, u])), [allUsers]);
 
@@ -538,6 +541,24 @@ export default function CourtDashboardClient({
       setSessionPlayers((prev) =>
         prev.map((sp) => (sp.id === spId ? { ...sp, is_active: currentActive } : sp))
       );
+    }
+  };
+
+  const handleEditPlayerSkill = async (userId: string, newSkill: number) => {
+    const clamped = Math.max(1, Math.min(10, newSkill));
+    const previous = sessionPlayers;
+    setSessionPlayers((prev) =>
+      prev.map((sp) =>
+        sp.users?.id === userId ? { ...sp, users: { ...sp.users!, skill_level: clamped } } : sp
+      )
+    );
+    const res = await fetch(`/api/players/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ skill_level: clamped }),
+    });
+    if (!res.ok) {
+      setSessionPlayers(previous);
     }
   };
 
@@ -1120,9 +1141,19 @@ export default function CourtDashboardClient({
           {/* Player rows */}
           <div className="divide-y">
             {sortedStats.map(({ sp, user, matchesPlayed, wins, losses, winPct, gamesSince }) => (
-              <div
+              <button
                 key={sp.id}
-                className={cn("flex items-center gap-3 px-4 py-3", !sp.is_active && "opacity-50")}
+                type="button"
+                disabled={isCompleted}
+                onClick={() => setEditPlayerSpId(sp.id)}
+                aria-label={`Edit ${user.display_name}`}
+                className={cn(
+                  "flex w-full items-center gap-3 px-4 py-3 text-left",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
+                  !isCompleted && "cursor-pointer active:opacity-70",
+                  isCompleted && "cursor-default",
+                  !sp.is_active && "opacity-50"
+                )}
               >
                 <div className="flex flex-shrink-0 flex-col items-center gap-0.5">
                   {user.picture_url ? (
@@ -1178,7 +1209,7 @@ export default function CourtDashboardClient({
                     <span className="text-xs text-gray-400">S{user.skill_level}</span>
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -1516,6 +1547,84 @@ export default function CourtDashboardClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit player dialog (Players tab) */}
+      {(() => {
+        const editPlayer = editPlayerSpId
+          ? sessionPlayers.find((sp) => sp.id === editPlayerSpId)
+          : null;
+        const editUser = editPlayer?.users ?? null;
+        return (
+          <Dialog
+            open={!!editPlayerSpId}
+            onOpenChange={(open) => {
+              if (!open) setEditPlayerSpId(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{editUser ? `Edit ${editUser.display_name}` : "Edit player"}</DialogTitle>
+                <DialogDescription>
+                  Changes save immediately.
+                </DialogDescription>
+              </DialogHeader>
+              {editPlayer && editUser && (
+                <div className="space-y-5 py-1">
+                  {/* Active toggle */}
+                  <label className="flex cursor-pointer items-center justify-between gap-4">
+                    <span className="text-sm font-medium text-gray-700">Active</span>
+                    <input
+                      type="checkbox"
+                      checked={editPlayer.is_active}
+                      onChange={() => handleToggleActive(editPlayer.id, editPlayer.is_active)}
+                      className="h-5 w-5 cursor-pointer rounded border-gray-300 accent-green-600"
+                    />
+                  </label>
+
+                  {/* Skill level */}
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-medium text-gray-700">Skill level</span>
+                    <select
+                      value={editUser.skill_level}
+                      onChange={(e) =>
+                        handleEditPlayerSkill(editUser.id, parseInt(e.target.value))
+                      }
+                      className="w-20 rounded border border-gray-300 px-2 py-1.5 text-center text-sm focus:border-green-400 focus:outline-none"
+                    >
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+              <DialogFooter className="flex-col gap-2 sm:flex-col">
+                <Button
+                  variant="outline"
+                  className="w-full min-h-[44px]"
+                  onClick={() => setEditPlayerSpId(null)}
+                >
+                  Done
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full min-h-[44px]"
+                  onClick={() => {
+                    if (!editPlayer || !editUser) return;
+                    if (!window.confirm(`Remove ${editUser.display_name} from this session?`)) return;
+                    handleRemovePlayer(editPlayer.id);
+                    setEditPlayerSpId(null);
+                  }}
+                >
+                  Remove from session
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </>
   );
 }
