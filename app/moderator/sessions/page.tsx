@@ -101,7 +101,7 @@ export default async function SessionsPage({ searchParams }: PageProps) {
         <h1 className="text-2xl font-bold text-gray-900">Sessions</h1>
         <Link
           href="/moderator/sessions/new"
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
         >
           + New Session
         </Link>

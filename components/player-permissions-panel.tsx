@@ -378,7 +378,7 @@ export default function PlayerPermissionsPanel({
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
                     idx > 0 && "border-l border-gray-200",
                     isSelected
-                      ? "bg-green-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                   )}
                 >
@@ -427,7 +427,7 @@ export default function PlayerPermissionsPanel({
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
                     idx > 0 && "border-l border-gray-200",
                     isSelected
-                      ? "bg-green-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                   )}
                 >
@@ -476,7 +476,7 @@ export default function PlayerPermissionsPanel({
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
                     idx > 0 && "border-l border-gray-200",
                     isSelected
-                      ? "bg-green-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                   )}
                 >
@@ -523,7 +523,7 @@ export default function PlayerPermissionsPanel({
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
                     idx > 0 && "border-l border-gray-200",
                     isSelected
-                      ? "bg-green-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                       : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                   )}
                 >

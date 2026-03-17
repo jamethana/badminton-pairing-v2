@@ -122,7 +122,7 @@ export default function SessionForm({
       "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
       idx > 0 && "border-l border-gray-200",
       isSelected
-        ? "bg-green-600 text-white"
+        ? "bg-primary text-primary-foreground"
         : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
     );
 
@@ -466,7 +466,7 @@ export default function SessionForm({
         <Button
           type="submit"
           disabled={loading}
-          className="flex-1 bg-green-600 hover:bg-green-700"
+          className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {loading
             ? mode === "create"

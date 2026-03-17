@@ -472,7 +472,7 @@ export default function AssignmentModal({
           <Button
             onClick={handleConfirm}
             disabled={!allFilled || loading}
-            className="w-full bg-green-600 py-6 text-base hover:bg-green-700"
+            className="w-full bg-primary py-6 text-base text-primary-foreground hover:bg-primary/90"
           >
             {loading ? "Starting…" : "Start Match"}
           </Button>

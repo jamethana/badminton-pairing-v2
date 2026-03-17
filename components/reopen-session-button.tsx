@@ -41,7 +41,7 @@ export default function ReopenSessionButton({ sessionId }: ReopenSessionButtonPr
       <button
         onClick={handleReopen}
         disabled={loading}
-        className="rounded-lg bg-green-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+      className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
       >
         {loading ? "Reopening…" : "Reopen Session"}
       </button>

@@ -162,7 +162,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
               <button
                 type="submit"
                 disabled={!addForm.display_name.trim() || addPlayerLoading}
-                className="min-h-[44px] rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                className="min-h-[44px] rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
               >
                 {addPlayerLoading ? "Adding…" : "Add Player"}
               </button>
@@ -177,7 +177,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
         <div className="flex justify-end">
           <button
             onClick={() => setShowAddForm(true)}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             + Add Player
           </button>
@@ -226,7 +226,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
                       </button>
                       <button
                         onClick={() => saveEdit(player.id)}
-                        className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+                        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                       >
                         Save
                       </button>
@@ -432,7 +432,7 @@ export default function PlayersClient({ initialPlayers }: Props) {
                       </button>
                       <button
                         onClick={() => saveEdit(player.id)}
-                        className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
+                        className="rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                       >
                         Save
                       </button>

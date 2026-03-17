@@ -190,7 +190,7 @@ export default function ResultModal({
               onClick={handleConfirm}
               disabled={isLoading}
               autoFocus
-              className="flex-[2] rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40"
+            className="flex-[2] rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
             >
               {isLoading ? "Recording…" : `Confirm ${pendingLabel} wins`}
             </button>

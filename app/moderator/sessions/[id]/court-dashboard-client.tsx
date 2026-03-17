@@ -865,7 +865,7 @@ export default function CourtDashboardClient({
               {!isCompleted && (
                 <button
                   onClick={() => setAddingPlayer(!addingPlayer)}
-                  className="min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                  className="min-h-[44px] rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
                   + Add Player
                 </button>
@@ -972,7 +972,7 @@ export default function CourtDashboardClient({
                       <button
                         type="submit"
                         disabled={isAddingPlayer}
-                        className="min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                        className="min-h-[44px] rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                       >
                         {isAddingPlayer ? "Adding…" : "Add"}
                       </button>
@@ -1004,7 +1004,7 @@ export default function CourtDashboardClient({
                     type="button"
                     onClick={handleAddSelectedExisting}
                     disabled={isAddingPlayer || selectedUserIds.length === 0}
-                    className="min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                    className="min-h-[44px] rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                   >
                     {isAddingPlayer
                       ? "Adding…"
@@ -1169,7 +1169,7 @@ export default function CourtDashboardClient({
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
                       idx > 0 && "border-l border-gray-200",
                       isSelected
-                        ? "bg-green-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                     )}
                   >
@@ -1233,7 +1233,7 @@ export default function CourtDashboardClient({
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
                       idx > 0 && "border-l border-gray-200",
                       isSelected
-                        ? "bg-green-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                     )}
                   >
@@ -1294,7 +1294,7 @@ export default function CourtDashboardClient({
                         "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500",
                         idx > 0 && "border-l border-gray-200",
                         isSelected
-                          ? "bg-green-600 text-white"
+                          ? "bg-primary text-primary-foreground"
                           : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                       )}
                     >
@@ -1497,7 +1497,7 @@ export default function CourtDashboardClient({
                     className={cn(
                       "w-full min-h-[44px]",
                       editPlayer.is_active
-                        ? "border-green-600 bg-green-600 text-white hover:bg-green-700 hover:text-white"
+                        ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
                         : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
                     )}
                     onClick={() => handleToggleActive(editPlayer.id, editPlayer.is_active)}

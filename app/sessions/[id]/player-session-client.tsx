@@ -879,7 +879,7 @@ export default function PlayerSessionClient({
                     onClick={() =>
                       setResultModal({ pairingId: myCurrentGame.id, courtNumber: myCurrentGame.court_number })
                     }
-                    className="mt-2 min-h-[44px] w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 hover:text-white sm:w-auto"
+                    className="mt-2 min-h-[44px] w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
                   >
                     Record Result
                   </Button>
