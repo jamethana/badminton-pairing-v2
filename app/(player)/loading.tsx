@@ -8,7 +8,7 @@ export default function HomeLoading() {
       </div>
 
       {/* Sessions list skeleton */}
-      <div className="rounded-xl border bg-white">
+      <div className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
           <div className="h-4 w-28 rounded bg-gray-200 animate-pulse motion-reduce:animate-none" />
         </div>

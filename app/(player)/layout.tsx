@@ -14,7 +14,7 @@ export default async function PlayerLayout({
   const { appUser } = user;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted">
       <NavBar
         isModerator={appUser.is_moderator}
         displayName={appUser.display_name}

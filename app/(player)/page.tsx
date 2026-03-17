@@ -1,12 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getViewAs } from "@/lib/view-as";
 import UserSessionsList, { type UserSession } from "@/components/user-sessions-list";
 import type { PlayerLite } from "@/components/avatar-stack";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import AlertCard from "@/components/alert-card";
 
 export default async function Home() {
   const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
@@ -103,33 +101,26 @@ export default async function Home() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           Hey, {user.appUser.display_name}! 👋
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           DM Jame for bugs, feedback, feature requests, or anything else! Ho asss frontend delivery excellences always breaking on me from simple changes, but I'll try my best to fix them. Please don't hesitate to report anything that seems broken or unexpected or if you have a suggestion for the name of the app.
         </p>
       </div>
 
       {activeSessions.length > 0 && (
-        <Card className="mb-6 border border-border bg-card">
-          <CardHeader className="flex flex-row items-center gap-2 px-4 pt-4">
-            <Badge variant="secondary" className="text-xs font-semibold">
-              Live Session
-            </Badge>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 pt-2">
-            {activeSessions.map((s) => (
-              <Link
-                key={s.id}
-                href={`/sessions/${s.id}`}
-                className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                {s.name} →
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
+        <div className="mb-6">
+          <AlertCard
+            badgeLabel="Live Session"
+            badgeVariant="secondary"
+            items={activeSessions.map((s) => ({
+              id: s.id,
+              label: s.name,
+              href: `/sessions/${s.id}`,
+            }))}
+          />
+        </div>
       )}
 
       <UserSessionsList sessions={sessions} />

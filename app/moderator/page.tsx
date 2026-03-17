@@ -82,8 +82,8 @@ export default async function ModeratorDashboard() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Moderator Dashboard</h1>
-          <p className="text-sm text-gray-500">Welcome back, {user?.appUser.display_name}</p>
+          <h1 className="text-2xl font-bold text-foreground">Moderator Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Welcome back, {user?.appUser.display_name}</p>
         </div>
         <Link
           href="/moderator/sessions/new"
@@ -95,24 +95,22 @@ export default async function ModeratorDashboard() {
 
       {/* Stats */}
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
-        <div className="rounded-xl border bg-white p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-gray-500">Total Players</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{playerCount ?? 0}</p>
+        <div className="rounded-xl border bg-card p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-muted-foreground">Total Players</p>
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">{playerCount ?? 0}</p>
         </div>
-        <div className="rounded-xl border bg-white p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-gray-500">Active</p>
+        <div className="rounded-xl border bg-card p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-muted-foreground">Active</p>
           <p className="text-2xl sm:text-3xl font-bold text-green-600">{activeSessions.length}</p>
         </div>
-        <div className="rounded-xl border bg-white p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-gray-500">Upcoming</p>
+        <div className="rounded-xl border bg-card p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-muted-foreground">Upcoming</p>
           <p className="text-2xl sm:text-3xl font-bold text-blue-600">{upcomingSessions.length}</p>
         </div>
       </div>
 
       {/* Recent sessions */}
-      <div className="rounded-xl border bg-white">
-        <ModeratorRecentSessionsList sessions={sessionsWithCreator} />
-      </div>
+      <ModeratorRecentSessionsList sessions={sessionsWithCreator} />
     </div>
   );
 }

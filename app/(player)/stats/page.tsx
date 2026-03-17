@@ -51,8 +51,8 @@ export default async function MyStatsPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-900">My Stats</h1>
-        <p className="text-sm text-gray-500">Your all-time career statistics</p>
+        <h1 className="text-2xl font-bold text-foreground">My Stats</h1>
+        <p className="text-sm text-muted-foreground">Your all-time career statistics</p>
       </div>
       <PlayerStatsView
         player={appUser}

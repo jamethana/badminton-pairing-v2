@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
 import CourtDashboardClient from "./court-dashboard-client";
 import SessionInviteActions from "@/components/session-invite-actions";
+import { Badge } from "@/components/ui/badge";
 
 export default async function SessionDashboardPage({
   params,
@@ -44,8 +45,8 @@ export default async function SessionDashboardPage({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{session.name}</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
+          <p className="text-sm text-muted-foreground">
             {format(new Date(session.date + "T00:00:00"), "EEE, MMM d")}
             {session.location && ` · ${session.location}`}
             {" · "}
@@ -53,15 +54,12 @@ export default async function SessionDashboardPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              session.status === "active"
-                ? "bg-green-100 text-green-700"
-                : "bg-gray-100 text-gray-600"
-            }`}
+          <Badge
+            variant={session.status === "active" ? "secondary" : "ghost"}
+            className="text-xs font-semibold capitalize"
           >
             {session.status}
-          </span>
+          </Badge>
           <SessionInviteActions sessionId={session.id} />
         </div>
       </div>

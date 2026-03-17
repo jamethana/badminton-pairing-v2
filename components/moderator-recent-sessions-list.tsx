@@ -4,12 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AvatarStack, type PlayerLite } from "@/components/avatar-stack";
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  active: "bg-green-100 text-green-700",
-  completed: "bg-blue-100 text-blue-700",
+const STATUS_VARIANT: Record<string, "secondary" | "outline" | "ghost"> = {
+  draft: "ghost",
+  active: "secondary",
+  completed: "outline",
 };
 
 export type ModeratorSession = {
@@ -41,75 +43,84 @@ export default function ModeratorRecentSessionsList({ sessions }: Props) {
   );
 
   return (
-    <>
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="font-semibold text-gray-800">Recent Sessions</h2>
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b bg-card px-4 py-3">
+        <h2 className="text-sm font-semibold text-foreground">Recent Sessions</h2>
         <div className="flex items-center gap-2">
           {hasCompleted && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="xs"
               onClick={() => setShowCompleted((prev) => !prev)}
-              className="hidden text-xs font-medium text-gray-600 hover:text-gray-800 sm:inline-flex"
+              className="hidden sm:inline-flex"
             >
               {showCompleted ? "Hide completed" : "Show completed"}
-            </button>
+            </Button>
           )}
           <Link
             href="/moderator/sessions"
-            className="text-sm text-green-600 hover:underline"
+            className="text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             View all →
           </Link>
         </div>
-      </div>
-      <div className="divide-y">
-        {visibleSessions.length > 0 ? (
-          visibleSessions.map((session) => (
-            <Link
-              key={session.id}
-              href={`/moderator/sessions/${session.id}`}
-              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-            >
-              <div>
-                <p className="font-medium text-gray-900">{session.name}</p>
-                <p className="text-sm text-gray-500">
-                  {format(new Date(session.date + "T00:00:00"), "EEE, MMM d")}
-                  {session.location && ` · ${session.location}`}
-                </p>
-                {session.creatorDisplayName && (
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    Created by {session.creatorDisplayName}
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="divide-y">
+          {visibleSessions.length > 0 ? (
+            visibleSessions.map((session) => (
+              <Link
+                key={session.id}
+                href={`/moderator/sessions/${session.id}`}
+                className="flex items-center justify-between px-4 py-3 outline-none hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{session.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(session.date + "T00:00:00"), "EEE, MMM d")}
+                    {session.location && ` · ${session.location}`}
                   </p>
-                )}
-                {session.playerCount !== undefined && session.playerCount > 0 && (
-                  <div className="mt-0.5 flex items-center gap-2">
-                    <p className="text-xs text-gray-400">
-                      {session.playerCount} {session.playerCount === 1 ? "player" : "players"} joined
+                  {session.creatorDisplayName && (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Created by {session.creatorDisplayName}
                     </p>
-                    <AvatarStack players={session.playerSample ?? []} max={4} size={24} />
-                  </div>
-                )}
-              </div>
-              <Badge className={STATUS_STYLES[session.status]}>{session.status}</Badge>
-            </Link>
-          ))
-        ) : sessions.length > 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-gray-400">
-            No upcoming or active sessions. Toggle to show completed sessions.
-          </p>
-        ) : (
-          <p className="px-4 py-6 text-center text-sm text-gray-400">
-            No sessions yet.{" "}
-            <Link
-              href="/moderator/sessions/new"
-              className="text-green-600 hover:underline"
-            >
-              Create one
-            </Link>
-          </p>
-        )}
-      </div>
-    </>
+                  )}
+                  {session.playerCount !== undefined && session.playerCount > 0 && (
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        {session.playerCount} {session.playerCount === 1 ? "player" : "players"} joined
+                      </p>
+                      <AvatarStack players={session.playerSample ?? []} max={4} size={24} />
+                    </div>
+                  )}
+                </div>
+                <Badge
+                  variant={STATUS_VARIANT[session.status] ?? "ghost"}
+                  className="text-[11px] capitalize"
+                >
+                  {session.status}
+                </Badge>
+              </Link>
+            ))
+          ) : sessions.length > 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No upcoming or active sessions. Toggle to show completed sessions.
+            </p>
+          ) : (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No sessions yet.{" "}
+              <Link
+                href="/moderator/sessions/new"
+                className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                Create one
+              </Link>
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

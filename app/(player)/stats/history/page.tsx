@@ -73,13 +73,13 @@ export default async function MatchHistoryPage({
       <div className="mb-5">
         <Link
           href="/stats"
-          className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to My Stats
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Match History</h1>
-        <p className="text-sm text-gray-500">All your completed games</p>
+        <h1 className="text-2xl font-bold text-foreground">Match History</h1>
+        <p className="text-sm text-muted-foreground">All your completed games</p>
       </div>
       <MatchHistoryList
         pairings={safePairings}
