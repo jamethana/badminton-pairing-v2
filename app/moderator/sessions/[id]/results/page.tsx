@@ -44,17 +44,20 @@ export default async function SessionResultsPage({
   );
 
   return (
-    <div>
-      <div className="mb-4 flex items-start gap-3">
+    <main className="mx-auto max-w-5xl px-4 py-6">
+      <header className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <Link
           href={`/moderator/sessions/${id}`}
-          className="mt-0.5 shrink-0 rounded-lg border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          className="inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          ← Dashboard
+          <span aria-hidden="true" className="mr-1">
+            ←
+          </span>
+          <span>Dashboard</span>
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-gray-900">{session.name}</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
+          <p className="text-sm text-muted-foreground">
             {format(new Date(session.date + "T00:00:00"), "EEE, MMM d, yyyy")}
             {session.location && ` · ${session.location}`}
             {" · "}
@@ -64,13 +67,15 @@ export default async function SessionResultsPage({
         {session.status === "completed" && (
           <ReopenSessionButton sessionId={session.id} />
         )}
-      </div>
+      </header>
 
-      <SessionResultsClient
-        pairings={pairings}
-        sessionPlayers={sessionPlayers}
-        playerMap={Object.fromEntries(playerMap)}
-      />
-    </div>
+      <section aria-label="Session results">
+        <SessionResultsClient
+          pairings={pairings}
+          sessionPlayers={sessionPlayers}
+          playerMap={Object.fromEntries(playerMap)}
+        />
+      </section>
+    </main>
   );
 }

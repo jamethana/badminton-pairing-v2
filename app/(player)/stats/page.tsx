@@ -49,17 +49,19 @@ export default async function MyStatsPage() {
   const stats = computeCareerStats(safePairings, appUser.id, userNameMap);
 
   return (
-    <>
-      <div className="mb-5">
+    <main className="mx-auto max-w-2xl px-4 py-6">
+      <header className="mb-5">
         <h1 className="text-2xl font-bold text-foreground">My Stats</h1>
         <p className="text-sm text-muted-foreground">Your all-time career statistics</p>
-      </div>
-      <PlayerStatsView
-        player={appUser}
-        stats={stats}
-        userNameMap={userNameMap}
-        userPictureMap={userPictureMap}
-      />
-    </>
+      </header>
+      <section aria-label="Career statistics">
+        <PlayerStatsView
+          player={appUser}
+          stats={stats}
+          userNameMap={userNameMap}
+          userPictureMap={userPictureMap}
+        />
+      </section>
+    </main>
   );
 }

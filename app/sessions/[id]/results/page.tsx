@@ -48,7 +48,7 @@ export default async function PlayerSessionResultsPage({
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted">
       <NavBar
         isModerator={user.appUser.is_moderator}
         displayName={user.appUser.display_name}
@@ -56,21 +56,23 @@ export default async function PlayerSessionResultsPage({
         viewAs={viewAs}
       />
       <main className="mx-auto max-w-2xl px-4 py-6">
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-900">{session.name}</h1>
-          <p className="text-sm text-gray-500">
+        <header className="mb-4">
+          <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
+          <p className="text-sm text-muted-foreground">
             {format(new Date(session.date + "T00:00:00"), "EEE, MMM d, yyyy")}
             {session.location && ` · ${session.location}`}
             {" · "}
             {session.start_time.slice(0, 5)} – {session.end_time.slice(0, 5)}
           </p>
-        </div>
+        </header>
 
-        <SessionResultsClient
-          pairings={pairings}
-          sessionPlayers={sessionPlayers}
-          playerMap={Object.fromEntries(playerMap)}
-        />
+        <section aria-label="Session results">
+          <SessionResultsClient
+            pairings={pairings}
+            sessionPlayers={sessionPlayers}
+            playerMap={Object.fromEntries(playerMap)}
+          />
+        </section>
       </main>
     </div>
   );

@@ -69,27 +69,29 @@ export default async function MatchHistoryPage({
   userPictureMap[appUser.id] = appUser.picture_url ?? null;
 
   return (
-    <>
-      <div className="mb-5">
+    <main className="mx-auto max-w-2xl px-4 py-6">
+      <header className="mb-5">
         <Link
           href="/stats"
           className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ChevronLeft className="h-4 w-4" />
-          Back to My Stats
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          <span>Back to My Stats</span>
         </Link>
         <h1 className="text-2xl font-bold text-foreground">Match History</h1>
         <p className="text-sm text-muted-foreground">All your completed games</p>
-      </div>
-      <MatchHistoryList
-        pairings={safePairings}
-        userId={appUser.id}
-        userNameMap={userNameMap}
-        userPictureMap={userPictureMap}
-        totalCount={totalCount}
-        currentPage={page}
-        pageSize={PAGE_SIZE}
-      />
-    </>
+      </header>
+      <section aria-label="Match history list">
+        <MatchHistoryList
+          pairings={safePairings}
+          userId={appUser.id}
+          userNameMap={userNameMap}
+          userPictureMap={userPictureMap}
+          totalCount={totalCount}
+          currentPage={page}
+          pageSize={PAGE_SIZE}
+        />
+      </section>
+    </main>
   );
 }

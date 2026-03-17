@@ -42,8 +42,8 @@ export default async function SessionDashboardPage({
   const allUsers = allUsersRes.data ?? [];
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
+    <main className="mx-auto max-w-5xl px-4 py-6">
+      <header className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
           <p className="text-sm text-muted-foreground">
@@ -55,34 +55,36 @@ export default async function SessionDashboardPage({
         </div>
         <div className="flex items-center gap-2">
           <Badge
-            variant={session.status === "active" ? "secondary" : "ghost"}
+            variant={session.status === "active" ? "secondary" : "outline"}
             className="text-xs font-semibold capitalize"
           >
             {session.status}
           </Badge>
           <SessionInviteActions sessionId={session.id} />
         </div>
-      </div>
+      </header>
 
-      <CourtDashboardClient
-        session={{
-          id: session.id,
-          status: session.status,
-          num_courts: session.num_courts,
-          court_names: session.court_names,
-          allow_player_assign_empty_court: session.allow_player_assign_empty_court,
-          allow_player_record_own_result: session.allow_player_record_own_result,
-          allow_player_record_any_result: session.allow_player_record_any_result,
-          show_skill_level_pills: session.show_skill_level_pills ?? true,
-          allow_player_add_remove_courts: session.allow_player_add_remove_courts,
-          allow_player_access_invite_qr: session.allow_player_access_invite_qr,
-          pairing_rule: session.pairing_rule,
-          max_partner_skill_level_gap: session.max_partner_skill_level_gap,
-        }}
-        initialSessionPlayers={sessionPlayers}
-        initialPairings={pairings}
-        allUsers={allUsers}
-      />
-    </div>
+      <section aria-label="Court dashboard">
+        <CourtDashboardClient
+          session={{
+            id: session.id,
+            status: session.status,
+            num_courts: session.num_courts,
+            court_names: session.court_names,
+            allow_player_assign_empty_court: session.allow_player_assign_empty_court,
+            allow_player_record_own_result: session.allow_player_record_own_result,
+            allow_player_record_any_result: session.allow_player_record_any_result,
+            show_skill_level_pills: session.show_skill_level_pills ?? true,
+            allow_player_add_remove_courts: session.allow_player_add_remove_courts,
+            allow_player_access_invite_qr: session.allow_player_access_invite_qr,
+            pairing_rule: session.pairing_rule,
+            max_partner_skill_level_gap: session.max_partner_skill_level_gap,
+          }}
+          initialSessionPlayers={sessionPlayers}
+          initialPairings={pairings}
+          allUsers={allUsers}
+        />
+      </section>
+    </main>
   );
 }

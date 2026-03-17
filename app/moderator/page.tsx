@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/supabase/auth";
 import Link from "next/link";
 import ModeratorRecentSessionsList from "@/components/moderator-recent-sessions-list";
 import type { PlayerLite } from "@/components/avatar-stack";
+import { Badge } from "@/components/ui/badge";
 
 export default async function ModeratorDashboard() {
   const user = await getCurrentUser();
@@ -79,38 +80,59 @@ export default async function ModeratorDashboard() {
   }));
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <main className="mx-auto max-w-4xl px-4 py-6">
+      <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Moderator Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Welcome back, {user?.appUser.display_name}</p>
+          <p className="text-sm text-muted-foreground">
+            Welcome back, {user?.appUser.display_name}
+          </p>
         </div>
         <Link
           href="/moderator/sessions/new"
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           + New Session
         </Link>
-      </div>
+      </header>
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
+      <section
+        aria-label="Session statistics"
+        className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4"
+      >
         <div className="rounded-xl border bg-card p-3 sm:p-4">
           <p className="text-xs sm:text-sm text-muted-foreground">Total Players</p>
           <p className="text-2xl sm:text-3xl font-bold text-foreground">{playerCount ?? 0}</p>
         </div>
         <div className="rounded-xl border bg-card p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-muted-foreground">Active</p>
-          <p className="text-2xl sm:text-3xl font-bold text-green-600">{activeSessions.length}</p>
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-xs sm:text-sm text-muted-foreground">Active sessions</p>
+            <Badge variant="secondary" className="text-[11px] font-semibold uppercase">
+              Live
+            </Badge>
+          </div>
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">
+            {activeSessions.length}
+          </p>
         </div>
         <div className="rounded-xl border bg-card p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-muted-foreground">Upcoming</p>
-          <p className="text-2xl sm:text-3xl font-bold text-blue-600">{upcomingSessions.length}</p>
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-xs sm:text-sm text-muted-foreground">Upcoming sessions</p>
+            <Badge variant="outline" className="text-[11px] font-semibold uppercase">
+              Draft
+            </Badge>
+          </div>
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">
+            {upcomingSessions.length}
+          </p>
         </div>
-      </div>
+      </section>
 
       {/* Recent sessions */}
-      <ModeratorRecentSessionsList sessions={sessionsWithCreator} />
-    </div>
+      <section aria-label="Recent sessions">
+        <ModeratorRecentSessionsList sessions={sessionsWithCreator} />
+      </section>
+    </main>
   );
 }
