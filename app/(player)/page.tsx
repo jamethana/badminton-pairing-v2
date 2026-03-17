@@ -5,6 +5,8 @@ import Link from "next/link";
 import { getViewAs } from "@/lib/view-as";
 import UserSessionsList, { type UserSession } from "@/components/user-sessions-list";
 import type { PlayerLite } from "@/components/avatar-stack";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function Home() {
   const [user, viewAs] = await Promise.all([getCurrentUser(), getViewAs()]);
@@ -110,18 +112,24 @@ export default async function Home() {
       </div>
 
       {activeSessions.length > 0 && (
-        <div className="mb-6 rounded-xl border-2 border-green-400 bg-green-50 p-4">
-          <p className="mb-2 text-sm font-semibold text-green-800">Live Session</p>
-          {activeSessions.map((s) => (
-            <Link
-              key={s.id}
-              href={`/sessions/${s.id}`}
-              className="block text-lg font-bold text-green-700 hover:underline"
-            >
-              {s.name} →
-            </Link>
-          ))}
-        </div>
+        <Card className="mb-6 border border-border bg-card">
+          <CardHeader className="flex flex-row items-center gap-2 px-4 pt-4">
+            <Badge variant="secondary" className="text-xs font-semibold">
+              Live Session
+            </Badge>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 pt-2">
+            {activeSessions.map((s) => (
+              <Link
+                key={s.id}
+                href={`/sessions/${s.id}`}
+                className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                {s.name} →
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       <UserSessionsList sessions={sessions} />
