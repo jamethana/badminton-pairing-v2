@@ -38,20 +38,27 @@ export default async function LoginPage({
   const isSessionInvite = typeof redirectTo === "string" && redirectTo.startsWith("/sessions/");
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
+    <main className="flex min-h-screen items-center justify-center bg-muted">
+      <section
+        aria-label="Sign in"
+        className="w-full max-w-sm rounded-2xl border bg-card p-8 text-foreground shadow-lg"
+      >
         {errorMessage && (
-          <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-700" role="alert">
+          <p
+            className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive"
+            role="alert"
+          >
             {errorMessage}
           </p>
         )}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <svg
               className="h-8 w-8 text-green-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -61,20 +68,20 @@ export default async function LoginPage({
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Badminton Pairing</h1>
-          <p className="mt-2 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-foreground">Badminton Pairing</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             {isSessionInvite
               ? "Sign in with LINE to join this session"
               : "Sign in with LINE to join sessions and track your games"}
           </p>
         </div>
         <LoginButton redirectTo={redirectTo} />
-        <p className="mt-4 text-center text-xs text-gray-400">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
           {isSessionInvite
             ? "After signing in you'll be taken to the session."
             : "New? A moderator will add you to the session once you sign in."}
         </p>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

@@ -99,18 +99,20 @@ export default async function Home() {
   const activeSessions = sessions.filter((s) => s.status === "active");
 
   return (
-    <>
-      <div className="mb-6">
+    <main className="mx-auto max-w-2xl px-4 py-6">
+      <header className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">
-          Hey, {user.appUser.display_name}! 👋
+          Hey, {user.appUser.display_name}!
+          <span aria-hidden="true"> 👋</span>
         </h1>
-        <p className="text-sm text-muted-foreground">
-          DM Jame for bugs, feedback, feature requests, or anything else! Ho asss frontend delivery excellences always breaking on me from simple changes, but I'll try my best to fix them. Please don't hesitate to report anything that seems broken or unexpected or if you have a suggestion for the name of the app.
+        <p className="mt-1 text-sm text-muted-foreground">
+          DM me for bugs, feedback, or feature requests. Please report anything that seems broken
+          or unexpected, or if you have a suggestion for the name of the app.
         </p>
-      </div>
+      </header>
 
       {activeSessions.length > 0 && (
-        <div className="mb-6">
+        <section aria-label="Live sessions" className="mb-6">
           <AlertCard
             badgeLabel="Live Session"
             badgeVariant="secondary"
@@ -120,10 +122,12 @@ export default async function Home() {
               href: `/sessions/${s.id}`,
             }))}
           />
-        </div>
+        </section>
       )}
 
-      <UserSessionsList sessions={sessions} />
-    </>
+      <section aria-label="Your sessions">
+        <UserSessionsList sessions={sessions} />
+      </section>
+    </main>
   );
 }
